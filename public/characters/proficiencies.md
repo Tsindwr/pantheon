@@ -27,7 +27,7 @@ Proficiency in [[potentials-and-resistance|Skills]] can be achieved with class f
 
 A character may also be further experienced in an activity more specific than one of the 24 [[potentials-and-resistance|Skills]]. These are represented by Knacks, and allow players to add an additional [[volatility-and-perks|Volatility Die]] for each Knack that is applicable to the current D20 Test. **Knacks** are unique subcategories of skills or subjects that a character specializes in. There is not a defined list of available Knacks in Sunder, but some topics may include: *acrobatics, Draconian history, horseback riding, or woodcarving.*
 
-Naming a Knack is an important part of its application. Knack titles are intended to be idiomatic 
+Naming a Knack is an important part of its application. Knack titles are intended to be idiomatic or carry interpretable social definition.
 
 If a Test has more than one Knack pertinent to its goal (e.g. determining the original purpose of a wood-carved statue from the Gnosichron era), then the player adds a [[volatility-and-perks|Volatility Die]] to their [[volatility-and-perks|Volatility Pool]] per Knack applicable to the Test.
 ## Domains
