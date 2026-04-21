@@ -132,5 +132,7 @@ Group Tests are when the entire party needs to make a shared roll. Each player r
 	</div>
 </div>
 After converting each player's success level to a modifier, add all results together to determine the overall level of success. Convert the sum back to a success level as if it were a modifier, treating outliers as Miffs or Crits.
+###### Subtle Tests
+When the result of a Test will not be immediately confirmable, the GM can choose to make the roll a Subtle Test. This means the player will only resolve their [[volatility-and-perks|Volatility Pool]], but the GM rolls the D20 for the player, and is the sole witness to the base Success Level. The creates a level of suspense, where the player has some idea of their capability, but will only learn the exact impact of their roll once it becomes narratively relevant. This could most often be used for Recall Tests for remembering historical facts, but could also be used for Tests made to avoid the perception of an adversary, glean the intents of another character, or prepare new and untested forms of technology or Magick.
 
 [^1]: Other sources of [[volatility-and-perks|Volatility]] such as a Domain, [[proficiencies|Knacks]], and [[abilities]] are added as normal.
