@@ -99,40 +99,12 @@ If the modifier would ever cause the [[volatility-and-perks|Volatility Pool]] to
 ###### Advantage/Disadvantage
 
 If a Test is given Advantage, then it is rolled with -1 level of Riskiness (see above). If the Riskiness Level is lower than zero, a [[volatility-and-perks|Volatility Die]] is added to the pool instead. If a Test is given Disadvantage, then it is made with +1 level of Riskiness.
-###### Contests
-Rolls between players are not encouraged, as this is a game that supports the exploration of team relationships and mutual support. Instead, it is highly encouraged to resolve any inter-party conflict narratively. Be mindful of the story you want to tell in these situations, not just how your character feels.
-
-In situations where this cannot be circumvented, the initiator of an action rolls a test in the center of the table. The target, to resist, may then roll a test of their own, also in the center of the table. If the dice collide and change their results, then the new results are kept to determine the effect. Be sure to use different-colored D20s and [[volatility-and-perks|Volatility Dice]] from your partner to discern between the two sets. The highest level of success succeeds; ties are resolved by the highest number rolled between the [[volatility-and-perks|Volatility]] Pools, or Rollies.
-
-> [!note]+ Rollies
-> When the result of a contested roll is insignificant, or the opposing efforts are tied, Rollies may be a good method of resolution. The two opposing players both roll a D20. Whoever rolls the lowest wins. In the case of tie, repeat the process.
-###### Group Tests
-Group Tests are when the entire party needs to make a shared roll. Each player rolls the called for Test and consults the success level. Each player's success level is represented by a number called the modifier:
-
-<div style="display: flex; flex-direction: row; align-items: center; justify-content: space-around; width: 100%;">
-	<div style="display: flex; flex-direction: column; justify-content: center; align-items: center; width: 15%;">
-		<strong>-2</strong>
-		<p>Miff</p>
-	</div>
-	<div style="display: flex; flex-direction: column; justify-content: center; align-items: center; width: 15%;">
-		<strong>-1</strong>
-		<p>Failure</p>
-	</div>
-	<div style="display: flex; flex-direction: column; justify-content: center; align-items: center; width: 15%;">
-		<strong>0</strong>
-		<p>Mixed</p>
-	</div>
-	<div style="display: flex; flex-direction: column; justify-content: center; align-items: center; width: 15%;">
-		<strong>1</strong>
-		<p>Success</p>
-	</div>
-	<div style="display: flex; flex-direction: column; justify-content: center; align-items: center; width: 15%;">
-		<strong>2</strong>
-		<p>Crit</p>
-	</div>
-</div>
-After converting each player's success level to a modifier, add all results together to determine the overall level of success. Convert the sum back to a success level as if it were a modifier, treating outliers as Miffs or Crits.
 ###### Subtle Tests
+
 When the result of a Test will not be immediately confirmable, the GM can choose to make the roll a Subtle Test. This means the player will only resolve their [[volatility-and-perks|Volatility Pool]], but the GM rolls the D20 for the player, and is the sole witness to the base Success Level. The creates a level of suspense, where the player has some idea of their capability, but will only learn the exact impact of their roll once it becomes narratively relevant. This could most often be used for Recall Tests for remembering historical facts, but could also be used for Tests made to avoid the perception of an adversary, glean the intents of another character, or prepare new and untested forms of technology or Magick.
+
+<div class="sunder-premium-slot" data-premium-slot="prm_resolution_contests"></div>
+
+<div class="sunder-premium-slot" data-premium-slot="prm_resolution_group_tests"></div>
 
 [^1]: Other sources of [[volatility-and-perks|Volatility]] such as a Domain, [[proficiencies|Knacks]], and [[abilities]] are added as normal.

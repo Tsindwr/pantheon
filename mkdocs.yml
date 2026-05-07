@@ -126,10 +126,10 @@ nav:
           - Stress & Fallout: core/stress-and-fallout.md
           - Spirit Tokens: core/tokens.md
       - Gameplay:
-          - Experience Market: gameplay/abilities.md
-          - Actions: gameplay/actions.md
-          - Spellcasting: characters/spellcasting.md
           - Scenes: gameplay/scenes.md
+          - General Actions: gameplay/actions.md
+          - Experience Market: gameplay/experience-market.md
+          - Spellcasting: characters/spellcasting.md
           - Resting: gameplay/resting.md
       - Characters:
           - Levels: characters/leveling.md
