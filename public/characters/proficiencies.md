@@ -83,7 +83,7 @@ A third kind of proficiency involves **Domains**, which are broad subjects that 
 			</li>
 			<li>
 				<div class="domain">
-					<p>Gleam<span class='subtext'> - The Glint</span></p>
+					<p>Glimmer<span class='subtext'> - The Glint</span></p>
 					<p class="description">Desire, money, temptation, fey</p>
 				</div>
 			</li>

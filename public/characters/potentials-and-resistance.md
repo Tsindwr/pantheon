@@ -30,7 +30,7 @@ Each creature is made up of a set of 8 scores called **Potentials**. Each of the
 >  
 >  ***Nerve:*** A creature's physical tolerance to exertion and pain is represented by its Nerve score. This score may determine a player's ability to ride a horse nonstop, keep ahold of their senses, or stay Concentrating while suffering from damage. 
 >   
->   ***Seep:*** A creature's ability to manifest and maintain their physical form and condition is represented by its Seep score. This score determines a player's ability to physically incorporate the arcane without harm, call upon form-altering magic, or resist the effects of poisons.
+>   ***Seep:*** A creature's body's malleability and control over their physical form is represented by its Seep score. This score determines a player's ability to physically incorporate the arcane without harm, call upon form-altering magic, or resist the effects of poisons.
 
 > [!info]+ **Mental Potentials**
 >  
@@ -40,10 +40,10 @@ Each creature is made up of a set of 8 scores called **Potentials**. Each of the
 >    
 >    ***Heart:*** A creature's ability to maintain spirit in the face of dread and navigating social exchanges is represented by its Heart score. This score determines a player's ability to convey messages nonverbally, haggle for a better price at the bazaar, or remain unfazed in the presence of horrific otherworldly entities.
 >     
->    ***Tether:*** A creature's ability to keep ahold of their sanity and manipulate dark powers is represented by its Tether score. This score determines a player's ability to resist mental arcane assaults, grasp the nature of ancient dwoemers, and wield the energies of the universe. 
+>    ***Tether:*** A creature's mind's malleability and ability to keep ahold of their sanity is represented by its Tether score. This score determines a player's ability to resist mental arcane assaults, grasp the nature of ancient dwoemers, and wield the energies of the universe. 
 
 ### Resistance Points
-Some [[abilities]] or [[volatility-and-perks|perks]] may call for expending a Resistance point. Each Potential is considered to be a pool of Resistance Points equal to the Potential Score. Expending Resistance Points causes the Mixed success level threshold to increase during [[resolution-system|tests]][^1]. However, the Resistance pool shares the same threshold of strain on a character as a Potential's Stress track. Given a certain Potential, a Potential track can only hold a total number of [[stress-and-fallout|Stress]] and Resistance points equal to the Potential Score.
+Some [[Abilities]] or [[volatility-and-perks|Perks]] may call for expending a Resistance point. Each Potential is considered to be a pool of Resistance Points equal to the Potential Score. Expending Resistance Points causes the Mixed success level threshold to increase during [[resolution-system|Tests]][^1]. However, the Resistance pool shares the same threshold of strain on a character as a Potential's Stress track. Given a certain Potential, a Potential track can only hold a total number of [[stress-and-fallout|Stress]] and Resistance points equal to the Potential Score.
 
 In the example below, a player has 5 [[stress-and-fallout|Stress]] points in an example Potential, and has expended 3 Resistance points. This makes a total of 8, which is equal to their Potential Score. This means a player cannot expend any more Resistance points (they are taken over by [[stress-and-fallout|Stress]]), and if they take any additional [[stress-and-fallout|Stress]], it will trigger [[stress-and-fallout|Fallout]] since the player cannot hold any more [[stress-and-fallout|Stress]] (the slots are taken by Resistance Drain).
 

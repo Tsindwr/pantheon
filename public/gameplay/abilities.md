@@ -129,6 +129,9 @@ When building a custom Ability, consider what primary effect you want to allow y
 - **Enhancements**: quantifying how much you can increase the capability of your custom ability
 - **Caveats**: constraints that reduce cost.
 
+>[!important]+ Rule of Conservation of Essence
+>Though adventurers may learn powerful and extraordinary techniques and capabilities throughout their experiences saving the world, their Abilities must always have a source from which their power comes from. Magick and physical exertion are always going to risk a price to pay, whether that comes from a player's Stats, a Test made to activate the Ability, or narrative action taken to facilitate its effect. *An Ability's effect should never come from nowhere; it must always be tied to the narrative or the mechanical ruleset.*
+
 ---
 
 ## Enhancements
