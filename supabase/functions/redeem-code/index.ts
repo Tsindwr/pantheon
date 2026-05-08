@@ -6,7 +6,7 @@ import {
     json,
     normalizeAccessCode,
     sha256Hex,
-} from "../_shared/sunder";
+} from "../_shared/sunder.ts";
 
 Deno.serve(async (req: Request) => {
     if (req.method === "OPTIONS") {

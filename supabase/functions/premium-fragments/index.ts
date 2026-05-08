@@ -7,7 +7,7 @@ import {
     hasActiveEntitlement,
     json,
     sanitizeContentCodes
-} from "../_shared/sunder";
+} from "../_shared/sunder.ts";
 
 type PremiumContentSource = {
     content_code: string;

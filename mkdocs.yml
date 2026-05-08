@@ -96,6 +96,8 @@ extra_javascript:
   - js/profile.js
   - js/sunder-chatbot.js
   - js/sunder-llm.js
+  - js/premium-slots.js
+  - js/premium-nav.js
 
 extra_css:
   - https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css
@@ -105,6 +107,8 @@ extra_css:
   - css/header-auth.css
   - css/graphics.css
   - css/sunder-chatbot.css
+  - css/vault.css
+  - css/premium-nav.css
 
 plugins:
   - search

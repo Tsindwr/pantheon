@@ -1,0 +1,18 @@
+/* Hide premium routes by default. */
+.md-nav__link[href*="/premium/"],
+.md-tabs__link[href*="/premium/"] {
+    display: none !important;
+}
+
+/* After JS confirms premium access, reveal them. */
+html.sunder-has-premium .md-nav__link[href*="/premium/"],
+html.sunder-has-premium .md-tabs__link[href*="/premium/"] {
+    display: flex !important;
+}
+
+/* Optional: make premium links feel distinct. */
+html.sunder-has-premium .md-nav__link[href*="/premium/"]::after {
+    content: " ✦";
+    color: var(--md-accent-fg-color);
+    font-weight: 700;
+}
