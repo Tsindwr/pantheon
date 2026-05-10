@@ -14,9 +14,10 @@ A simple queue manager for a team to collaborate online and determine the queue 
 ## Setup
 
 1. Create a Supabase project.
-2. Run SQL in `supabase/schema.sql` in the Supabase SQL editor.
-3. Host the repository root as a static site with GitHub Pages.
-4. Open the app, paste your Supabase URL + anon key, set your player name, and connect.
+2. In Supabase Auth providers, enable **Anonymous Sign-Ins**.
+3. Run SQL in `supabase/schema.sql` in the Supabase SQL editor.
+4. Host the repository root as a static site with GitHub Pages.
+5. Open the app, paste your Supabase URL + anon key, set your player name, and connect.
 
 ## Development
 

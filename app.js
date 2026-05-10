@@ -3,7 +3,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const storageKeys = {
   url: "gauntlet.supabase.url",
   key: "gauntlet.supabase.key",
-  profileId: "gauntlet.profile.id",
   profileName: "gauntlet.profile.name",
   activeCampaignId: "gauntlet.active.campaign"
 };
@@ -32,15 +31,14 @@ const elements = {
 
 const state = {
   supabase: null,
-  profileId: localStorage.getItem(storageKeys.profileId) || crypto.randomUUID(),
+  profileId: null,
   campaigns: [],
   activeCampaign: null,
   queue: [],
   queueSubscription: null
 };
 
-localStorage.setItem(storageKeys.profileId, state.profileId);
-elements.profileId.textContent = state.profileId;
+elements.profileId.textContent = "Connect to generate";
 
 const savedName = localStorage.getItem(storageKeys.profileName) || "";
 elements.playerName.value = savedName;
@@ -97,6 +95,25 @@ async function connect() {
     localStorage.setItem(storageKeys.key, key);
 
     state.supabase = createClient(url, key);
+    const { data: sessionData, error: sessionError } = await state.supabase.auth.getSession();
+    if (sessionError) {
+      throw sessionError;
+    }
+
+    if (!sessionData.session) {
+      const { error: signInError } = await state.supabase.auth.signInAnonymously();
+      if (signInError) {
+        throw signInError;
+      }
+    }
+
+    const { data: userData, error: userError } = await state.supabase.auth.getUser();
+    if (userError || !userData.user) {
+      throw userError || new Error("Could not establish authenticated profile.");
+    }
+
+    state.profileId = userData.user.id;
+    elements.profileId.textContent = state.profileId;
     await ensureProfile();
     await loadCampaigns();
     setStatus(elements.connectionStatus, "Connected.");
@@ -130,19 +147,31 @@ async function createCampaign() {
       throw new Error("Campaign name is required.");
     }
 
-    const code = randomCode();
-    const { data, error } = await state.supabase
-      .from("campaigns")
-      .insert({
-        name,
-        code,
-        gm_profile_id: state.profileId
-      })
-      .select("id, name, code, gm_profile_id")
-      .single();
+    let data = null;
+    let attempt = 0;
+    while (!data && attempt < 5) {
+      attempt += 1;
+      const code = randomCode();
+      const { data: inserted, error } = await state.supabase
+        .from("campaigns")
+        .insert({
+          name,
+          code,
+          gm_profile_id: state.profileId
+        })
+        .select("id, name, code, gm_profile_id")
+        .single();
+      if (!error) {
+        data = inserted;
+        break;
+      }
+      if (error.code !== "23505") {
+        throw error;
+      }
+    }
 
-    if (error) {
-      throw error;
+    if (!data) {
+      throw new Error("Could not generate a unique campaign code. Try again.");
     }
 
     await state.supabase.from("player_campaigns").upsert(
@@ -439,6 +468,10 @@ async function renameEntry(entryId) {
     setStatus(elements.queueStatus, "Queue name cannot be empty.", true);
     return;
   }
+  if (trimmedName.length > 50) {
+    setStatus(elements.queueStatus, "Queue name must be 50 characters or fewer.", true);
+    return;
+  }
 
   try {
     ensureGm();
@@ -485,7 +518,7 @@ function clearActiveCampaign() {
 }
 
 function ensureConnected() {
-  if (!state.supabase) {
+  if (!state.supabase || !state.profileId) {
     throw new Error("Connect to Supabase first.");
   }
 }

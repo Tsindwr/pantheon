@@ -46,23 +46,35 @@ drop policy if exists "public update profiles" on profiles;
 create policy "public read profiles"
   on profiles for select using (true);
 create policy "public upsert profiles"
-  on profiles for insert with check (true);
+  on profiles for insert with check (auth.uid() = id);
 create policy "public update profiles"
-  on profiles for update using (true) with check (true);
+  on profiles for update using (auth.uid() = id) with check (auth.uid() = id);
 
 drop policy if exists "public read campaigns" on campaigns;
 drop policy if exists "public insert campaigns" on campaigns;
+drop policy if exists "public update campaigns" on campaigns;
+drop policy if exists "public delete campaigns" on campaigns;
 create policy "public read campaigns"
   on campaigns for select using (true);
 create policy "public insert campaigns"
-  on campaigns for insert with check (true);
+  on campaigns for insert with check (auth.uid() = gm_profile_id);
+create policy "public update campaigns"
+  on campaigns for update using (auth.uid() = gm_profile_id) with check (auth.uid() = gm_profile_id);
+create policy "public delete campaigns"
+  on campaigns for delete using (auth.uid() = gm_profile_id);
 
 drop policy if exists "public read player campaigns" on player_campaigns;
 drop policy if exists "public upsert player campaigns" on player_campaigns;
+drop policy if exists "public update player campaigns" on player_campaigns;
+drop policy if exists "public delete player campaigns" on player_campaigns;
 create policy "public read player campaigns"
-  on player_campaigns for select using (true);
+  on player_campaigns for select using (auth.uid() = profile_id);
 create policy "public upsert player campaigns"
-  on player_campaigns for insert with check (true);
+  on player_campaigns for insert with check (auth.uid() = profile_id);
+create policy "public update player campaigns"
+  on player_campaigns for update using (auth.uid() = profile_id) with check (auth.uid() = profile_id);
+create policy "public delete player campaigns"
+  on player_campaigns for delete using (auth.uid() = profile_id);
 
 drop policy if exists "public read queue" on queue_entries;
 drop policy if exists "public manage queue insert" on queue_entries;
@@ -71,8 +83,38 @@ drop policy if exists "public manage queue delete" on queue_entries;
 create policy "public read queue"
   on queue_entries for select using (true);
 create policy "public manage queue insert"
-  on queue_entries for insert with check (true);
+  on queue_entries for insert with check (
+    auth.uid() = profile_id
+    and exists (
+      select 1
+      from player_campaigns pc
+      where pc.campaign_id = queue_entries.campaign_id
+        and pc.profile_id = auth.uid()
+    )
+  );
 create policy "public manage queue update"
-  on queue_entries for update using (true) with check (true);
+  on queue_entries for update using (
+    exists (
+      select 1
+      from campaigns c
+      where c.id = queue_entries.campaign_id
+        and c.gm_profile_id = auth.uid()
+    )
+  ) with check (
+    exists (
+      select 1
+      from campaigns c
+      where c.id = queue_entries.campaign_id
+        and c.gm_profile_id = auth.uid()
+    )
+  );
 create policy "public manage queue delete"
-  on queue_entries for delete using (true);
+  on queue_entries for delete using (
+    auth.uid() = profile_id
+    or exists (
+      select 1
+      from campaigns c
+      where c.id = queue_entries.campaign_id
+        and c.gm_profile_id = auth.uid()
+    )
+  );
