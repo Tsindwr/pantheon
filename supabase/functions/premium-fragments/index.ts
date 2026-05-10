@@ -108,7 +108,7 @@ Deno.serve(async (req: Request) => {
         return new Response("OK", { headers: corsHeaders });
     }
 
-    if (req.method === "POST") {
+    if (req.method !== "POST") {
         return json({ error: "Method Not Allowed" }, 405);
     }
 

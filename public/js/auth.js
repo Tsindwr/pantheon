@@ -165,4 +165,16 @@ window.sunder = window.sunder || {};
         signOut,
         onAuthStateChange,
     };
+
+    window.SUNDER_AUTH = window.sunder.auth;
+    window.sunderSupabase = client;
+    window.SUNDER_SUPABASE_CLIENT = client;
+    window.SUNDER_SUPABASE_URL = SUPABASE_URL;
+    window.SUNDER_SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
+
+    window.dispatchEvent(
+        new CustomEvent("sunder-auth-ready", {
+            detail: { client },
+        })
+    );
 })();

@@ -17,16 +17,6 @@ export function json(data: unknown, status = 200): Response {
     });
 }
 
-export function text(data: string, status = 200): Response {
-    return new Response(data, {
-        status,
-        headers: {
-            ...corsHeaders,
-            "Cache-Control": "private, no-store",
-        },
-    });
-}
-
 export function requireEnv(name: string): string {
     const value = Deno.env.get(name);
     if (!value) {
@@ -52,17 +42,17 @@ export function createUserClient(authHeader: string): SupabaseClient {
     );
 }
 
-export function createServiceClient(): SupabaseClient {
-    return createClient(
-        requireEnv("SUPABASE_URL"),
-        requireEnv("SUPABASE_ANON_KEY"),
-        {
-            auth: {
-                persistSession: false,
-                autoRefreshToken: false,
-            },
+export function createServiceClient() {
+    const supabaseUrl = requireEnv("SUPABASE_URL");
+    const serviceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+
+    return createClient(supabaseUrl, serviceRoleKey, {
+        auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false,
         },
-    );
+    });
 }
 
 export async function getAuthedUser(req: Request): Promise<{

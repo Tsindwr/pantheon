@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import {
     corsHeaders,
     getAuthedUser,
-    handleError, HttpError,
+    handleError,
     json
 } from "../_shared/sunder.ts";
 
@@ -80,7 +80,8 @@ Deno.serve(async (req: Request) => {
             entitlements: entitlements ?? [],
             activeProducts,
             hasCore: activeProducts.includes("sunder-core"),
-            hasPremium: activeProducts.includes("sunder-plus"),
+            hasPremium: activeProducts.includes("scription"),
+            hasScription: activeProducts.includes("scription"),
         });
     } catch (error) {
         return handleError(error, "Could not load access");

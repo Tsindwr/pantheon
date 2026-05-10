@@ -31,6 +31,16 @@ type KofiPayload = {
     shop_items?: KofiShopItem[];
 };
 
+type SunderStoreSku = {
+    store_sku: string;
+    product_sku: string;
+    provider: string;
+    provider_item_id: string | null;
+    provider_item_name: string | null
+    entitlement_duration: string | null;
+    active: boolean;
+}
+
 function json(data: unknown, status = 200): Response {
     return new Response(JSON.stringify(data), {
         status,
@@ -70,26 +80,51 @@ function centsFromAmount(amount: string | undefined): number | null {
     return Math.round(parsed * 100);
 }
 
-function normalizeStoreSku(value: string | undefined | null): string | null {
+function getKofiDirectLinkCodes(payload: KofiPayload): string[] {
+    return (payload.shop_items ?? [])
+        .map((item) => item.direct_link_code)
+        .filter((value): value is string => {
+            return typeof value === "string" && value.trim().length > 0;
+        })
+        .map((value) => value.trim());
+}
+
+function getKofiVariationNames(payload: KofiPayload): string[] {
+    return (payload.shop_items ?? [])
+        .map((item) => item.variation_name)
+        .filter((value): value is string => {
+            return typeof value === "string" && value.trim().length > 0;
+        })
+        .map((value) => value.trim().toLowerCase());
+}
+
+function normalizeSkuText(value: string | undefined | null): string | null {
     if (!value) return null;
 
     const cleaned = value.trim().toLowerCase();
 
     if (!cleaned) return null;
 
-    // Ko-fi product names / direct codes may vary, so this is intentionally forgiving.
-    if (
-        cleaned.includes("scription-lifetime") ||
-        cleaned.includes("lifetime")
-    ) {
+    const knownSkus: Record<string, string> = {
+        "scription-lifetime": "scription-lifetime",
+        "sunder-scription-lifetime": "scription-lifetime",
+        "scription-yearly": "scription-yearly",
+        "sunder-scription-yearly": "scription-yearly",
+    };
+
+    if (knownSkus[cleaned]) return knownSkus[cleaned];
+
+    if (cleaned.includes("scription") && cleaned.includes("lifetime")) {
         return "scription-lifetime";
     }
 
     if (
-        cleaned.includes("scription-yearly") ||
-        cleaned.includes("yearly") ||
-        cleaned.includes("1 year") ||
-        cleaned.includes("annual")
+        cleaned.includes("scription") &&
+        (
+            cleaned.includes("yearly") ||
+            cleaned.includes("annual") ||
+            cleaned.includes("1 year")
+        )
     ) {
         return "scription-yearly";
     }
@@ -97,17 +132,60 @@ function normalizeStoreSku(value: string | undefined | null): string | null {
     return null;
 }
 
-function inferStoreSku(payload: KofiPayload): string | null {
-    for (const item of payload.shop_items ?? []) {
-        const fromDirectCode = normalizeStoreSku(item.direct_link_code);
-        if (fromDirectCode) return fromDirectCode;
+async function resolveKofiStoreSku(
+    supabase: ReturnType<typeof createServiceClient>,
+    payload: KofiPayload,
+): Promise<SunderStoreSku | null> {
+    const directLinkCodes = new Set(getKofiDirectLinkCodes(payload));
+    const variationNames = new Set(getKofiVariationNames(payload));
 
-        const fromVariation = normalizeStoreSku(item.variation_name);
-        if (fromVariation) return fromVariation;
+    const { data, error } = await supabase
+        .from("sunder_store_skus")
+        .select(
+            [
+                "store_sku",
+                "product_sku",
+                "provider",
+                "provider_item_id",
+                "provider_item_name",
+                "entitlement_duration",
+                "active",
+            ].join(","),
+        )
+        .eq("active", true)
+        .in("provider", ["any", "kofi"]);
+
+    if (error) {
+        console.error("[kofi-webhook] SKU mapping lookup error:", error);
+        throw new Error("Could not load Sunder store SKU mappings");
     }
 
-    // Fallback for tips/messages/manual product text.
-    return normalizeStoreSku(payload.message) ?? normalizeStoreSku(payload.url);
+    const rows = (data ?? []) as SunderStoreSku[];
+
+    for (const row of rows) {
+        if (row.provider_item_id && directLinkCodes.has(row.provider_item_id)) {
+            return row;
+        }
+    }
+
+    for (const row of rows) {
+        if (
+            row.provider_item_name &&
+            variationNames.has(row.provider_item_name.trim().toLowerCase())
+        ) {
+            return row;
+        }
+    }
+
+    const fallbackSku =
+        normalizeSkuText(payload.message) ??
+        normalizeSkuText(payload.url);
+
+    if (fallbackSku) {
+        return rows.find((row) => row.store_sku === fallbackSku) ?? null;
+    }
+
+    return null;
 }
 
 function generateAccessCode(): string {
@@ -190,10 +268,10 @@ async function sendAccessCodeEmail(args: {
         throw new Error("Email delivery is not configured");
     }
 
-    const subject = "Your Sunder Scription access code";
+    const subject = "Your Scription access code";
 
     const body = `
-        <h1>Your Sunder Scription access code</h1>
+        <h1>Your Scription access code</h1>
         <p>Thank you for supporting Sunder!</p>
         <p>Redeem this code while signed in on the Sunder site:</p>
         <p style="font-size: 20px; font-weight: 700; letter-spacing: 1px;">
@@ -214,6 +292,7 @@ async function sendAccessCodeEmail(args: {
             to: [args.to],
             subject,
             html: body,
+            reply_to: "druid@sunderttrpg.world",
         }),
     });
 
@@ -255,42 +334,36 @@ Deno.serve(async (req: Request) => {
             return json({ error: "Missing buyer email" }, 400);
         }
 
-        const storeSku = inferStoreSku(payload);
+        const supabase = createServiceClient();
 
-        if (!storeSku) {
+        const skuRow = await resolveKofiStoreSku(supabase, payload);
+
+        if (!skuRow) {
             console.warn("[kofi-webhook] Invalid unmapped Ko-fi purchase", {
                 messageId,
                 transactionId,
                 type: payload.type,
                 shopItems: payload.shop_items,
                 message: payload.message,
+                directLinkCodes: getKofiDirectLinkCodes(payload),
             });
 
-            // Return 200 so Ko-fi does not retry irrelevant payments forever.
             return json({
                 ok: true,
                 ignored: true,
-                reason: "No mapped Sunder SKU found",
+                reason: "No mapped Scription SKU found",
             });
         }
 
-        const supabase = createServiceClient();
+        const storeSku = skuRow.store_sku;
 
-        const { data: skuRow, error: skuError } = await supabase
-            .from("sunder_store_skus")
-            .select("store_sku,product_sku,entitlement_duration,active")
-            .eq("store_sku", storeSku)
-            .eq("active", true)
-            .maybeSingle();
-
-        if (skuError) {
-            console.error("[kofi-webhook] SKU lookup error:", skuError);
-            return json({ error: "Could not load SKU" }, 500);
-        }
-
-        if (!skuRow) {
-            return json({ error: `Unknown or inactive SKU: ${storeSku}` }, 400);
-        }
+        console.log("[kofi-webhook] Mapped Ko-fi purchase", {
+            messageId,
+            transactionId,
+            directLinkCodes: getKofiDirectLinkCodes(payload),
+            storeSku: skuRow.store_sku,
+            productSku: skuRow.product_sku,
+        });
 
         // Idempotency: if Ko-fi retries the same event, do not create more codes.
         if (messageId) {
@@ -317,29 +390,51 @@ Deno.serve(async (req: Request) => {
 
         const { data: purchase, error: purchaseError } = await supabase
             .from("sunder_purchases")
-            .upsert(
-                {
-                    provider: "kofi",
-                    provider_event_id: messageId ?? null,
-                    provider_payment_id: transactionId ?? null,
-                    provider_order_id: null,
-                    store_sku: storeSku,
-                    product_sku: skuRow.product_sku,
-                    buyer_email: buyerEmail,
-                    amount_cents: centsFromAmount(payload.amount),
-                    currency: payload.currency ?? null,
-                    status: "paid",
-                    raw_payload: payload,
-                    updated_at: new Date().toISOString(),
-                },
-                {
-                    onConflict: "provider,provider_event_id",
-                },
-            )
-            .select('id')
+            .insert({
+                provider: "kofi",
+                provider_event_id: messageId ?? null,
+                provider_payment_id: transactionId ?? null,
+                provider_order_id: null,
+                store_sku: storeSku,
+                product_sku: skuRow.product_sku,
+                buyer_email: buyerEmail,
+                amount_cents: centsFromAmount(payload.amount),
+                currency: payload.currency ?? null,
+                status: "paid",
+                raw_payload: payload,
+                processed_at: null,
+                updated_at: new Date().toISOString(),
+            })
+            .select("id")
             .single();
 
         if (purchaseError) {
+            // Ko-fi retries when it receives a non-200.
+            // If the first request inserted the purchase but failed later,
+            // a retry may hit the unique constraint. Treat that as a duplicate.
+            if (purchaseError.code === "23505" && messageId) {
+                const { data: existingPurchase, error: duplicateLookupError } = await supabase
+                    .from("sunder_purchases")
+                    .select("id,processed_at,status")
+                    .eq("provider", "kofi")
+                    .eq("provider_event_id", messageId)
+                    .maybeSingle();
+
+                if (duplicateLookupError) {
+                    console.error("[kofi-webhook] Duplicate purchase lookup error:", duplicateLookupError);
+                    return json({ error: "Could not verify duplicate purchase" }, 500);
+                }
+
+                if (existingPurchase) {
+                    return json({
+                        ok: true,
+                        duplicate: true,
+                        purchaseId: existingPurchase.id,
+                        processedAt: existingPurchase.processed_at,
+                    });
+                }
+            }
+
             console.error("[kofi-webhook] Purchase insert error:", purchaseError);
             return json({ error: "Could not record purchase" }, 500);
         }
@@ -349,7 +444,7 @@ Deno.serve(async (req: Request) => {
 
         const { data: batch, error: batchError } = await supabase
             .from("sunder_access_code_batches")
-            .inser({
+            .insert({
                 label: `Ko-fi ${storeSku} ${messageId ?? transactionId ?? new Date().toISOString()}`,
                 product_sku: skuRow.product_sku,
                 store_sku: storeSku,
@@ -394,11 +489,23 @@ Deno.serve(async (req: Request) => {
             return json({ error: "Could not create access code" }, 500);
         }
 
-        await sendAccessCodeEmail({
-            to: buyerEmail,
-            code: accessCode,
-            storeSku,
-        });
+        try {
+            await sendAccessCodeEmail({
+                to: buyerEmail,
+                code: accessCode,
+                storeSku,
+            });
+        } catch (emailError) {
+            console.error("[kofi-webhook] Email failed; access code was still created:", {
+                buyerEmail,
+                storeSku,
+                codeHint: codeHint(accessCode),
+                error: emailError instanceof Error ? emailError.message : String(emailError),
+            });
+
+            // DEV ONLY. Remove before production once email is reliable.
+            console.log("[kofi-webhook] DEV ACCESS CODE:", accessCode);
+        }
 
         const { error: processedError } = await supabase
             .from("sunder_purchases")

@@ -32,7 +32,7 @@ Some Experience Points can only be achieved through narrative action. When choos
 
 **Minor Goals** are often repeatable, and grant a String upon completion. This should be something within the lines of saving a certain type of community, conducting a sacrificial ritual on a foe that killed someone you know, or discover ancient knowledge from the Drakonic Age.
 
-<div class="sunder-premium-slot" data-premium-slot="prm_experience_flaw_definition">
+<div class="sunder-premium-slot" data-premium-slot="prm_experience_goal_distinction">
   <aside class="sunder-premium-locked">
     <strong>Sunder Vault section</strong>
     <p>Character Flaws are an advanced character goal available in Sunder Vault.</p>

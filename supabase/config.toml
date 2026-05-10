@@ -384,3 +384,6 @@ entrypoint = "./functions/post-update/index.ts"
 # static_files = [ "./functions/post-update/*.html" ]
 [functions.kofi-webhook]
 verify_jwt = false
+
+[functions.sync-premium-cache]
+verify_jwt = false
