@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gauntlet Queue</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <h1>Gauntlet Queue</h1>
+      <p class="subtitle">Live Sunder turn order collaboration</p>
+
+      <section class="card">
+        <h2>Connection</h2>
+        <p class="muted">Paste your Supabase project URL and anon key. They are saved in your browser.</p>
+        <div class="grid two">
+          <label>
+            Supabase URL
+            <input id="supabase-url" type="text" placeholder="https://your-project.supabase.co" />
+          </label>
+          <label>
+            Supabase anon key
+            <input id="supabase-key" type="text" placeholder="ey..." />
+          </label>
+        </div>
+        <button id="connect-btn" type="button">Connect</button>
+        <p id="connection-status" class="status"></p>
+      </section>
+
+      <section class="card">
+        <h2>Profile</h2>
+        <div class="grid two">
+          <label>
+            Player name
+            <input id="player-name" type="text" maxlength="50" placeholder="Your display name" />
+          </label>
+          <div>
+            <p class="muted">Profile ID</p>
+            <code id="profile-id"></code>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Campaigns</h2>
+        <div class="grid two">
+          <label>
+            New campaign name
+            <input id="new-campaign-name" type="text" maxlength="100" placeholder="Example: The Rook Siege" />
+          </label>
+          <button id="create-campaign-btn" type="button">Create campaign (GM)</button>
+        </div>
+
+        <div class="grid two spaced-top">
+          <label>
+            Join with campaign code
+            <input id="campaign-code" type="text" maxlength="8" placeholder="ABC123" />
+          </label>
+          <button id="join-campaign-btn" type="button">Join campaign</button>
+        </div>
+
+        <p id="campaign-action-status" class="status"></p>
+
+        <h3>Your campaigns</h3>
+        <ul id="campaign-list" class="campaign-list"></ul>
+      </section>
+
+      <section class="card" id="session-card" hidden>
+        <h2>Live Session</h2>
+        <p id="active-campaign-label"></p>
+        <div class="controls">
+          <button id="throw-gauntlet-btn" type="button">Throw in the gauntlet</button>
+          <button id="dismiss-turn-btn" type="button">Dismiss top turn (GM)</button>
+        </div>
+        <p id="queue-status" class="status"></p>
+        <ol id="queue-list" class="queue-list"></ol>
+      </section>
+    </main>
+
+    <template id="queue-entry-template">
+      <li class="queue-entry">
+        <span class="entry-name"></span>
+        <div class="entry-controls"></div>
+      </li>
+    </template>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
