@@ -75,6 +75,7 @@ function getPlayerName() {
 }
 
 function randomCode() {
+  // Intentionally excludes easily-confused chars: I, O, 0, 1.
   const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
   for (let i = 0; i < 6; i += 1) {
@@ -429,7 +430,13 @@ async function renameEntry(entryId) {
   }
 
   const nextName = window.prompt("Set new queue name", current.display_name);
-  if (!nextName) {
+  if (nextName === null) {
+    return;
+  }
+
+  const trimmedName = nextName.trim();
+  if (!trimmedName) {
+    setStatus(elements.queueStatus, "Queue name cannot be empty.", true);
     return;
   }
 
@@ -437,7 +444,7 @@ async function renameEntry(entryId) {
     ensureGm();
     const { error } = await state.supabase
       .from("queue_entries")
-      .update({ display_name: nextName.trim() })
+      .update({ display_name: trimmedName })
       .eq("id", entryId);
     if (error) {
       throw error;

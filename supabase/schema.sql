@@ -27,7 +27,7 @@ create table if not exists queue_entries (
   campaign_id uuid not null references campaigns(id) on delete cascade,
   profile_id uuid not null references profiles(id) on delete cascade,
   display_name text not null check (char_length(display_name) between 1 and 50),
-  order_index integer not null check (order_index > 0),
+  order_index integer not null check (order_index >= 1),
   created_at timestamptz not null default now(),
   unique (campaign_id, profile_id)
 );
