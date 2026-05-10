@@ -73,7 +73,7 @@ function getPlayerName() {
 }
 
 function randomCode() {
-  // Intentionally excludes easily-confused chars: I, O, 0, 1.
+  // Intentionally omits ambiguous chars (I, O, 0, 1) to reduce join-code mistakes.
   const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
   for (let i = 0; i < 6; i += 1) {
