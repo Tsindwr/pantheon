@@ -4,7 +4,7 @@ tags:
   - location
 ---
 >[!important]+ Location and Description
->Fiendish portal hovering above the [[Locations/Landforms/Chasm]] within the [[Locations/Regions/Scorched Sea]].
+>Fiendish portal hovering above the [[Locations/Landforms/Chasm]] within the [[Apocthon]].
 
 > [!example]+ Notable Residents
 
