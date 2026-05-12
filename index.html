@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Gauntlet Queue</title>
+    <link rel="stylesheet" href="./styles.css"/>
+</head>
+
+<body>
+<main class="layout">
+    <header class="hero">
+        <div>
+            <p class="eyebrow">Sunder Utility</p>
+            <h1>Gauntlet</h1>
+            <p class="subtitle">Live volunteer initiative for “throw in the gauntlet” order.</p>
+        </div>
+
+        <div class="session-pill" id="connection-status">Checking session…</div>
+    </header>
+
+    <section class="card auth-card" id="auth-card">
+        <h2>Enter the Scene</h2>
+        <p class="muted">
+            Use your existing Sunder Discord account to join campaign queues.
+        </p>
+
+        <div class="controls spaced-top">
+            <button id="discord-login-btn" type="button">Continue with Discord</button>
+        </div>
+
+        <p id="auth-status" class="status"></p>
+    </section>
+
+    <section class="card" id="profile-card" hidden>
+        <div class="card-heading">
+            <div>
+                <h2>Profile</h2>
+                <p class="muted">This is the name shown in the queue.</p>
+            </div>
+            <button id="sign-out-btn" type="button" class="secondary">Sign out</button>
+        </div>
+
+        <div class="grid two">
+            <label>
+                Player name
+                <input id="player-name" type="text" maxlength="50" placeholder="Your display name"/>
+            </label>
+
+            <div class="profile-meta">
+                <p class="muted">Profile ID</p>
+                <code id="profile-id"></code>
+            </div>
+        </div>
+
+        <div class="controls spaced-top">
+            <button id="save-profile-btn" type="button">Save profile</button>
+        </div>
+    </section>
+
+    <section class="card" id="campaign-card" hidden>
+        <h2>Campaigns</h2>
+
+        <div class="grid two">
+            <label>
+                New campaign name
+                <input id="new-campaign-name" type="text" maxlength="100" placeholder="Example: The Rook Siege"/>
+            </label>
+            <button id="create-campaign-btn" type="button">Create campaign as GM</button>
+        </div>
+
+        <div class="grid two spaced-top">
+            <label>
+                Join with campaign code
+                <input id="campaign-code" type="text" maxlength="8" placeholder="ABC123"/>
+            </label>
+            <button id="join-campaign-btn" type="button" class="secondary">Join campaign</button>
+        </div>
+
+        <p id="campaign-action-status" class="status"></p>
+
+        <h3>Your campaigns</h3>
+        <ul id="campaign-list" class="campaign-list"></ul>
+    </section>
+
+    <section class="card session-card" id="session-card" hidden>
+        <div class="card-heading">
+            <div>
+                <p class="eyebrow">Live Session</p>
+                <h2 id="active-campaign-label"></h2>
+            </div>
+            <span id="realtime-status" class="realtime-status">Realtime: idle</span>
+        </div>
+
+        <div class="controls">
+            <button id="throw-gauntlet-btn" type="button">Throw in the gauntlet</button>
+            <button id="dismiss-turn-btn" type="button" class="danger">Dismiss top turn</button>
+        </div>
+
+        <p id="queue-status" class="status"></p>
+        <ol id="queue-list" class="queue-list"></ol>
+    </section>
+</main>
+
+<template id="queue-entry-template">
+    <li class="queue-entry">
+        <span class="entry-rank"></span>
+        <span class="entry-name"></span>
+        <div class="entry-controls"></div>
+    </li>
+</template>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
