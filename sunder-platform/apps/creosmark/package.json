@@ -20,7 +20,8 @@
     "@xyflow/react": "^12.10.1",
     "astro": "^6.1.5",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "@sunderttrpg/core": "workspace:*"
   },
   "devDependencies": {
     "supabase": "^2.78.1"

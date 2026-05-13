@@ -32,6 +32,9 @@ importers:
       '@fortawesome/free-solid-svg-icons':
         specifier: ^7.2.0
         version: 7.2.0
+      '@sunderttrpg/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@supabase/supabase-js':
         specifier: ^2.99.1
         version: 2.105.4
@@ -63,6 +66,14 @@ importers:
       serve:
         specifier: latest
         version: 14.2.6
+
+  apps/site: {}
+
+  packages/core:
+    devDependencies:
+      typescript:
+        specifier: latest
+        version: 6.0.3
 
 packages:
 

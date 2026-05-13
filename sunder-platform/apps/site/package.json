@@ -1,0 +1,9 @@
+{
+  "name": "@sunderttrpg/site",
+  "private": true,
+  "scripts": {
+    "dev": "python -m mkdocs serve -a 127.0.0.1:5173",
+    "build": "python -m mkdocs build --clean",
+    "check": "python -m mkdocs build --strict --clean"
+  }
+}
