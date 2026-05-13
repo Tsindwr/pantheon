@@ -1,0 +1,14 @@
+{
+  "name": "@sunderttrpg/gauntlet",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "serve . -l 5175",
+    "preview": "serve . -l 4175",
+    "build": "node -e \"const fs=require('fs'); if(!fs.existsSync('index.html')){console.error('Missing index.html'); process.exit(1)} console.log('Gauntlet static site verified.')\"",
+    "check": "pnpm build"
+  },
+  "devDependencies": {
+    "serve": "latest"
+  }
+}
