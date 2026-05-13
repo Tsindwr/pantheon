@@ -1,0 +1,72 @@
+.summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.readout {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  color: white;
+}
+
+.big {
+  font-size: 1.7rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.separator,
+.small {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.status {
+  border-radius: 999px;
+  padding: 0.32rem 0.72rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.standing {
+  background: rgba(53, 196, 143, 0.14);
+  color: #7fe1bc;
+}
+
+.battered {
+  background: rgba(210, 178, 76, 0.14);
+  color: var(--sunder-gold, #d2b24c);
+}
+
+.down {
+  background: rgba(107, 76, 230, 0.14);
+  color: #b6a2ff;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.button {
+  padding: 0.4rem 0.7rem;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(210, 178, 76, 0.22);
+  background: rgba(255, 255, 255, 0.04);
+  color: white;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.button:hover,
+.button:focus-visible {
+  outline: none;
+  background: rgba(210, 178, 76, 0.12);
+}

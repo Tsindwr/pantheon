@@ -1,0 +1,73 @@
+.page {
+    display: grid;
+    gap: 1rem;
+    color: var(--sunder-text);
+}
+
+.tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+}
+
+.tab {
+    min-height: 2.4rem;
+    padding: 0.6rem 0.95rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--sunder-text);
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.tab:hover {
+    transform: translateY(-1px);
+    border-color: rgba(210, 178, 76, 0.28);
+}
+
+.tabActive {
+    border-color: rgba(210, 178, 76, 0.42);
+    background: rgba(210, 178, 76, 0.14);
+    color: var(--sunder-text);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.emptyState {
+    display: grid;
+    gap: 0.55rem;
+    padding: 1.1rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(210, 178, 76, 0.16);
+    background: linear-gradient(180deg, rgba(18, 22, 31, 0.96), rgba(12, 15, 22, 0.94));
+    color: var(--sunder-text);
+}
+
+.emptyEyebrow {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--sunder-purple);
+    font-weight: 800;
+}
+
+.emptyState h2,
+.emptyState p {
+    margin: 0;
+}
+
+.emptyState p {
+    color: var(--sunder-text-dim);
+}
+
+@media (max-width: 900px) {
+    .grid {
+        grid-template-columns: 1fr;
+    }
+}

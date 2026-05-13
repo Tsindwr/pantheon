@@ -1,0 +1,90 @@
+/* LIGHT MODE – default scheme */
+[data-md-color-scheme="default"] {
+    /* Primary = magic purple */
+    --md-primary-fg-color:        #5A2D82;  /* medium purple */
+    --md-primary-fg-color--light: #8B4DC0;  /* lighter */
+    --md-primary-fg-color--dark:  #35174D;  /* deep */
+
+    /* Accent = gold/yellow highlights */
+    --md-accent-fg-color:         #F9C74F;
+    --md-accent-fg-color--light:  #FFE08A;
+    --md-accent-fg-color--dark:   #D9A322;
+
+    --md-h2-color: goldenrod;
+    --md-h3-color: rgb(199, 139, 56);
+
+    /* Body background + surface tweaks if you want */
+    /* --md-default-bg-color: #f8f5ff; */
+
+    /* LINKS – make them pop */
+    --md-typeset-a-color:         #C58AFF;  /* link color in text */
+
+    --heading-typeset-h3-color: deepskyblue;
+
+    /* Size: feels like a small playing card on a webpage */
+    --cardW: 270px;
+    --cardH: 410px;
+
+    --ink: rgba(255,255,255,.92);
+    --ink2: rgba(255,255,255,.72);
+    --ink3: rgba(255,255,255,.55);
+
+    --paper: #0b0f14;
+    --frame: rgba(160,190,255,.55);
+    --frame2: rgba(120,255,200,.35);
+
+    --topTint: rgba(100,170,255,.12);
+    --botTint: rgba(120,255,200,.10);
+
+    --cut: rgba(255,255,255,.14);
+}
+
+/* Dark mode (slate) */
+[data-md-color-scheme="slate"] {
+    --md-primary-fg-color:        #5A2D82;
+    --md-primary-fg-color--light: #5A2D82;
+    --md-primary-fg-color--dark:  #170821;
+
+    --md-accent-fg-color:         #F9C74F;
+    --md-accent-fg-color--light:  #FFE08A;
+    --md-accent-fg-color--dark:   #D9A322;
+
+    --md-h2-color: darkgoldenrod;
+    --md-h3-color: rgb(174, 114, 21);
+
+    /* Dark background already handled by slate, but you can nudge it: */
+    --md-default-bg-color: #0b0f14;
+    --md-default-fg-color: #e7e3ef;
+    --md-default-fg-color--light: #cfc7db;
+    --md-default-fg-color--lighter: #a99ab8;
+    --md-default-fg-color--lightest: #7a6a8e;
+    --md-typeset-color: var(--md-default-fg-color);
+    --md-code-bg-color: #141a22;
+    --md-code-fg-color: #e9e3f5;
+    --md-footer-bg-color: #11151c;
+    --md-footer-fg-color: #cfc7db;
+
+    /* LINKS – make them pop */
+    --md-typeset-a-color:         #C58AFF !important;  /* link color in text */
+    --md-typeset-a-color--medium-dark: #5A2D82;
+    --md-typeset-a-color--light: #8B4DC0;
+
+    --heading-typeset-h3-color: skyblue;
+
+    /* Size: feels like a small playing card on a webpage */
+    --cardW: 270px;
+    --cardH: 410px;
+
+    --ink: rgba(255,255,255,.92);
+    --ink2: rgba(255,255,255,.72);
+    --ink3: rgba(255,255,255,.55);
+
+    --paper: #0b0f14;
+    --frame: rgba(160,190,255,.55);
+    --frame2: rgba(120,255,200,.35);
+
+    --topTint: rgba(100,170,255,.12);
+    --botTint: rgba(120,255,200,.10);
+
+    --cut: rgba(255,255,255,.14);
+}

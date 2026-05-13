@@ -1,0 +1,41 @@
+.track {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.pip {
+  --tone: var(--sunder-gold, #d2b24c);
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--tone) 48%, white 15%);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease,
+    border-color 140ms ease;
+}
+
+.pip:hover,
+.pip:focus-visible {
+  transform: translateY(-1px);
+  outline: none;
+  border-color: color-mix(in srgb, var(--tone) 80%, white 20%);
+}
+
+.filled {
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.35), transparent 34%), var(--tone);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 0 18px color-mix(in srgb, var(--tone) 30%, transparent);
+}
+
+.gold { --tone: var(--sunder-gold, #d2b24c); }
+.purple { --tone: var(--sunder-purple, #6b4ce6); }
+.emerald { --tone: #35c48f; }
+.slate { --tone: #8f98a8; }
+
+.sm { width: 14px; height: 14px; }
+.md { width: 18px; height: 18px; }
+.lg { width: 22px; height: 22px; }

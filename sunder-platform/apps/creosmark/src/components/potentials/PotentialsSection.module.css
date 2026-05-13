@@ -1,0 +1,81 @@
+.section {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.header h2 {
+  margin: 0 0 0.25rem;
+}
+
+.header p {
+  margin: 0;
+  color: var(--md-default-fg-color--light, rgba(255,255,255,0.72));
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.card {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(210, 178, 76, 0.18);
+}
+
+.widgetWrap {
+  display: grid;
+  align-items: center;
+}
+
+.skillsCol {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.skillRow {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.85rem;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.skillTopline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+
+.skillRow p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--md-default-fg-color--light, rgba(255,255,255,0.72));
+}
+
+.badge,
+.skillAction {
+  border-radius: 999px;
+  border: 1px solid rgba(210, 178, 76, 0.4);
+  background: rgba(210, 178, 76, 0.1);
+  color: inherit;
+  font: inherit;
+  padding: 0.2rem 0.65rem;
+}
+
+.skillAction {
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .card {
+    grid-template-columns: 1fr;
+  }
+}

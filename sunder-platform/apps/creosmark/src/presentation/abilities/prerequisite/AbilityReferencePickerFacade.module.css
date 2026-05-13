@@ -1,0 +1,233 @@
+.abilityPickerOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 125;
+}
+
+.abilityPickerScrim {
+    position: absolute;
+    inset: 0;
+    border: none;
+    background: rgba(5, 7, 11, 0.72);
+    backdrop-filter: blur(4px);
+    cursor: pointer;
+}
+
+.abilityPickerPanel {
+    position: absolute;
+    inset: 5vh 4vw;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 0.8rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(210, 178, 76, 0.26);
+    background: linear-gradient(180deg, rgba(15, 18, 30, 0.98), rgba(8, 10, 16, 0.98));
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.38);
+    padding: 1rem;
+}
+
+.abilityPickerHeader {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 0.8rem;
+}
+
+.abilityPickerEyebrow {
+    color: var(--sunder-purple, #8b7cf3);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 800;
+}
+
+.abilityPickerTitle {
+    margin: 0.2rem 0 0;
+    font-size: 1.22rem;
+    line-height: 1.15;
+}
+
+.abilityPickerClose {
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--sunder-ink, #f5f7fb);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.abilityPickerControls {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.abilityPickerSearch,
+.abilityPickerFilterField select {
+    width: 100%;
+    min-width: 0;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(7, 9, 15, 0.92);
+    color: var(--sunder-ink, #f5f7fb);
+    font: inherit;
+    padding: 0.6rem 0.75rem;
+}
+
+.abilityPickerFilterRow {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+}
+
+.abilityPickerFilterField {
+    display: grid;
+    gap: 0.24rem;
+}
+
+.abilityPickerFilterField > span {
+    color: rgba(245, 247, 251, 0.66);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.abilityPickerList {
+    min-height: 0;
+    overflow: auto;
+    display: grid;
+    align-content: start;
+    gap: 0.55rem;
+    padding-right: 0.15rem;
+}
+
+.abilityPickerState {
+    padding: 0.72rem 0.8rem;
+    border-radius: 0.74rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(245, 247, 251, 0.78);
+    font-size: 0.9rem;
+}
+
+.abilityEntryRow {
+    display: grid;
+    gap: 0.45rem;
+    border-radius: 0.85rem;
+    border: 1px solid rgba(210, 178, 76, 0.14);
+    background: rgba(255, 255, 255, 0.03);
+    padding: 0.7rem;
+}
+
+.abilityEntryRowSelected {
+    border-color: rgba(210, 178, 76, 0.36);
+    background: rgba(210, 178, 76, 0.08);
+}
+
+.abilityEntryRowHeader {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem;
+    align-items: start;
+}
+
+.abilityEntryToggle {
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.45rem;
+    align-items: center;
+    text-align: left;
+    padding: 0;
+}
+
+.abilityEntryTitleStatic {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.45rem;
+    align-items: center;
+}
+
+.abilityEntryTitle {
+    font-weight: 800;
+    color: var(--sunder-ink, #f5f7fb);
+}
+
+.abilityEntryTypeBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 1.35rem;
+    padding: 0 0.48rem;
+    border-radius: 999px;
+    border: 1px solid rgba(101, 160, 255, 0.32);
+    color: rgba(197, 223, 255, 0.92);
+    background: rgba(101, 160, 255, 0.14);
+    font-size: 0.68rem;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.abilityEntryToggleGlyph {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: rgba(245, 247, 251, 0.88);
+}
+
+.abilityEntrySelect {
+    border: 1px solid rgba(210, 178, 76, 0.32);
+    border-radius: 0.72rem;
+    background: rgba(210, 178, 76, 0.12);
+    color: var(--sunder-ink, #f5f7fb);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0.42rem 0.72rem;
+    white-space: nowrap;
+}
+
+.abilityEntrySelect:disabled {
+    opacity: 0.64;
+    cursor: default;
+}
+
+.abilityEntryMeta {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    color: rgba(245, 247, 251, 0.72);
+    font-size: 0.8rem;
+}
+
+.abilityEntryExpanded {
+    display: grid;
+    gap: 0.32rem;
+    font-size: 0.83rem;
+    color: rgba(245, 247, 251, 0.84);
+}
+
+@media (max-width: 900px) {
+    .abilityPickerPanel {
+        inset: 2vh 2vw;
+        padding: 0.75rem;
+    }
+
+    .abilityPickerFilterRow {
+        grid-template-columns: 1fr;
+    }
+}

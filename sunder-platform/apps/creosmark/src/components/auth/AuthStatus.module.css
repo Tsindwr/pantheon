@@ -1,0 +1,92 @@
+.inlineAuth {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+    max-width: 100%;
+    color: var(--sunder-text);
+}
+
+.avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    object-fit: cover;
+    flex: 0 0 auto;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.24);
+}
+
+.identity {
+    display: grid;
+    gap: 0.05rem;
+    min-width: 0;
+    line-height: 1.05;
+}
+
+.identity strong {
+    color: var(--sunder-text);
+    font-size: 0.98rem;
+    line-height: 1.05;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 13rem;
+}
+
+.identity span {
+    color: var(--sunder-text-dim);
+    font-size: 0.76rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 13rem;
+}
+
+.primary,
+.secondary {
+    min-height: 2rem;
+    padding: 0.42rem 0.8rem;
+    border-radius: 999px;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition:
+            transform 140ms ease,
+            background 140ms ease,
+            border-color 140ms ease;
+    flex: 0 0 auto;
+}
+
+.primary:hover,
+.secondary:hover {
+    transform: translateY(-1px);
+}
+
+.primary {
+    border: none;
+    background: linear-gradient(135deg, var(--sunder-gold), #f0daa0);
+    color: #141821;
+}
+
+.secondary {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--sunder-text);
+}
+
+@media (max-width: 900px) {
+    .identity span {
+        display: none;
+    }
+
+    .identity strong {
+        max-width: 8rem;
+    }
+
+    .primary,
+    .secondary {
+        padding-inline: 0.65rem;
+    }
+}

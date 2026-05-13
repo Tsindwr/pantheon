@@ -1,0 +1,70 @@
+.page {
+    min-height: 100vh;
+    background:
+            radial-gradient(circle at top left, rgba(139, 124, 243, 0.12), transparent 26%),
+            radial-gradient(circle at bottom right, rgba(210, 178, 76, 0.1), transparent 24%),
+            linear-gradient(180deg, #11151d 0%, #0b0e14 100%);
+    color: var(--sunder-text);
+    padding: 1rem;
+}
+
+.header,
+.steps,
+.content {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: start;
+    padding: 1rem 0 0.5rem;
+}
+
+.eyebrow {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--sunder-purple);
+    font-weight: 800;
+}
+
+.title {
+    margin: 0.25rem 0 0;
+    font-size: clamp(2rem, 4vw, 3rem);
+}
+
+.status {
+    padding: 0.55rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05);
+    font-weight: 800;
+}
+
+.steps {
+    margin: 0.5rem auto 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.step {
+    min-height: 2.4rem;
+    padding: 0.6rem 0.95rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+    color: var(--sunder-text);
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.stepActive {
+    border-color: rgba(210, 178, 76, 0.42);
+    background: rgba(210, 178, 76, 0.14);
+}

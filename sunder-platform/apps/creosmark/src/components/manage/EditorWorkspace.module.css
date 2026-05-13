@@ -1,0 +1,482 @@
+.editor {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 0.85rem;
+    min-height: 0;
+    width: 100%;
+    align-items: start;
+}
+
+.editorFull {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.sidebar,
+.section,
+.card,
+.inlineCard,
+.cardSub {
+    border-radius: 0.95rem;
+    border: 1px solid rgba(210, 178, 76, 0.16);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.sidebar {
+    display: grid;
+    align-content: start;
+    gap: 0.75rem;
+    padding: 0.85rem;
+    position: sticky;
+    top: 1rem;
+}
+
+.eyebrow,
+.sectionEyebrow {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 800;
+    color: var(--sunder-purple, #8b7cf3);
+}
+
+.title {
+    margin: 0;
+}
+
+.nav {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.navButton,
+.smallButton {
+    font: inherit;
+    cursor: pointer;
+}
+
+.navButton {
+    text-align: left;
+    padding: 0.62rem 0.8rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: white;
+}
+
+.navButtonActive {
+    border-color: rgba(210, 178, 76, 0.42);
+    background: rgba(210, 178, 76, 0.14);
+}
+
+.content {
+    min-width: 0;
+    width: 100%;
+}
+
+.section {
+    display: grid;
+    gap: 0.7rem;
+    padding: 0.85rem;
+}
+
+.sectionHeader h3,
+.sectionHeader h4 {
+    margin: 0.12rem 0 0;
+}
+
+.grid2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.grid4 {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.65rem;
+}
+
+.stack {
+    display: grid;
+    gap: 0.6rem;
+}
+
+.card,
+.cardSub {
+    display: grid;
+    gap: 0.65rem;
+    padding: 0.8rem;
+}
+
+.inlineCard {
+    display: grid;
+    gap: 0.45rem;
+    padding: 0.7rem;
+}
+
+.cardHeader {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.6rem;
+    align-items: center;
+}
+
+.field,
+.compactField {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.field span,
+.compactField span {
+    color: rgba(255, 255, 255, 0.66);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.checkboxRow,
+.checkboxCompact {
+    display: inline-flex;
+    gap: 0.42rem;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.82);
+    white-space: nowrap;
+}
+
+input,
+select,
+textarea {
+    width: 100%;
+    min-width: 0;
+    border-radius: 0.72rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(10, 10, 14, 0.85);
+    color: white;
+    font: inherit;
+    padding: 0.58rem 0.7rem;
+}
+
+textarea {
+    min-height: 84px;
+    resize: vertical;
+}
+
+.smallButton {
+    padding: 0.56rem 0.78rem;
+    border-radius: 0.72rem;
+    border: none;
+    background: linear-gradient(135deg, var(--sunder-gold, #d2b24c), #f0daa0);
+    color: #141821;
+    font-weight: 800;
+}
+
+.removeButton {
+    padding: 0.48rem 0.7rem;
+    border-radius: 0.7rem;
+    border: 1px solid rgba(255, 107, 107, 0.25);
+    background: rgba(255, 107, 107, 0.14);
+    color: white;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.skillsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 0.55rem;
+}
+
+.skillEditor {
+    display: grid;
+    grid-template-columns: 1.1fr 1.5fr auto;
+    gap: 0.55rem;
+    align-items: end;
+}
+
+.addRow {
+    display: grid;
+    gap: 0.6rem;
+}
+
+.potentialGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: 0.75rem;
+}
+
+.potentialCard {
+    align-content: start;
+}
+
+.potentialHeaderRow {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.potentialHeaderActions {
+    display: inline-flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.potentialTopRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 100px 140px;
+    gap: 0.6rem;
+    align-items: start;
+}
+
+.totalBlock {
+    display: grid;
+    gap: 0.12rem;
+    padding: 0.72rem 0.8rem;
+    border-radius: 0.85rem;
+    border: 1px solid rgba(210, 178, 76, 0.18);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.totalLabel {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.totalValue {
+    font-size: 2.15rem;
+    line-height: 1;
+    font-weight: 900;
+}
+
+.bonusList {
+    list-style: none;
+    margin: 0.2rem 0 0;
+    padding: 0;
+    display: grid;
+    gap: 0.12rem;
+    font-size: 0.76rem;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.metaMuted {
+    font-size: 0.76rem;
+    color: rgba(255, 255, 255, 0.58);
+}
+
+.perkAdderRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.55rem;
+    align-items: center;
+}
+
+.perkList {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.perkRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 118px auto;
+    gap: 0.55rem;
+    align-items: center;
+    padding: 0.52rem 0.66rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.perkName {
+    display: grid;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.perkName strong {
+    font-size: 0.94rem;
+}
+
+.perkName span {
+    font-size: 0.74rem;
+    color: rgba(255, 255, 255, 0.62);
+    line-height: 1.2;
+}
+
+.faceSelect {
+    min-width: 0;
+}
+
+.skillList {
+    display: grid;
+    gap: 0.42rem;
+}
+
+.skillRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.55rem;
+    align-items: center;
+    padding: 0.5rem 0.65rem;
+    border-radius: 0.72rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.skillText {
+    display: grid;
+    gap: 0.08rem;
+    min-width: 0;
+}
+
+.skillText strong {
+    font-size: 0.92rem;
+}
+
+.skillText span,
+.skillText small {
+    font-size: 0.74rem;
+    color: rgba(255, 255, 255, 0.62);
+    line-height: 1.2;
+}
+
+.domainGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.55rem;
+}
+
+.domainRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.55rem;
+    align-items: start;
+    padding: 0.55rem 0.68rem;
+    border-radius: 0.72rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.domainText {
+    display: grid;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.domainText strong {
+    font-size: 0.92rem;
+}
+
+.domainText span,
+.domainText small {
+    color: rgba(255, 255, 255, 0.62);
+    line-height: 1.2;
+    font-size: 0.74rem;
+}
+
+.knackList {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.knackRow {
+    display: grid;
+    grid-template-columns: minmax(140px, 1fr) minmax(150px, 1.15fr) minmax(150px, 1.1fr) auto;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.section,
+.card,
+.inlineCard,
+.cardSub {
+    width: 100%;
+}
+
+.levelSummaryRow {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.55rem;
+}
+
+.summaryChip {
+    display: grid;
+    gap: 0.1rem;
+    padding: 0.58rem 0.72rem;
+    border-radius: 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.summaryChip span {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: 800;
+}
+
+.summaryChip strong {
+    font-size: 1.05rem;
+}
+
+.levelActionsRow {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.levelList {
+    display: grid;
+    gap: 0.7rem;
+}
+
+.levelCard {
+    align-content: start;
+}
+
+.levelGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.55rem;
+}
+
+@media (max-width: 1100px) {
+    .levelSummaryRow,
+    .levelGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 1100px) {
+    .editor {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        position: static;
+    }
+
+    .grid2,
+    .grid4,
+    .skillEditor,
+    .potentialTopRow,
+    .perkAdderRow,
+    .perkRow,
+    .knackRow {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 760px) {
+    .skillsGrid,
+    .domainGrid,
+    .potentialGrid {
+        grid-template-columns: 1fr;
+    }
+}

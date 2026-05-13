@@ -1,0 +1,72 @@
+.page {
+    max-width: 1360px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    display: grid;
+    gap: 1rem;
+}
+
+.backLink {
+    color: white;
+    text-decoration: none;
+    font-weight: 800;
+}
+
+.hero,
+.section {
+    display: grid;
+    gap: 0.55rem;
+    padding: 1.2rem;
+    border-radius: 1.1rem;
+    border: 1px solid rgba(210, 178, 76, 0.16);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.eyebrow,
+.sectionEyebrow {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--sunder-purple, #8b7cf3);
+    font-weight: 800;
+}
+
+.title,
+.section h2 {
+    margin: 0;
+}
+
+.metaRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.metaRow span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.9rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.copy {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.64);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+@media (max-width: 900px) {
+    .grid {
+        grid-template-columns: 1fr;
+    }
+}

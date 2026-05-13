@@ -1,0 +1,18 @@
+---
+import '../../styles/sunder-theme.css';
+import CharacterSheetQueryPageEntry from '../../components/characters/CharacterSheetQueryPageEntry.tsx';
+---
+
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Creosmark · View Character</title>
+
+    <link rel="icon" type="image/x-icon" href={`${import.meta.env.BASE_URL}/favicon.ico`} />
+    <link rel="apple-touch-icon" href={`${import.meta.env.BASE_URL}/apple-touch-icon.png`} />
+</head>
+<body>
+<CharacterSheetQueryPageEntry mode="play" client:load />
+</body>
+</html>

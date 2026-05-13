@@ -1,0 +1,38 @@
+.section {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.group {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.groupLabel {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--sunder-purple, #8b7cf3);
+  opacity: 0.7;
+}
+
+/* 4 columns on large screens so all 8 potentials fit at once */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+@media (max-width: 1100px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

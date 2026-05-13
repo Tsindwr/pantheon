@@ -1,0 +1,30 @@
+---
+import PotentialWidget from "../components/potentials/PotentialWidget";
+import "../styles/sunder-theme.css";
+---
+
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        :root { color-scheme: dark; }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; background: #0b0e14; color: #f5f7fb; }
+        .wrap { max-width: 420px; margin: 2rem auto; padding: 1rem; }
+    </style>
+    <title>Potential Widget</title>
+</head>
+<body>
+<div class="wrap">
+    <PotentialWidget
+        client:load
+        title="Might"
+        potentialValue={6}
+        stress={1}
+        resistance={0}
+        volatilityDieMax={6}
+    />
+</div>
+</body>
+</html>

@@ -1,0 +1,68 @@
+.page {
+    display: grid;
+    gap: 1rem;
+}
+
+.actionsCard,
+.error,
+.state {
+    border-radius: 1rem;
+    border: 1px solid rgba(210, 178, 76, 0.16);
+    background: linear-gradient(180deg, rgba(18, 22, 31, 0.96), rgba(12, 15, 22, 0.94));
+    color: var(--sunder-text);
+    padding: 1rem;
+}
+
+.actionsHeader h2 {
+    margin: 0.25rem 0 0;
+}
+
+.eyebrow {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1rem;
+    color: var(--sunder-purple);
+    font-weight: 800;
+}
+
+.actionsRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.9rem;
+}
+
+.joinForm {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.joinForm input {
+    min-width: 160px;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--sunder-text);
+}
+
+.primary,
+.secondary {
+    min-height: 2.4rem;
+    padding: 0.55rem 0.95rem;
+    border-radius: 0.85rem;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.primary {
+    border: none;
+    background: linear-gradient(135deg, var(--sunder-gold), #f0daa0);
+}
+
+.secondary {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--sunder-text);
+}

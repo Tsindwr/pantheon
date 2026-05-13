@@ -1,0 +1,72 @@
+.panel {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.header h2 {
+    margin: 0.15rem 0 0;
+}
+
+.eyebrow {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--sunder-purple, #8b7cf3);
+    font-weight: 700;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+}
+
+.card {
+    padding: 0.75rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(210, 178, 76, 0.16);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.card h3 {
+    margin: 0 0 0.55rem;
+    font-size: 0.88rem;
+}
+
+.goalList {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.goalRow {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.55rem;
+    align-items: start;
+}
+
+.goalRow input {
+    margin-top: 0.2rem;
+}
+
+.reward {
+    display: inline-flex;
+    padding: 0.14rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(210, 178, 76, 0.14);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.68rem;
+    font-weight: 700;
+    margin-top: 0.2rem;
+}
+
+.goalRow p {
+    margin: 0.25rem 0 0;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+@media (max-width: 900px) {
+    .grid {
+        grid-template-columns: 1fr;
+    }
+}

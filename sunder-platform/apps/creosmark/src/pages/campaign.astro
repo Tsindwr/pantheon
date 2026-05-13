@@ -1,0 +1,17 @@
+---
+import CampaignsHomeEntry from "../components/library/CampaignsHomeEntry.tsx";
+import '../styles/sunder-theme.css';
+---
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Creosmark · Campaigns</title>
+
+    <link rel="icon" type="image/x-icon" href={`${import.meta.env.BASE_URL}/favicon.ico`} />
+    <link rel="apple-touch-icon" href={`${import.meta.env.BASE_URL}/apple-touch-icon.png`} />
+</head>
+<body>
+<CampaignsHomeEntry client:load />
+</body>
+</html>

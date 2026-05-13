@@ -1,0 +1,136 @@
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.85rem;
+  background: rgba(8, 10, 16, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(210, 178, 76, 0.16);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* Brand / logo */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-right: 0.5rem;
+  text-decoration: none;
+}
+
+.brandName {
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  color: var(--sunder-gold, #d2b24c);
+  line-height: 1;
+}
+
+/* Nav links */
+.links {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex: 1;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.6rem;
+  border: 1px solid transparent;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.link:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.link.active {
+  background: rgba(210, 178, 76, 0.14);
+  border-color: rgba(210, 178, 76, 0.3);
+  color: var(--sunder-gold, #d2b24c);
+}
+
+.link.disabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+}
+
+.icon {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.wip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.38rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* Auth slot pushed to the right */
+.auth {
+  margin-left: auto;
+}
+
+.leftCluster {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(210, 178, 76, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--sunder-ink, #f5f7fb);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.backButton:hover {
+  background: rgba(210, 178, 76, 0.12);
+  border-color: rgba(210, 178, 76, 0.34);
+  transform: translateY(-1px);
+}
+
+.backIcon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+@media (max-width: 540px) {
+  .link {
+    padding: 0.4rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .icon {
+    font-size: 1rem;
+  }
+}
