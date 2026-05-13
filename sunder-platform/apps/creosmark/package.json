@@ -1,9 +1,9 @@
 {
-  "name": "creosmark",
+  "name": "@sunderttrpg/creosmark",
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "dev": "astro dev",
+    "dev": "astro dev --port 5174",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro"

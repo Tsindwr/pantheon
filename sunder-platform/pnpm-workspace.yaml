@@ -2,3 +2,8 @@ packages:
   - "apps/*"
   - "packages/*"
   - "services/*"
+allowBuilds:
+  '@3d-dice/dice-box': set this to true or false
+  esbuild: set this to true or false
+  sharp: set this to true or false
+  supabase: set this to true or false
