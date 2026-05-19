@@ -336,6 +336,10 @@ function renderCampaigns() {
 }
 
 async function selectCampaign(campaignId) {
+  if (state.activeCampaign?.id === campaignId && state.unsubscribeQueue) {
+    return;
+  }
+
   const campaign = state.campaigns.find((entry) => entry.id === campaignId);
   if (!campaign) return;
 
@@ -497,11 +501,18 @@ function clearActiveCampaign() {
 
 function stopQueueSubscription() {
   if (typeof state.unsubscribeQueue === "function") {
-    state.unsubscribeQueue();
+    try {
+      void state.unsubscribeQueue();
+    } catch (error) {
+      console.warn("[Gauntlet realtime cleanup warning]", error);
+    }
   }
 
   state.unsubscribeQueue = null;
-  elements.realtimeStatus.textContent = "Realtime: idle";
+
+  if (elements.realtimeStatus) {
+    elements.realtimeStatus.textContent = "Realtime: idle";
+  }
 }
 
 function ensureSignedIn() {
