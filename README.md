@@ -28,6 +28,6 @@
 3. Add remote: `git remote add app-origin https://github.com/Tsindwr/[app-name].git`
 4. Fetch changes: `git fetch app-origin`
 5. Check branches: `git branch -r`
-6. Pull changes: `git subtree pull --prefix=apps/[app-name] app-origin main`
+6. Pull changes: `git subtree pull --prefix=sunder-platform/apps/[app-name] app-origin main`
 7. Optional: Add message, then type :wq to save and exit
 8. Remove temporary remote: `git remote remove app-origin`
