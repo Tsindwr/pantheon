@@ -3,6 +3,12 @@ import { supabase } from "./supabaseClient.js";
 export function subscribeToQueueChanges({ campaignId, onChange, onStatus }) {
     let timer = null;
 
+    const channelId =
+        crypto?.randomUUID?.() ||
+        `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    const channelName = `gauntlet-queue-watch-${campaignId}-${channelId}`;
+
     const scheduleReload = () => {
         window.clearTimeout(timer);
         timer = window.setTimeout(() => {
@@ -11,7 +17,7 @@ export function subscribeToQueueChanges({ campaignId, onChange, onStatus }) {
     };
 
     const channel = supabase
-        .channel(`gauntlet-queue-watch-${campaignId}`)
+        .channel(channelName)
         .on(
             "postgres_changes",
             {
@@ -41,6 +47,6 @@ export function subscribeToQueueChanges({ campaignId, onChange, onStatus }) {
 
     return () => {
         window.clearTimeout(timer);
-        supabase.removeChannel(channel);
+        return supabase.removeChannel(channel);
     };
 }

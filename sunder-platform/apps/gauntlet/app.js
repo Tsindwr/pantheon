@@ -71,14 +71,19 @@ const state = {
 init();
 
 async function init() {
+  console.log("[Gauntlet] app.js loaded", {
+    href: window.location.href,
+    origin: window.location.origin,
+    hashPresent: Boolean(window.location.hash),
+    hashStart: window.location.hash.slice(0, 40)
+  });
+  
   bindEvents();
 
   try {
-    await recoverSessionFromHash();
+    const recoveredSession = await recoverSessionFromHash();
 
     supabase.auth.onAuthStateChange((_event, session) => {
-      // Do not await Supabase calls directly inside this callback.
-      // Defer it so Supabase can finish its internal auth/session work first.
       window.setTimeout(() => {
         handleSession(session).catch((error) => {
           console.error("[Gauntlet auth state error]", error);
@@ -86,6 +91,11 @@ async function init() {
         });
       }, 0);
     });
+
+    if (recoveredSession) {
+      await handleSession(recoveredSession);
+      return;
+    }
 
     const { data, error } = await supabase.auth.getSession();
 
@@ -102,16 +112,46 @@ async function init() {
 }
 
 async function recoverSessionFromHash() {
-  if (!window.location.hash.includes("access_token")) {
-    return;
+  if (!window.location.hash) {
+    return null;
   }
 
-  // Give Supabase JS a tick to process detectSessionInUrl.
-  await new Promise((resolve) => window.setTimeout(resolve, 0));
+  const params = new URLSearchParams(window.location.hash.slice(1));
 
-  // Remove sensitive tokens from the address bar after the client has had
-  // a chance to store them.
-  window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+  const error = params.get("error");
+  const errorDescription = params.get("error_description");
+
+  if (error) {
+    throw new Error(errorDescription || error);
+  }
+
+  const accessToken = params.get("access_token");
+  const refreshToken = params.get("refresh_token");
+
+  if (!accessToken || !refreshToken) {
+    return null;
+  }
+
+  console.log("[Gauntlet] Recovering Supabase session from OAuth hash");
+
+  const { data, error: sessionError } = await supabase.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken
+  });
+
+  if (sessionError) {
+    throw sessionError;
+  }
+
+  window.history.replaceState(
+      {},
+      document.title,
+      window.location.pathname + window.location.search
+  );
+
+  console.log("[Gauntlet] OAuth session recovered", data.session?.user?.id);
+
+  return data.session;
 }
 
 function bindEvents() {
@@ -336,6 +376,10 @@ function renderCampaigns() {
 }
 
 async function selectCampaign(campaignId) {
+  if (state.activeCampaign?.id === campaignId && state.unsubscribeQueue) {
+    return;
+  }
+
   const campaign = state.campaigns.find((entry) => entry.id === campaignId);
   if (!campaign) return;
 
@@ -497,11 +541,18 @@ function clearActiveCampaign() {
 
 function stopQueueSubscription() {
   if (typeof state.unsubscribeQueue === "function") {
-    state.unsubscribeQueue();
+    try {
+      void state.unsubscribeQueue();
+    } catch (error) {
+      console.warn("[Gauntlet realtime cleanup warning]", error);
+    }
   }
 
   state.unsubscribeQueue = null;
-  elements.realtimeStatus.textContent = "Realtime: idle";
+
+  if (elements.realtimeStatus) {
+    elements.realtimeStatus.textContent = "Realtime: idle";
+  }
 }
 
 function ensureSignedIn() {

@@ -6,7 +6,10 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         flowType: "implicit",
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true,
+
+        // We manually consume #access_token in app.js.
+        detectSessionInUrl: false,
+
         storage: window.localStorage,
         storageKey: "gauntlet.supabase.auth"
     }
