@@ -561,6 +561,8 @@ export default function AbilityCardModuleRenderer({
                             isSelected ? styles.cardSectionSelected : ""
                         } ${
                             modifierDropTargetId === module.id ? styles.cardSectionModifierDrop : ""
+                        } ${
+                            showEditChrome ? styles.cardSectionWithControls : ""
                         }`}
                         onClick={() => {
                             setSelectedModuleId(module.id);

@@ -1,0 +1,20 @@
+---
+import { publicAssetPath } from "../lib/public-assets";
+
+type Props = {
+    title: string;
+    viewport?: string;
+};
+
+const {
+    title,
+    viewport = "width=device-width, initial-scale=1",
+} = Astro.props;
+---
+
+<meta charset="utf-8" />
+<meta name="viewport" content={viewport} />
+<title>{title}</title>
+<link rel="icon" type="image/svg+xml" href={publicAssetPath("favicon.svg")} />
+<link rel="alternate icon" type="image/x-icon" href={publicAssetPath("favicon.ico")} />
+<link rel="apple-touch-icon" href={publicAssetPath("apple-touch-icon.png")} />

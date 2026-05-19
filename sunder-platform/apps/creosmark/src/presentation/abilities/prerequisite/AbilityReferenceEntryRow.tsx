@@ -27,6 +27,9 @@ type AbilityReferenceEntryRowProps = {
     selected: boolean;
     onToggle: () => void;
     onSelect: () => void;
+    actionLabel?: string;
+    actionTone?: "default" | "danger";
+    actionDisabled?: boolean;
 };
 
 export default function AbilityReferenceEntryRow({
@@ -35,8 +38,13 @@ export default function AbilityReferenceEntryRow({
     selected,
     onToggle,
     onSelect,
+    actionLabel,
+    actionTone = "default",
+    actionDisabled,
 }: AbilityReferenceEntryRowProps) {
     const isExpandable = entry.kind === "ability";
+    const resolvedActionLabel = actionLabel ?? (selected ? "Selected" : "Use");
+    const resolvedActionDisabled = actionDisabled ?? selected;
 
     return (
         <article
@@ -64,11 +72,11 @@ export default function AbilityReferenceEntryRow({
 
                 <button
                     type="button"
-                    className={styles.abilityEntrySelect}
+                    className={`${styles.abilityEntrySelect} ${actionTone === "danger" ? styles.abilityEntrySelectDanger : ""}`}
                     onClick={onSelect}
-                    disabled={selected}
+                    disabled={resolvedActionDisabled}
                 >
-                    {selected ? "Selected" : "Use"}
+                    {resolvedActionLabel}
                 </button>
             </div>
 
@@ -84,6 +92,9 @@ export default function AbilityReferenceEntryRow({
                     </div>
                     <div>
                         <strong>Kind:</strong> {entry.abilityKind}
+                    </div>
+                    <div>
+                        <strong>Summary:</strong> {entry.descriptionText || "No summary available."}
                     </div>
                 </div>
             ) : null}

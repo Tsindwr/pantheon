@@ -1,9 +1,16 @@
 ---
+import BaseHead from "../layouts/BaseHead.astro";
+
 const sampleNumbers =
   "177.5, 250, 189, 50, 1060, 96, 453";
 const sampleTarget = "1726.5";
 ---
 
+<html lang="en">
+<head>
+  <BaseHead title="Combination Sum Finder" />
+</head>
+<body>
 <main class="wrap">
   <h1>Combination Sum Finder</h1>
   <p>Find every combination from a number list that adds up to your target.</p>
@@ -222,3 +229,6 @@ const sampleTarget = "1726.5";
     }
   }
 </style>
+
+</body>
+</html>

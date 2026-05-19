@@ -16,6 +16,7 @@ import { getVolatilityPlan } from "../../lib/rolling/resolveVolatility.ts"
 import { parseDiceBoxResults } from "./diceBoxAdapter.ts";
 import SunderRollOverlay from "./SunderRollOverlay.tsx";
 import SunderDiceBoxOverlay from "./SunderDiceBoxOverlay.tsx";
+import { publicAssetPath } from "../../lib/public-assets.ts";
 
 type DiceRollerProps = {
     sheet: CharacterSheetState;
@@ -85,7 +86,7 @@ export default function DiceRoller({
 
             try {
                 const box = new DiceBox({
-                    assetPath: `${import.meta.env.BASE_URL}/assets/dice-box/`,
+                    assetPath: publicAssetPath("assets/dice-box/"),
                     container: "#sunder-dice-stage",
                     offscreen: false,
                     theme: "default",

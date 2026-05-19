@@ -7,11 +7,11 @@ import {
     signOut,
     type CachedUserInfo
 } from "../../lib/auth";
+import { publicAssetPath } from "../../lib/public-assets";
 import styles from "./AuthStatus.module.css";
 
 function resolveAvatar(userInfo: CachedUserInfo | null) {
-    const base = import.meta.env.BASE_URL;
-    const fallbackAvatar = `/favicon/sunder-logo.png`;
+    const fallbackAvatar = publicAssetPath("favicon/sunder-logo.png");
 
     const avatar =
         (userInfo?.user_metadata as any)?.avatar_url ||
@@ -20,8 +20,7 @@ function resolveAvatar(userInfo: CachedUserInfo | null) {
     if (!avatar) return fallbackAvatar;
     if (/^(https?:)?\/\//.test(String(avatar))) return String(avatar);
 
-    const normalized = String(avatar).replace(/^\/+/, "");
-    return `${base}/${normalized}`;
+    return publicAssetPath(String(avatar));
 }
 
 export default function AuthStatus() {

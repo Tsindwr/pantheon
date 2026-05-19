@@ -52,6 +52,7 @@ export type AbilityBuilderContextValue = {
     onEdgesChange: OnEdgesChange<Edge>;
     onConnect: (connection: Connection) => void;
     setSelectedNodeId: (id: string | null) => void;
+    setSelectedEdgeId: (id: string | null) => void;
     openPrerequisiteAbilityPicker: (modifierNodeId: string) => void;
     canPublish: boolean;
     hasBlockingCardIssues: boolean;

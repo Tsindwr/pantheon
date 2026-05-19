@@ -2,12 +2,57 @@
     width: min(100%, 20rem);
     aspect-ratio: 63 / 88;
     position: relative;
+    container-type: inline-size;
+
+    --card-title-size: 8.1cqi;
+    --card-subtitle-size: 3.9cqi;
+    --card-body-size: 5.85cqi;
+    --card-body-line-height: 1.24;
+
+    --card-badge-size: 7.8cqi;
+    --card-reset-font-size: 2.85cqi;
+    --card-reset-icon-size: 1em;
+
+    --card-inline-symbol-size: 1.48em;
+    --card-inline-icon-size: 0.86em;
+    --card-rail-icon-size: 1.9em;
+
     border-radius: 1rem;
     overflow: visible;
     box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
     background:
             linear-gradient(180deg, rgba(21, 24, 37, 0.96), rgba(12, 14, 22, 0.98));
     color: #f4f2eb;
+}
+
+.cardDensityRoomy {
+    --card-title-size: 8.45cqi;
+    --card-subtitle-size: 4.1cqi;
+    --card-body-size: 6.35cqi;
+    --card-body-line-height: 1.22;
+    --card-badge-size: 7.5cqi;
+    --card-reset-font-size: 3cqi;
+    --card-reset-icon-size: 2.1em;
+}
+
+.cardDensityNormal {
+    --card-title-size: 8.1cqi;
+    --card-subtitle-size: 3.9cqi;
+    --card-body-size: 5.85cqi;
+    --card-body-line-height: 1.24;
+    --card-badge-size: 7.8cqi;
+    --card-reset-font-size: 2.85cqi;
+    --card-reset-icon-size: 1.9em;
+}
+
+.cardDensityCompact {
+    --card-title-size: 7.3cqi;
+    --card-subtitle-size: 3.45cqi;
+    --card-body-size: 5.25cqi;
+    --card-body-line-height: 1.18;
+    --card-badge-size: 7.1cqi;
+    --card-reset-font-size: 2.55cqi;
+    --card-reset-icon-size: 1.7em;
 }
 
 .cardFrameAction,
@@ -36,13 +81,13 @@
 }
 
 .cardHeader {
-    padding: 0.7rem 0.85rem 0.55rem;
+    padding: 3.1% 4.25% 2.45%;
     border-bottom: 1px solid rgba(231, 220, 186, 0.16);
     background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
 }
 
 .cardTitle {
-    font-size: 0.94rem;
+    font-size: var(--card-title-size);
     line-height: 1.05;
     font-weight: 800;
     letter-spacing: 0.03em;
@@ -50,17 +95,17 @@
 }
 
 .cardSubtitle {
-    margin-top: 0.22rem;
-    font-size: 0.65rem;
+    margin-top: 1.1%;
+    font-size: var(--card-subtitle-size);
     line-height: 1.2;
     color: rgba(244, 242, 235, 0.72);
 }
 
 .editingCardBody,
 .previewingCardBody {
-    padding: 0.65rem 0.8rem 0.95rem;
+    padding: 2.9% 3.7% 4.4%;
     display: grid;
-    gap: 0.48rem;
+    gap: 2.4%;
     align-content: center;
     justify-content: stretch;
     min-height: 0;
@@ -74,16 +119,17 @@
 
 .faceBadge {
     position: absolute;
-    right: 0.45rem;
-    bottom: 0.35rem;
-    width: 2.35rem;
-    height: 2.35rem;
+    right: 2.25%;
+    bottom: 1.75%;
+    width: var(--card-badge-size);
+    height: var(--card-badge-size);
     border-radius: 999px;
     display: grid;
     place-items: center;
-    border: 2px solid rgba(231, 220, 186, 0.24);
+    border: 0.48cqi solid rgba(231, 220, 186, 0.24);
     background: rgba(16, 18, 29, 0.94);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+    line-height: 1;
 }
 
 .faceBadgeDirect {
@@ -94,53 +140,71 @@
     color: #82c7ff;
 }
 
+.faceBadgeButton {
+    appearance: none;
+    padding: 0;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+}
+
+.faceBadgeButton:focus-visible {
+    outline: 2px solid rgba(210, 178, 76, 0.72);
+    outline-offset: 1px;
+}
+
 .faceBadgeIcon {
-    width: 1.15rem;
-    height: 1.15rem;
+    width: 58%;
+    height: 58%;
     display: inline-grid;
     place-items: center;
+    line-height: 1;
 }
 
 .faceBadgeIcon i,
 .faceBadgeIcon svg {
     width: 100%;
     height: 100%;
-    display: inline-grid;
-    place-items: center;
+    display: block;
+    line-height: 1;
 }
 
 .cardResetBadge {
     position: absolute;
-    left: 0.5rem;
-    bottom: 0.35rem;
+    left: 2.5%;
+    bottom: 1.75%;
     display: inline-flex;
     align-items: center;
-    gap: 0.24rem;
+    gap: 0.34em;
     border-radius: 999px;
-    border: 1px solid rgba(231, 220, 186, 0.24);
+    border: 0.24cqi solid rgba(231, 220, 186, 0.24);
     background: rgba(16, 18, 29, 0.94);
     color: rgba(244, 242, 235, 0.78);
-    padding: 0.18rem 0.38rem 0.16rem 0.28rem;
-    max-width: calc(100% - 4.4rem);
+    padding: 0.32em 0.72em 0.3em 0.52em;
+    max-width: calc(100% - 19%);
+    font-size: var(--card-reset-font-size);
+    line-height: 1;
 }
 
 .cardResetBadgeIcon {
-    width: 0.82rem;
-    height: 0.82rem;
+    width: 1.18em;
+    height: 1.18em;
     display: inline-grid;
     place-items: center;
+    flex: 0 0 1.18em;
+    line-height: 1;
 }
 
 .cardResetBadgeIcon i,
 .cardResetBadgeIcon svg {
     width: 100%;
     height: 100%;
-    display: inline-grid;
-    place-items: center;
+    display: block;
+    line-height: 1;
 }
 
 .cardResetBadgeLabel {
-    font-size: 0.54rem;
+    font-size: 1em;
     text-transform: uppercase;
     letter-spacing: 0.07em;
     white-space: nowrap;
@@ -278,56 +342,69 @@
 .inlineToken {
     display: inline-flex;
     align-items: center;
-    gap: 0.24rem;
-    vertical-align: baseline;
+    justify-content: center;
+    gap: 0.28em;
+    vertical-align: -0.16em;
+    font-size: calc(var(--card-body-size) * 0.9);
+    line-height: 1;
 }
 
 .inlineTokenChip {
-    padding: 0.12rem 0.34rem;
+    min-height: 1.45em;
+    padding: 0.16em 0.52em;
     border-radius: 999px;
     border: 1px solid rgba(244, 242, 235, 0.18);
     background: rgba(255, 255, 255, 0.05);
-    margin: 0 0.08rem;
+    margin: 0 0.12em;
 }
 
 .inlineTokenKeyword {
     font-weight: 800;
     /*text-transform: uppercase;*/
     letter-spacing: 0.03em;
-    margin: 0 0.08rem;
+    margin: 0 0.12em;
 }
 
 .inlineTokenSymbol {
-    width: 1rem;
-    height: 1rem;
-    justify-content: center;
+    display: inline-grid;
+    place-items: center;
+    width: var(--card-inline-symbol-size);
+    height: var(--card-inline-symbol-size);
+    padding: 0;
     border-radius: 999px;
     border: 1px solid rgba(244, 242, 235, 0.18);
     background: rgba(255,255,255,0.05);
-    margin: 0 0.08rem;
+    margin: 0 0.12em;
 }
 
 .inlineTokenIcon {
-    width: 0.82rem;
-    height: 0.82rem;
+    width: var(--card-inline-icon-size);
+    height: var(--card-inline-icon-size);
     display: inline-grid;
     place-items: center;
     flex: 0 0 auto;
+    line-height: 1;
+}
+
+.inlineTokenSymbol .inlineTokenIcon {
+    width: 68%;
+    height: 68%;
 }
 
 .inlineTokenIcon i,
 .inlineTokenIcon svg {
     width: 100%;
     height: 100%;
-    display: inline-grid;
-    place-items: center;
+    display: block;
+    line-height: 1;
 }
 
 .iconRailModule {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.45rem;
-    align-items: flex-start;
+    gap: 0.42rem;
+    align-items: center;
+    justify-content: center;
 }
 
 .railItemEditor {
@@ -342,38 +419,41 @@
 .railIcon {
     display: grid;
     justify-items: center;
-    gap: 0.18rem;
-    min-width: 3rem;
+    align-items: center;
+    gap: 0.22em;
+    min-width: 3.4em;
+    line-height: 1;
 }
 
 .railIconSvg {
-    width: 1.25rem;
-    height: 1.25rem;
+    width: var(--card-rail-icon-size);
+    height: var(--card-rail-icon-size);
     display: inline-grid;
     place-items: center;
+    line-height: 1;
 }
 
 .railIconSvg i,
 .railIconSvg svg {
     width: 100%;
     height: 100%;
-    display: inline-grid;
-    place-items: center;
+    display: block;
+    line-height: 1;
 }
 
 .railIconLarge .railIconSvg {
-    width: 1.55rem;
-    height: 1.55rem;
+    width: 2.28em;
+    height: 2.28em;
 }
 
 .railIconBadge {
-    padding: 0.18rem;
+    padding: 0.32em;
     border-radius: 999px;
     border: 1px solid rgba(244,242,235,0.16);
 }
 
 .railIconLabel {
-    font-size: 0.56rem;
+    font-size: calc(var(--card-body-size) * 0.52);
     line-height: 1.15;
     text-align: center;
     color: rgba(244,242,235,0.8);
@@ -473,11 +553,15 @@
 
 .cardSection {
     position: relative;
-    min-height: 1.45rem;
+    min-height: 1.2rem;
     border-top: 1px solid rgba(194, 196, 202, 0.34);
     border-bottom: 1px solid rgba(194, 196, 202, 0.34);
-    padding: 0.18rem 1.85rem 0.2rem 0.3rem;
+    padding: 0.16rem 0.32rem 0.18rem;
     transition: background 120ms ease, border-color 120ms ease;
+}
+
+.cardSectionWithControls {
+    padding-right: 1.85rem;
 }
 
 .cardSection:hover {
@@ -573,8 +657,8 @@
 
 .cardSectionParagraph {
     margin: 0;
-    font-size: 0.8rem;
-    line-height: 1.34;
+    font-size: var(--card-body-size);
+    line-height: var(--card-body-line-height);
     color: #f4f2eb;
     white-space: pre-wrap;
     word-break: normal;
@@ -661,8 +745,9 @@
 .cardSectionRail {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 1.75%;
     flex-wrap: wrap;
+    justify-content: center;
 }
 
 .cardSectionRailEmpty {
@@ -688,27 +773,30 @@
 
 .rulesPreviewText {
     margin: 0;
-    font-size: 0.78rem;
-    line-height: 1.3;
+    font-size: var(--card-body-size);
+    line-height: var(--card-body-line-height);
     white-space: pre-wrap;
-    width: min-content;
+    width: 100%;
+    text-align: center;
 }
 
 .rulesParagraph {
     margin: 0;
-    font-size: 0.82rem;
-    line-height: 1.42;
+    font-size: var(--card-body-size);
+    line-height: var(--card-body-line-height);
     color: #f4f2eb;
     white-space: pre-wrap;
     word-break: normal;
     overflow-wrap: anywhere;
+    text-align: center;
 }
 
 .moduleTextPreview {
-    font-size: 0.72rem;
-    line-height: 1.25;
+    font-size: calc(var(--card-body-size) * 0.92);
+    line-height: var(--card-body-line-height);
     color: rgba(244, 242, 235, 0.86);
     white-space: pre-wrap;
+    text-align: center;
 }
 
 .inventoryPanel {

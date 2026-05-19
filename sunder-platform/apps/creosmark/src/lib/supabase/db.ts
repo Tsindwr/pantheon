@@ -1,7 +1,6 @@
 import { supabase } from "./client";
 import type { CharacterSheetState } from "../../types/sheet";
 import type { CampaignRecord, CampaignSummary, CharacterSheetSummary } from "../../types/library";
-import {getCharacterLevelFromSummary} from "../library-data.ts";
 
 export type CharacterSheetRow = {
     id: string;
@@ -11,6 +10,7 @@ export type CharacterSheetRow = {
     origin: string;
     player_name: string;
     level: number;
+    ability_ids: string[];
     sheet_json: CharacterSheetState;
     created_at: string;
     updated_at: string;
@@ -36,6 +36,81 @@ export type ArchetypeData = {
     id: string;
     label: string;
     levels: number;
+}
+
+const UUID_PATTERN =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function collectAbilityIdsFromUnknown(values: unknown): string[] {
+    if (!Array.isArray(values)) return [];
+
+    const result: string[] = [];
+
+    for (const item of values) {
+        if (typeof item === "string" && UUID_PATTERN.test(item)) {
+            result.push(item);
+            continue;
+        }
+
+        if (!item || typeof item !== "object") continue;
+
+        const record = item as Record<string, unknown>;
+        const direct = record.abilityId ?? record.ability_id ?? record.id;
+        if (typeof direct === "string" && UUID_PATTERN.test(direct)) {
+            result.push(direct);
+        }
+    }
+
+    return result;
+}
+
+function normalizeCharacterSheetState(
+    sheet: CharacterSheetState,
+    persistedAbilityIds: unknown,
+): CharacterSheetState {
+    const record = sheet as Record<string, unknown>;
+    const progression =
+        record.progression && typeof record.progression === "object"
+            ? (record.progression as Record<string, unknown>)
+            : null;
+
+    const abilityCandidates: unknown[] = [
+        persistedAbilityIds,
+        record.abilityIds,
+        record.ownedAbilityIds,
+        record.learnedAbilityIds,
+        record.acquiredAbilityIds,
+        record.knownAbilityIds,
+        record.abilities,
+        record.knownAbilities,
+        record.acquiredAbilities,
+        progression?.abilityIds,
+        progression?.ownedAbilityIds,
+        progression?.abilities,
+        progression?.knownAbilities,
+    ];
+
+    const abilityIds = new Set<string>();
+
+    for (const candidate of abilityCandidates) {
+        for (const id of collectAbilityIdsFromUnknown(candidate)) {
+            abilityIds.add(id);
+        }
+    }
+
+    return {
+        ...sheet,
+        abilityIds: Array.from(abilityIds),
+    };
+}
+
+function hydrateCharacterSheetRow(row: CharacterSheetRow): CharacterSheetRow {
+    const sheetJson = normalizeCharacterSheetState(row.sheet_json, row.ability_ids);
+    return {
+        ...row,
+        ability_ids: sheetJson.abilityIds,
+        sheet_json: sheetJson,
+    };
 }
 
 async function requireUserId(): Promise<string> {
@@ -84,13 +159,16 @@ function toCharacterSummary(row: CharacterSheetRow): CharacterSheetSummary {
 }
 
 function buildCharacterMutation(sheet: CharacterSheetState) {
+    const normalizedSheet = normalizeCharacterSheetState(sheet, sheet.abilityIds);
+
     return {
-        name: sheet.header.name,
-        archetype: sheet.header.archetypes,
-        origin: sheet.header.origin,
-        player_name: sheet.header.playerName,
-        level: sheet.header.level,
-        sheet_json: sheet,
+        name: normalizedSheet.header.name,
+        archetype: normalizedSheet.header.archetypes,
+        origin: normalizedSheet.header.origin,
+        player_name: normalizedSheet.header.playerName,
+        level: normalizedSheet.header.level,
+        ability_ids: normalizedSheet.abilityIds,
+        sheet_json: normalizedSheet,
     };
 }
 
@@ -109,7 +187,9 @@ export async function listMyCharacterSheets(): Promise<CharacterSheetSummary[]> 
 
     if (error) throw error;
 
-    return (data as CharacterSheetRow[]).map(toCharacterSummary);
+    return ((data ?? []) as CharacterSheetRow[])
+        .map(hydrateCharacterSheetRow)
+        .map(toCharacterSummary);
 }
 
 export async function getMyCharacterSheet(id: string): Promise<CharacterSheetRow | null> {
@@ -124,7 +204,9 @@ export async function getMyCharacterSheet(id: string): Promise<CharacterSheetRow
 
     if (error) throw error;
 
-    return (data as CharacterSheetRow | null) ?? null;
+    if (!data) return null;
+
+    return hydrateCharacterSheetRow(data as CharacterSheetRow);
 }
 
 export async function createCharacterSheet(
@@ -143,7 +225,7 @@ export async function createCharacterSheet(
 
     if (error) throw error;
 
-    return data as CharacterSheetRow;
+    return hydrateCharacterSheetRow(data as CharacterSheetRow);
 }
 
 export async function updateCharacterSheet(
@@ -162,7 +244,7 @@ export async function updateCharacterSheet(
 
     if (error) throw error;
 
-    return data as CharacterSheetRow;
+    return hydrateCharacterSheetRow(data as CharacterSheetRow);
 }
 
 export async function deleteCharacterSheet(id: string): Promise<void> {
@@ -595,6 +677,7 @@ export function createBlankSheet(): CharacterSheetState {
                 custom: [],
             },
         },
+        abilityIds: [],
         archetypeLevels: [],
         firstArchetypeBoons: {
             domainId: "",

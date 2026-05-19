@@ -5,9 +5,9 @@ import react from '@astrojs/react';
 
 // https://astro.build/config
 export default defineConfig({
-    site: 'https://tsindwr.github.io',
+    site: 'https://creosmark.sunderttrpg.world',
     output: 'static',
-    base: '/creosmark',
+    base: '/',
     integrations: [react()],
     vite: {
         optimizeDeps: {

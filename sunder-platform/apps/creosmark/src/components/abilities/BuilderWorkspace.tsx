@@ -26,6 +26,7 @@ export default function BuilderWorkspace() {
         onEdgesChange,
         onConnect,
         setSelectedNodeId,
+        setSelectedEdgeId,
         cardState,
         setCardState,
         summary,
@@ -165,8 +166,18 @@ export default function BuilderWorkspace() {
                     onNodesChange={onNodesChange}
                     onEdgesChange={onEdgesChange}
                     onConnect={onConnect}
-                    onNodeClick={(_, node) => setSelectedNodeId(node.id)}
-                    onPaneClick={() => setSelectedNodeId(null)}
+                    onNodeClick={(_, node) => {
+                        setSelectedNodeId(node.id);
+                        setSelectedEdgeId(null);
+                    }}
+                    onEdgeClick={(_, edge) => {
+                        setSelectedEdgeId(edge.id);
+                        setSelectedNodeId(null);
+                    }}
+                    onPaneClick={() => {
+                        setSelectedNodeId(null);
+                        setSelectedEdgeId(null);
+                    }}
                     fitView
                     className={styles.flow}
                     defaultEdgeOptions={{ markerEnd: { type: "arrowclosed" } }}

@@ -1,0 +1,158 @@
+.page {
+    display: grid;
+    grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+    gap: 0.8rem;
+    min-height: 0;
+}
+
+.listPanel,
+.editorPanel {
+    display: grid;
+    align-content: start;
+    gap: 0.7rem;
+    border-radius: 0.9rem;
+    border: 1px solid rgba(210, 178, 76, 0.16);
+    background: rgba(255, 255, 255, 0.03);
+    padding: 0.8rem;
+}
+
+.panelHeader h2 {
+    margin: 0.2rem 0 0;
+}
+
+.eyebrow {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 800;
+    color: var(--sunder-purple, #8b7cf3);
+}
+
+.list {
+    display: grid;
+    gap: 0.45rem;
+    max-height: 72vh;
+    overflow: auto;
+    padding-right: 0.1rem;
+}
+
+.listRow {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.7rem;
+    background: rgba(255, 255, 255, 0.03);
+    color: white;
+    font: inherit;
+    cursor: pointer;
+    text-align: left;
+    padding: 0.55rem 0.65rem;
+    display: grid;
+    gap: 0.12rem;
+}
+
+.listRow strong {
+    font-size: 0.92rem;
+}
+
+.listRow span,
+.listRow small {
+    color: rgba(255, 255, 255, 0.66);
+    font-size: 0.76rem;
+}
+
+.listRowActive {
+    border-color: rgba(210, 178, 76, 0.42);
+    background: rgba(210, 178, 76, 0.14);
+}
+
+.form {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.field {
+    display: grid;
+    gap: 0.24rem;
+}
+
+.field > span {
+    color: rgba(255, 255, 255, 0.66);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.field input,
+.field textarea {
+    width: 100%;
+    min-width: 0;
+    border-radius: 0.72rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(10, 10, 14, 0.85);
+    color: white;
+    font: inherit;
+    padding: 0.58rem 0.7rem;
+}
+
+.field textarea {
+    min-height: 420px;
+    resize: vertical;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.8rem;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+}
+
+.primary,
+.secondary {
+    font: inherit;
+    cursor: pointer;
+    border-radius: 0.72rem;
+    padding: 0.52rem 0.78rem;
+}
+
+.primary {
+    border: none;
+    background: linear-gradient(135deg, var(--sunder-gold, #d2b24c), #f0daa0);
+    color: #141821;
+    font-weight: 800;
+}
+
+.secondary {
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
+    font-weight: 700;
+}
+
+.primary:disabled,
+.secondary:disabled {
+    opacity: 0.66;
+    cursor: default;
+}
+
+.saveState {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.state {
+    color: rgba(255, 255, 255, 0.72);
+    padding: 0.6rem 0;
+}
+
+.error {
+    color: #ffb0b0;
+    font-size: 0.84rem;
+}
+
+@media (max-width: 1080px) {
+    .page {
+        grid-template-columns: 1fr;
+    }
+}

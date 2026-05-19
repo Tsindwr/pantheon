@@ -12,6 +12,8 @@ type Props = {
     resetLabel?: string;
     children: React.ReactNode;
     preview: "edit" | "preview";
+    onFaceBadgeClick?: React.MouseEventHandler<HTMLElement>;
+    contentDensity?: "roomy" | "normal" | "compact";
 };
 
 export default function AbilityCardFrame({
@@ -22,13 +24,22 @@ export default function AbilityCardFrame({
     resetLabel,
     children,
     preview,
+    onFaceBadgeClick,
+    contentDensity = "normal",
 }: Props) {
     const resetIconClassName = getCardSymbolClassName("reset");
     const formatClass = FORMAT_CLASS_BY_FORMAT[format] ?? "";
+    const densityClass =
+        contentDensity === "roomy"
+            ? styles.cardDensityRoomy
+            : contentDensity === "compact"
+                ? styles.cardDensityCompact
+                : styles.cardDensityNormal;
 
     return (
         <article
-            className={`${styles.cardFrame} ${formatClass}`}
+            data-ability-card-frame
+            className={`${styles.cardFrame} ${formatClass} ${densityClass}`}
         >
             <div className={styles.cardBorder}>
                 <header className={styles.cardHeader}>
@@ -42,7 +53,7 @@ export default function AbilityCardFrame({
                     {children}
                 </div>
 
-                <AbilityCardFaceBadge faceKind={faceKind} />
+                <AbilityCardFaceBadge faceKind={faceKind} onClick={onFaceBadgeClick} />
 
                 {resetLabel ? (
                     <div className={styles.cardResetBadge} title={`Reset: ${resetLabel}`}>

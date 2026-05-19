@@ -354,4 +354,6 @@ export type CharacterSheetState = {
   originSelections?: OriginSelectionState;
   archetypeLevels: PurchasedArchetypeLevel[];
   firstArchetypeBoons: FirstArchetypeBoons;
+  abilityIds: string[];
+  abilities?: string[];
 };

@@ -57,6 +57,7 @@ export const routes = {
     appHref: (href: string) => toAppHref(href),
     campaignHome: () => withBase("campaign"),
     abilitiesHome: () => withBase("abilities"),
+    abilitiesAdmin: () => withBase("abilities-admin"),
     characterView: (id: string) => withQuery("character/view", { id }),
     characterEdit: (id: string) => withQuery("character/edit", { id }),
     campaignView: (id: string) => withQuery("campaign/view", { id }),

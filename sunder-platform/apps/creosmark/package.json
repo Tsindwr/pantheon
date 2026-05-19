@@ -8,7 +8,9 @@
     "build": "astro build",
     "preview": "astro preview --port 4174",
     "astro": "astro",
-    "check": "astro check"
+    "check": "astro check",
+    "supabase:push": "dotenv -e .env -- supabase db push",
+    "supabase:pull": "dotenv -e .env -- supabase db pull"
   },
   "dependencies": {
     "@3d-dice/dice-box": "^1.1.4",
@@ -27,6 +29,7 @@
     "react-dom": "^19.2.4"
   },
   "devDependencies": {
+    "dotenv-cli": "^11.0.0",
     "supabase": "^2.78.1"
   }
 }

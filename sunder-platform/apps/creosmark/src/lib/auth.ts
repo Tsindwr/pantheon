@@ -14,6 +14,55 @@ function isBrowser() {
     return typeof window !== `undefined`;
 }
 
+const AUTH_RETURN_HASH_KEYS = [
+    "access_token",
+    "refresh_token",
+    "expires_in",
+    "expires_at",
+    "token_type",
+    "provider_token",
+    "provider_refresh_token",
+    "error",
+    "error_code",
+    "error_description",
+];
+
+function getCurrentUrlWithoutHash() {
+    if (!isBrowser()) return "";
+
+    return `${window.location.origin}${window.location.pathname}${window.location.search}`;
+}
+
+function getHashSearchParams(hash: string) {
+    const normalizedHash = hash.replace(/^#+/, "");
+    return new URLSearchParams(normalizedHash);
+}
+
+export function hasAuthReturnHash() {
+    if (!isBrowser()) return false;
+
+    const hash = window.location.hash;
+    if (!hash) return false;
+
+    const params = getHashSearchParams(hash);
+    if (AUTH_RETURN_HASH_KEYS.some((key) => params.has(key))) {
+        return true;
+    }
+
+    const href = window.location.href;
+    return AUTH_RETURN_HASH_KEYS.some((key) => href.includes(`#${key}=`) || href.includes(`&${key}=`));
+}
+
+function clearAuthReturnHash() {
+    if (!hasAuthReturnHash()) return;
+
+    window.history.replaceState(
+        window.history.state,
+        document.title,
+        `${window.location.pathname}${window.location.search}`,
+    );
+}
+
 function saveUserInfo(user: any | null) {
     if (!isBrowser()) return;
 
@@ -79,6 +128,8 @@ export function getCachedUserInfo(): CachedUserInfo | null {
 }
 
 export async function getCurrentSession() {
+    const shouldClearAuthHash = hasAuthReturnHash();
+
     const {
         data: { session },
         error,
@@ -86,10 +137,17 @@ export async function getCurrentSession() {
 
     if (error) {
         console.warn("getSession error:", error);
+        if (shouldClearAuthHash) {
+            clearAuthReturnHash();
+        }
         return null;
     }
 
     saveUserInfo(session?.user ?? null);
+    if (shouldClearAuthHash) {
+        clearAuthReturnHash();
+    }
+
     return session ?? null;
 }
 
@@ -99,10 +157,19 @@ export async function getCurrentUser() {
 }
 
 export async function signInWithDiscord() {
+    if (!isBrowser()) {
+        return;
+    }
+
+    if (hasAuthReturnHash()) {
+        await getCurrentSession();
+        return;
+    }
+
     const { error } = await supabase.auth.signInWithOAuth({
         provider: "discord",
         options: {
-            redirectTo: window.location.href,
+            redirectTo: getCurrentUrlWithoutHash(),
         },
     });
 

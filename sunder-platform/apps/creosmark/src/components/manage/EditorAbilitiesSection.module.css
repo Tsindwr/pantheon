@@ -1,0 +1,52 @@
+.section {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.85rem;
+    border-radius: 0.95rem;
+    border: 1px solid rgba(210, 178, 76, 0.16);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+}
+
+.eyebrow {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 800;
+    color: var(--sunder-purple, #8b7cf3);
+}
+
+.title {
+    margin: 0.15rem 0 0;
+}
+
+.addButton {
+    padding: 0.56rem 0.78rem;
+    border-radius: 0.72rem;
+    border: none;
+    background: linear-gradient(135deg, var(--sunder-gold, #d2b24c), #f0daa0);
+    color: #141821;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.list {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.state {
+    padding: 0.72rem 0.8rem;
+    border-radius: 0.74rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(245, 247, 251, 0.78);
+    font-size: 0.9rem;
+}

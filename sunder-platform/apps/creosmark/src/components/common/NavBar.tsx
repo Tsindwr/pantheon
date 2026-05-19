@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import styles from "./NavBar.module.css";
 import { routes } from "../../lib/routing.ts";
+import { getCurrentUser, onAuthStateChange } from "../../lib/auth.ts";
+import { supabase } from "../../lib/supabase/client.ts";
 
 type NavLink = {
     label: string;
@@ -36,9 +38,58 @@ export default function NavBar({
    showBackButton = true,
     backHref = routes.home(),
 }: NavBarProps) {
+    const [isAdmin, setIsAdmin] = useState(false);
+
     function normalizePath(path: string): string {
         return path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
     }
+
+    useEffect(() => {
+        let mounted = true;
+
+        async function loadRoleForCurrentUser() {
+            const user = await getCurrentUser();
+            if (!mounted) return;
+
+            if (!user) {
+                setIsAdmin(false);
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from("user_profiles")
+                .select("user_type")
+                .eq("user_id", user.id)
+                .maybeSingle();
+
+            if (!mounted) return;
+            if (error) {
+                setIsAdmin(false);
+                return;
+            }
+
+            setIsAdmin(data?.user_type === "admin");
+        }
+
+        void loadRoleForCurrentUser();
+
+        const unsubscribe = onAuthStateChange(() => {
+            void loadRoleForCurrentUser();
+        });
+
+        return () => {
+            mounted = false;
+            unsubscribe();
+        };
+    }, []);
+
+    const visibleLinks = useMemo(() => {
+        if (!isAdmin) return NAV_LINKS;
+        return [
+            ...NAV_LINKS,
+            { label: "Admin", href: routes.abilitiesAdmin(), icon: "🛡️" },
+        ];
+    }, [isAdmin]);
 
     function handleBack() {
         if (typeof window === 'undefined') return;
@@ -73,7 +124,7 @@ export default function NavBar({
 
 
             <div className={styles.links}>
-                {NAV_LINKS.map((link) => {
+                {visibleLinks.map((link) => {
                     const isActive = normalizePath(activePath) === normalizePath(link.href);
                     const cls = [
                         styles.link,

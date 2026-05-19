@@ -25,12 +25,12 @@ import EditorWorkspace from "../manage/EditorWorkspace.tsx";
 import ManageDrawer from "../manage/ManageDrawer";
 import CampaignRollWidget from "../roll/CampaignRollWidget.tsx";
 import RollHistoryDrawer from "../roll/RollHistoryDrawer.tsx";
-import NavBar from "../common/NavBar.tsx";
+import CharacterAbilitiesPanel from "../abilities/CharacterAbilitiesPanel.tsx";
 import type { CampaignAssignment, RollBroadcastMode } from "../../types/roll-feed.ts";
 import type { TestResult } from "../../lib/rolling/types.ts";
 import styles from "./CharacterSheetShell.module.css";
 import {routes} from "../../lib/routing.ts";
-import { supabaseLibraryCampaignService } from "../../infrastructure/library/supabase-library-campaign-service.ts";
+import { supabaseLibraryCampaignService } from "../../infrastructure";
 
 type CharacterSheetShellProps = {
     initialSheet: CharacterSheetState;
@@ -202,9 +202,8 @@ export default function CharacterSheetShell({
                         ) : null}
 
                         {activeTab === "abilities" ? (
-                            <Placeholder
-                                title="Abilities"
-                                copy="Use this space next for the big ability browser and card detail panel."
+                            <CharacterAbilitiesPanel
+                                abilityIds={sheet.abilityIds}
                             />
                         ) : null}
 

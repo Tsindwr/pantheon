@@ -231,11 +231,25 @@ const duplicateActionEconomyRule: AbilityValidationRule = (context) => {
 };
 
 const severalUtilityNarrativeWeightRule: AbilityValidationRule = (context) => {
-    const narrativeCount = countMatching(context, (node) =>
-        node.label === "Narrative · Utility",
-    );
+    if (context.isAction) {
+        const focusNarrativeCount = countMatching(
+            context,
+            (node) => node.label === "Narrative · Utility" && node.lane === "focus",
+        );
+        const flipsideNarrativeCount = countMatching(
+            context,
+            (node) => node.label === "Narrative · Utility" && node.lane === "flipside",
+        );
 
-    if (narrativeCount <= 2) return [];
+        if (focusNarrativeCount < 3 && flipsideNarrativeCount < 3) return [];
+    } else {
+        const narrativeCount = countMatching(
+            context,
+            (node) => node.label === "Narrative · Utility",
+        );
+
+        if (narrativeCount <= 2) return [];
+    }
 
     return [
         warning(

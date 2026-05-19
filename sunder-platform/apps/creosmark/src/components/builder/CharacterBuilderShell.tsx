@@ -8,14 +8,15 @@ import BuilderPotentialRoller, {
     type BuilderPotentialRollRequest,
 } from "./BuilderPotentialRoller.tsx";
 import styles from './CharacterBuilderShell.module.css';
-import { applyRolledPotentialBaseScore } from "../../application/character-sheet/commands.ts";
+import { applyRolledPotentialBaseScore } from "../../application";
 
 const BUILDER_STEPS = [
     { id: 'identity', label: '1. Identity' },
     { id: 'origin', label: '2. Origin' },
     { id: 'potentials', label: '3. Potentials' },
     { id: 'proficiencies', label: '4. Proficiencies' },
-    { id: 'goals', label: '5. Goals' },
+    { id: 'abilities', label: '5. Abilities' },
+    { id: 'goals', label: '6. Goals' },
 ] as const;
 
 type BuilderStepId = (typeof BUILDER_STEPS)[number]['id'];

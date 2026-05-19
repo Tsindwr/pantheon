@@ -13,6 +13,7 @@ export type PublishedAbilityEdge = {
 
 export type AbilityPublishDocument = {
     version: 2;
+    abilityId?: string;
     title: string;
     abilityKind: AbilityKind | "unknown";
     activationProfile: {

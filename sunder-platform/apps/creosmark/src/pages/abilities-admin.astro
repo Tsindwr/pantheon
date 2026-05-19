@@ -1,19 +1,18 @@
 ---
-import '../../styles/sunder-theme.css';
-import CampaignQueryPageEntry from "../../components/library/CampaignQueryPageEntry.tsx";
+import "../styles/sunder-theme.css";
+import AbilityModerationPageEntry from "../components/abilities/AbilityModerationPageEntry.tsx";
 ---
-
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Creosmark · View Campaign</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Creosmark · Ability Moderation</title>
 
     <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}favicon.svg`} />
     <link rel="alternate icon" type="image/x-icon" href={`${import.meta.env.BASE_URL}favicon.ico`} />
     <link rel="apple-touch-icon" href={`${import.meta.env.BASE_URL}apple-touch-icon.png`} />
 </head>
 <body>
-<CampaignQueryPageEntry client:load />
+<AbilityModerationPageEntry client:load />
 </body>
 </html>
