@@ -1,7 +1,7 @@
 <div class="sunder-author-card">
   <div class="sunder-author-header">
     <!-- Use absolute path including repository base so the image resolves correctly on GitHub Pages -->
-    <img src="/site/assets/art/luminoxity_pfp.webp" alt="luminoxity artist profile picture" class="sunder-author-avatar" data-sunder-lightbox="on" />
+    <img src="../../../assets/art/luminoxity_pfp.webp" alt="luminoxity artist profile picture" class="sunder-author-avatar" data-sunder-lightbox="on" />
     <div class="sunder-author-info">
       <h2 class="sunder-author-name">Lumi<span class="sunder-author-pronouns">they/she</span></h2>
       <p class="sunder-author-handle">@lum1n0x1ty</p>

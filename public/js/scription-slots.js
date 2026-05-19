@@ -6,8 +6,17 @@
         ".sunder-scription-slot[data-content-code]",
     ].join(",");
 
-    const ACTIVATE_URL = "/site/meta/activate-scription/";
+    const ACTIVATE_URL = window.SUNDER_SITE?.resolvePath
+        ? window.SUNDER_SITE.resolvePath("meta/activate-scription/")
+        : "/meta/activate-scription/";
     const KOFI_URL = "https://ko-fi.com/s/7a27b8b0ae";
+
+    const SLOT_CACHE_PREFIX = "sunder:scription:slot:v1:";
+    const SLOT_CACHE_INDEX_KEY = "sunder:scription:slot:index:v1";
+    const SLOT_CACHE_MAX_AGE_MS = 1000 * 60 * 60; // 1 hour per tab session
+
+    let authSubscriptionAttached = false;
+    let lastKnownUserId = null;
 
     function sleep(ms) {
         return new Promise((resolve) => setTimeout(resolve, ms));
@@ -68,10 +77,96 @@
         ).trim();
     }
 
-    function getPagePath() {
-        const path = window.location.pathname || "/";
+    function getSlotCacheKey(userId, contentCode) {
+        return `${SLOT_CACHE_PREFIX}${userId}:${contentCode}`;
+    }
 
-        // Keep the same path style our source table likely uses
+    function getSlotCacheIndex() {
+        try {
+            const raw = sessionStorage.getItem(SLOT_CACHE_INDEX_KEY);
+            const parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    }
+
+    function rememberSlotCacheKey(key) {
+        const index = new Set(getSlotCacheIndex());
+        index.add(key);
+        sessionStorage.setItem(SLOT_CACHE_INDEX_KEY, JSON.stringify(Array.from(index)));
+    }
+
+    function readCachedFragment(userId, contentCode) {
+        if (!userId || !contentCode) return null;
+
+        try {
+            const key = getSlotCacheKey(userId, contentCode);
+            const raw = sessionStorage.getItem(key);
+
+            if (!raw) return null;
+
+            const cached = JSON.parse(raw);
+
+            if (!cached || typeof cached.markdown !== "string") {
+                sessionStorage.removeItem(key);
+                return null;
+            }
+
+            if (cached.cachedAt && Date.now() - cached.cachedAt > SLOT_CACHE_MAX_AGE_MS) {
+                sessionStorage.removeItem(key);
+                return null;
+            }
+
+            return cached;
+        } catch {
+            return null;
+        }
+    }
+
+    function writeCachedFragment(userId, contentCode, fragment) {
+        if (!userId || !contentCode || !fragment?.markdown) return;
+
+        const key = getSlotCacheKey(userId, contentCode);
+
+        const cached = {
+            code: contentCode,
+            title: fragment.title || null,
+            markdown: fragment.markdown,
+            sourceSha: fragment.sourceSha || null,
+            cachedAt: Date.now(),
+        };
+
+        sessionStorage.setItem(key, JSON.stringify(cached));
+        rememberSlotCacheKey(key);
+    }
+
+    function clearScriptionSlotCache() {
+        for (const key of getSlotCacheIndex()) {
+            if (typeof key === "string" && key.startsWith(SLOT_CACHE_PREFIX)) {
+                sessionStorage.removeItem(key);
+            }
+        }
+
+        sessionStorage.removeItem(SLOT_CACHE_INDEX_KEY);
+
+        // Failsafe in case the index was stale.
+        for (let i = sessionStorage.length - 1; i >= 0; i -= 1) {
+            const key = sessionStorage.key(i);
+
+            if (key && key.startsWith(SLOT_CACHE_PREFIX)) {
+                sessionStorage.removeItem(key);
+            }
+        }
+    }
+
+    function getPagePath() {
+        if (window.SUNDER_SITE?.currentPagePath) {
+            return window.SUNDER_SITE.currentPagePath();
+        }
+
+        let path = window.location.pathname || "/";
+        if (!path.endsWith("/")) path += "/";
         return path;
     }
 
@@ -207,6 +302,9 @@
             },
             body: JSON.stringify({
                 pagePath: getPagePath(),
+                legacyPagePath: window.SUNDER_SITE?.legacyPagePath
+                    ? window.SUNDER_SITE.legacyPagePath(getPagePath())
+                    : undefined,
                 contentCodes,
             }),
         });
@@ -288,8 +386,17 @@
 
             session = await getSession(client);
 
+            const currentUserId = session?.user?.id || null;
+
+            if (currentUserId && lastKnownUserId && lastKnownUserId !== currentUserId) {
+                clearScriptionSlotCache();
+            }
+
+            lastKnownUserId = currentUserId;
+
             if (!session) {
                 for (const slot of unloadedSlots) {
+                    renderSignedOutSlot(slot);
                     markSlotState(slot, "signed-out");
                     delete slot.dataset.scriptionSlotLoading;
                 }
@@ -301,21 +408,46 @@
 
             if (!accessState.ok || !accessState.hasAccess) {
                 for (const slot of unloadedSlots) {
-                    markSlotState(slot, accessState.signedOut ? "signed-out" : "locked");
+                    if (accessState.signedOut) {
+                        renderSignedOutSlot(slot);
+                        markSlotState(slot, "signed-out");
+                    } else {
+                        renderLockedSlot(slot)
+                        markSlotState(slot, "locked");
+                    }
+
                     delete slot.dataset.scriptionSlotLoading;
                 }
 
                 return;
             }
 
+            const userId = session.user.id;
+            const slotsNeedingFetch = [];
+
+            for (const slot of unloadedSlots) {
+                const code = getSlotCode(slot);
+                const cached = readCachedFragment(userId, code);
+
+                if (cached?.markdown) {
+                    renderFragmentIntoSlot(slot, cached);
+                    slot.dataset.scriptionSlotLoaded = "true";
+                    delete slot.dataset.scriptionSlotLoading;
+                } else {
+                    slotsNeedingFetch.push(slot);
+                }
+            }
+
+            if (slotsNeedingFetch.length === 0) return;
+
             const contentCodes = Array.from(
-                new Set(unloadedSlots.map(getSlotCode).filter(Boolean))
+                new Set(slotsNeedingFetch.map(getSlotCode).filter(Boolean))
             );
 
             const payload = await fetchFragments(client, session, contentCodes);
             const fragmentMap = normalizeFragmentsPayload(payload);
 
-            for (const slot of unloadedSlots) {
+            for (const slot of slotsNeedingFetch) {
                 const code = getSlotCode(slot);
                 const fragment = fragmentMap.get(code);
 
@@ -326,6 +458,7 @@
                     continue;
                 }
 
+                writeCachedFragment(userId, code, fragment);
                 renderFragmentIntoSlot(slot, fragment);
 
                 slot.dataset.scriptionSlotLoaded = "true";
@@ -360,9 +493,56 @@
         return String(slot.innerHTML || "").trim().length > 0;
     }
 
-    function renderLockedSlotIfEmpty(slot) {
-        if (slotHasVisibleContent(slot)) return;
+    async function signInWithDiscordFallback() {
+        if (window.sunder?.auth?.requireUserOrLogin) {
+            return window.sunder.auth.requireUserOrLogin();
+        }
 
+        if (window.SUNDER_AUTH?.requireUserOrLogin) {
+            return window.SUNDER_AUTH.requireUserOrLogin();
+        }
+
+        const client = getSupabaseClient();
+
+        if (!client?.auth) {
+            throw new Error("Sign-in is not ready yet. Try refreshing the page.");
+        }
+
+        const { error } = await client.auth.signInWithOAuth({
+            provider: "discord",
+            options: {
+                redirectTo: window.SUNDER_SITE?.cleanCurrentUrl
+                    ? window.SUNDER_SITE.cleanCurrentUrl()
+                    : `${window.location.origin}${window.location.pathname}`,
+            }
+        });
+
+        if (error) throw error;
+        return null;
+    }
+
+    function attachSignedOutSlotHandlers(slot) {
+        const button = slot.querySelector("[data-scription-signin]");
+        const status = slot.querySelector("[data-scription-status]");
+
+        if (!button) return;
+
+        button.addEventListener("click", async () => {
+            try {
+                if (status) status.textContent = "Opening Discord sign-in...";
+                await signInWithDiscordFallback();
+            } catch (error) {
+                if (status) {
+                    status.textContent =
+                        error instanceof Error ? error.message : "Could not start sign-in.";
+                }
+
+                console.warn("[sunder-scription-slots] Could not start sign-in:", error);
+            }
+        });
+    }
+
+    function renderLockedSlot(slot) {
         const label =
             slot.dataset.premiumLabel ||
             slot.dataset.premiumTitle ||
@@ -371,7 +551,7 @@
             "Scription content";
 
         slot.innerHTML = `
-            <aside class="sunder-premium-locked">
+            <aside class="sunder-premium-locked sunder-scription-slot-access-required">
                 <div class="sunder-scription-eyebrow">Scription</div>
                 
                 <strong>${escapeHtmlSafe(label)}</strong>
@@ -380,15 +560,84 @@
                     This section is part of Scription, the premium Sunder rules expansion.
                 </p>
                 
+                <p class="sunder-scription-support-copy">
+                    This account does not currently have Scription access.
+                </p>
+                
                 <div class="sunder-premium-locked-actions">
                     <a class="sunder-btn sunder-btn-primary" href="${ACTIVATE_URL}">
-                        Activate access
+                        Redeem a code
                     </a>
                     
                     <a class="sunder-btn sunder-btn-secondary" href="${KOFI_URL}" target="_blank" rel="noopener">
                         Get Scription
                     </a>
                 </div>
+            </aside>
+        `;
+    }
+
+    function renderLockedSlotIfEmpty(slot) {
+        if (slotHasVisibleContent(slot)) return;
+        renderLockedSlot(slot);
+    }
+
+    function renderSignedOutSlot(slot) {
+        const label =
+            slot.dataset.premiumLabel ||
+            slot.dataset.premiumTitle ||
+            slot.dataset.scriptionLabel ||
+            slot.dataset.scriptionTitle ||
+            "Scription content";
+
+        slot.innerHTML = `
+            <aside class="sunder-premium-locked sunder-scription-slot-auth-required">
+                <div class="sunder-scription-eyebrow">Scription</div>
+                
+                <strong>${escapeHtmlSafe(label)}</strong>
+                
+                <p>
+                    This section is part of Scription, the premium Sunder rules expansion.
+                </p>
+                
+                <p class="sunder-scription-support-copy">
+                    You are not signed in. Sign in first so Sunder can check whether this account already has Scription access.
+                </p>
+                
+                <div class="sunder-premium-locked-actions">
+                    <button class="sunder-btn sunder-btn-primary" type="button" data-scription-signin>
+                        Sign in to check access
+                    </button>
+                </div>
+                
+                <p class="sunder-help-text" data-scription-status></p>
+            </aside>
+        `;
+
+        attachSignedOutSlotHandlers(slot);
+    }
+
+    function renderLoadingSlot(slot) {
+        const label =
+            slot.dataset.premiumLabel ||
+            slot.dataset.premiumTitle ||
+            slot.dataset.scriptionLabel ||
+            slot.dataset.scriptionTitle ||
+            "Scription content";
+
+        slot.innerHTML = `
+            <aside class="sunder-premium-locked sunder-scription-slot-loading-card" aria-busy="true">
+                <div class="sunder-scription-eyebrow">Scription</div>
+                
+                <strong>${escapeHtmlSafe(label)}</strong>
+                
+                <p>
+                    Checking your sign-in status and Scription access...
+                </p>
+                
+                <p class="sunder-help-text">
+                    This section will unlock automatically if your account is a Scription member.
+                </p>
             </aside>
         `;
     }
@@ -402,7 +651,10 @@
                 slot.dataset.scriptionLockedHtml = slot.innerHTML || "";
             }
 
-            renderLockedSlotIfEmpty(slot);
+            if (slot.dataset.scriptionSlotLoaded !== "true") {
+                renderLoadingSlot(slot);
+                markSlotState(slot, "loading");
+            }
         }
     }
 
@@ -425,7 +677,96 @@
         slot.classList.toggle('sunder-scription-slot-missing', state === 'missing');
     }
 
+    function resetSlotsToSignedOut() {
+        clearScriptionSlotCache();
+        lastKnownUserId = null;
+
+        const slots = Array.from(document.querySelectorAll(SLOT_SELECTOR))
+            .filter((slot) => getSlotCode(slot));
+
+        for (const slot of slots) {
+            delete slot.dataset.scriptionSlotLoaded;
+            delete slot.dataset.scriptionSlotLoading;
+
+            slot.classList.remove(
+                "sunder-scription-unloacked-content",
+                "sunder-scription-fragment-content",
+                "sunder-scription-rendered-content",
+            );
+
+            renderSignedOutSlot(slot);
+            markSlotState(slot, "signed-out");
+        }
+    }
+
+    function resetSlotsForSignedInRetry(session) {
+        const userId = session?.user?.id || null;
+
+        if (userId && lastKnownUserId && lastKnownUserId !== userId) {
+            clearScriptionSlotCache();
+        }
+
+        lastKnownUserId = userId;
+
+        const slots = Array.from(document.querySelectorAll(SLOT_SELECTOR))
+            .filter((slot) => getSlotCode(slot));
+
+        for (const slot of slots) {
+            delete slot.dataset.scriptionSlotLoaded;
+            delete slot.dataset.scriptionSlotLoading;
+
+            if (!slot.dataset.scriptionLockedHtml) {
+                slot.dataset.scriptionLockedHtml = slot.innerHTML || "";
+            }
+
+            renderLoadingSlot(slot);
+            markSlotState(slot, "loading");
+        }
+
+        activateScriptionSlots();
+    }
+
+    function handleAuthChange(eventName, session) {
+        if (eventName === "SIGNED_OUT" || !session) {
+            resetSlotsToSignedOut();
+            return;
+        }
+
+        if (
+            eventName === "SIGNED_IN" ||
+            eventName === "TOKEN_REFRESHED" ||
+            eventName === "INITIAL_SESSION" ||
+            session
+        ) {
+            resetSlotsForSignedInRetry(session);
+        }
+    }
+
+    function subscribeToAuthEvents() {
+        if (authSubscriptionAttached) return;
+        authSubscriptionAttached = true;
+
+        window.addEventListener("sunder-auth-state-change", (event) => {
+            const detail = event.detail || {};
+            handleAuthChange(detail.event, detail.session || null);
+        });
+
+        window.addEventListener("sunder-auth-session-synced", (event) => {
+            const detail = event.detail || {};
+            handleAuthChange(detail.session ? "INITIAL_SESSION" : "SIGNED_OUT", detail.session || null);
+        });
+
+        const client = getSupabaseClient();
+
+        if (client?.auth && typeof client.auth.onAuthStateChange === "function") {
+            client.auth.onAuthStateChange((event, session) => {
+                handleAuthChange(event, session);
+            });
+        }
+    }
+
     async function init() {
+        subscribeToAuthEvents();
         preserveLockedFallbacks();
         await activateScriptionSlots();
     }

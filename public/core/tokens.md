@@ -34,7 +34,7 @@ Other ways of earning Flavor Tokens include ways you can interact with the world
 
 ### Token Spending Options
 
-Spending Flavor Tokens allows players to take guided storytelling actions and even bring other players into the storytelling moment. These are just a few ways to spend Flavor Tokens; you may receive alternative ways to do so when purchasing new [[Abilities]] in the [[abilities|Experience Market]]. You are also allowed to offer a number of Flavor Tokens to another player to propose a turn in the story. Tokens given in this way are transferred to the recipient player.
+Spending Flavor Tokens allows players to take guided storytelling actions and even bring other players into the storytelling moment. These are just a few ways to spend Flavor Tokens; you may receive alternative ways to do so when purchasing new [[scenes|Abilities]] in the [[experience-market|Experience Market]]. You are also allowed to offer a number of Flavor Tokens to another player to propose a turn in the story. Tokens given in this way are transferred to the recipient player.
 
 Any player involved in the roleplay during the moments of any Flavor Action gains a Beat. Flavor Actions do not require any part of the Action Economy during a Scene.
 

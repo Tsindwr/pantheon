@@ -107,4 +107,4 @@ When the result of a Test will not be immediately confirmable, the GM can choose
 
 <div class="sunder-premium-slot" data-premium-slot="prm_resolution_group_tests"></div>
 
-[^1]: Other sources of [[volatility-and-perks|Volatility]] such as a Domain, [[proficiencies|Knacks]], and [[abilities]] are added as normal.
+[^1]: Other sources of [[volatility-and-perks|Volatility]] such as a Domain, [[proficiencies|Knacks]], and [[scenes|abilities]] are added as normal.

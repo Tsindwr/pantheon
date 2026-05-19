@@ -95,6 +95,9 @@ function pagePathLooksRelevant(
         let result = value.trim();
 
         if (!result.startsWith("/")) result = `/${result}`;
+        if (result === "/site" || result.startsWith("/site/")) {
+            result = result.slice("/site".length) || "/";
+        }
         if (!result.endsWith("/")) result = `${result}/`;
 
         return result;
@@ -118,6 +121,7 @@ Deno.serve(async (req: Request) => {
 
         let body: {
             pagePath?: unknown;
+            legacyPagePath?: unknown;
             contentCodes?: unknown;
             slotIds?: unknown;
         };
@@ -144,6 +148,10 @@ Deno.serve(async (req: Request) => {
         const pagePath =
             typeof body.pagePath === 'string' && body.pagePath.trim()
                 ? body.pagePath.trim()
+                : null;
+        const legacyPagePath =
+            typeof body.legacyPagePath === 'string' && body.legacyPagePath.trim()
+                ? body.legacyPagePath.trim()
                 : null;
 
         const { data: entitlements, error: entitlementError } = await serviceClient
@@ -192,7 +200,10 @@ Deno.serve(async (req: Request) => {
         const sourceRows = (sources ?? []) as PremiumContentSource[];
 
         const allowedSources = sourceRows.filter((source) => {
-            if (!pagePathLooksRelevant(pagePath, source.public_page_path)) {
+            if (
+                !pagePathLooksRelevant(pagePath, source.public_page_path) &&
+                !pagePathLooksRelevant(legacyPagePath, source.public_page_path)
+            ) {
                 console.warn(
                     `[premium-fragments] Page mismatch for ${source.content_code}; requested ${pagePath}, source ${source.public_page_path}`,
                 );

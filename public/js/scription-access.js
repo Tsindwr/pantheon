@@ -63,13 +63,23 @@
     }
 
     async function signInWithDiscord() {
+        if (window.sunder?.auth?.requireUserOrLogin) {
+            return window.sunder.auth.requireUserOrLogin();
+        }
+
+        if (window.SUNDER_AUTH?.requireUserOrLogin) {
+            return window.SUNDER_AUTH.requireUserOrLogin();
+        }
+
         const client = getSupabaseClient();
 
         if (!client) {
             throw new Error("Sunder auth is not ready yet.");
         }
 
-        const redirectTo = window.location.href;
+        const redirectTo = window.SUNDER_SITE?.cleanCurrentUrl
+            ? window.SUNDER_SITE.cleanCurrentUrl()
+            : `${window.location.origin}${window.location.pathname}`;
 
         const { error } = await client.auth.signInWithOAuth({
             provider: "discord",
@@ -96,10 +106,18 @@
         },
 
         async getPremiumFragments(contentCodes, pagePath) {
+            const canonicalPagePath = pagePath ||
+                (window.SUNDER_SITE?.currentPagePath
+                    ? window.SUNDER_SITE.currentPagePath()
+                    : window.location.pathname);
+
             return invokeJsonFunction("premium-fragments", {
                 method: "POST",
                 body: {
-                    pagePath: pagePath || window.location.pathname,
+                    pagePath: canonicalPagePath,
+                    legacyPagePath: window.SUNDER_SITE?.legacyPagePath
+                        ? window.SUNDER_SITE.legacyPagePath(canonicalPagePath)
+                        : undefined,
                     contentCodes,
                 },
             });

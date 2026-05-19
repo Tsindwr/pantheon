@@ -7,6 +7,23 @@ const corsHeaders = {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+type AccessCodeEmailInput = {
+    buyerEmail: string;
+    accessCode: string;
+    productName?: string;
+    activateUrl?: string;
+    supportEmail?: string;
+};
+
+function escapeHtml(value: string): string {
+    return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
 type KofiShopItem = {
     direct_link_code?: string;
     variation_name?: string;
@@ -39,6 +56,62 @@ type SunderStoreSku = {
     provider_item_name: string | null
     entitlement_duration: string | null;
     active: boolean;
+}
+
+type LinkedKofiApplyResult = {
+    applied?: boolean;
+    reason?: string;
+    userId?: string;
+    productSku?: string;
+    storeSku?: string;
+    expiresAt?: string | null;
+    purchaseId?: string;
+};
+
+function shouldTryLinkedPurchaseApply(payload: KofiPayload, storeSku: string): boolean {
+    // Monthly renewals are the main target.
+    if (payload.is_subscription_payment === true) return true;
+
+    // Also useful if someone buys another yearly term after already linking.
+    if (storeSku === "scription-monthly") return true;
+    if (storeSku === "scription-yearly") return true;
+
+    return false;
+}
+
+async function applyLinkedKofiPurchase(
+    supabase: ReturnType<typeof createServiceClient>,
+    purchaseId: string,
+): Promise<LinkedKofiApplyResult> {
+    const { data, error } = await supabase.rpc("sunder_apply_linked_kofi_purchase", {
+        p_purchase_id: purchaseId,
+    });
+
+    if (error) {
+        console.error("[kofi-webhook] Linked purchase apply error:", error);
+        throw new Error("Could not apply linked Ko-fi purchase");
+    }
+
+    return (data ?? { applied: false, reason: "empty_rpc_response" }) as LinkedKofiApplyResult;
+}
+
+async function markPurchaseProcessed(
+    supabase: ReturnType<typeof createServiceClient>,
+    purchaseId: string,
+) {
+    const now = new Date().toISOString();
+
+    const { error } = await supabase
+        .from("sunder_purchases")
+        .update({
+            processed_at: now,
+            updated_at: now,
+        })
+        .eq("id", purchaseId);
+
+    if (error) {
+        console.error("[kofi-webhook] Processed update error:", error);
+    }
 }
 
 function json(data: unknown, status = 200): Response {
@@ -108,8 +181,14 @@ function normalizeSkuText(value: string | undefined | null): string | null {
     const knownSkus: Record<string, string> = {
         "scription-lifetime": "scription-lifetime",
         "sunder-scription-lifetime": "scription-lifetime",
+
         "scription-yearly": "scription-yearly",
         "sunder-scription-yearly": "scription-yearly",
+
+        "scription-monthly": "scription-monthly",
+        "sunder-scription-monthly": "scription-monthly",
+        "scription-membership": "scription-monthly",
+        "sunder-scription-membership": "scription-monthly",
     };
 
     if (knownSkus[cleaned]) return knownSkus[cleaned];
@@ -127,6 +206,18 @@ function normalizeSkuText(value: string | undefined | null): string | null {
         )
     ) {
         return "scription-yearly";
+    }
+
+    if (
+        cleaned.includes("scription") &&
+        (
+            cleaned.includes("monthly") ||
+            cleaned.includes("month") ||
+            cleaned.includes("membership") ||
+            cleaned.includes("subscription")
+        )
+    ) {
+        return "scription-monthly";
     }
 
     return null;
@@ -183,6 +274,14 @@ async function resolveKofiStoreSku(
 
     if (fallbackSku) {
         return rows.find((row) => row.store_sku === fallbackSku) ?? null;
+    }
+
+    if (payload.is_subscription_payment === true) {
+        const monthlySku = rows.find((row) => row.store_sku === "scription-monthly");
+
+        if (monthlySku) {
+            return monthlySku;
+        }
     }
 
     return null;
@@ -256,30 +355,204 @@ async function parseKofiPayload(req: Request): Promise<KofiPayload> {
     }
 }
 
+function getSunderFromEmail(): string {
+    return Deno.env.get("SUNDER_FROM_EMAIL") ||
+        "Sunder <no-reply@mail.sunderttrpg.world>";
+}
+
+function getSunderReplyToEmail(): string {
+    return Deno.env.get("SUNDER_REPLY_TO_EMAIL") ||
+        Deno.env.get("SUNDER_SUPPORT_EMAIL") ||
+        null;
+}
+
+function getSunderSupportEmail(): string {
+    return Deno.env.get("SUNDER_SUPPORT_EMAIL") || "druid@sunderttrpg.world";
+}
+
+function getScriptionActivateUrl(): string {
+    return Deno.env.get("SUNDER_SCRIPTION_ACTIVATE_URL") ||
+        "https://www.sunderttrpg.world/meta/activate-scription/";
+}
+
+function getReadableStoreName(storeSku: string): string {
+    if (storeSku === "scription-lifetime") return "Sunder Scription — Lifetime Access";
+    if (storeSku === "scription-yearly") return "Sunder Scription — Yearly Access";
+    if (storeSku === "scription-monthly") return "Sunder Scription — Monthly Membership";
+    return "Sunder Scription";
+}
+
+function buildAccessCodeTextEmail(args: {
+    code: string;
+    storeSku: string;
+    activateUrl: string;
+    supportEmail: string;
+}): string {
+    const productName = getReadableStoreName(args.storeSku);
+
+    return [
+        "You Sunder Scription access code",
+        "",
+        "Than you for Supporting Sunder.",
+        "",
+        `Product: ${productName}`,
+        "",
+        "Your access code:",
+        "",
+        args.code,
+        "",
+        "Activate your access here:",
+        args.activateUrl,
+        "",
+        "After activate, sign in on the Sunder rules site with the same account to view Scription-only pages and expended rules.",
+        "",
+        `Need help? Contact ${args.supportEmail}.`,
+    ].join("\n");
+}
+
+function buildAccessCodeHtmlEmail(args: {
+    code: string;
+    storeSku: string;
+    activateUrl: string;
+    supportEmail: string;
+}): string {
+    const productName = getReadableStoreName(args.storeSku);
+
+    const safeProductName = escapeHtml(productName);
+    const safeCode = escapeHtml(args.code);
+    const safeActivateUrl = escapeHtml(args.activateUrl);
+    const safeSupportEmail = escapeHtml(args.supportEmail);
+
+    return `
+        <!DOCTYPE html>
+        <html>
+            <body style="margin:0; padding:0; background:#0d1017; colod:#f5f0ff; font-family:Arial, Helvetica, sans-serif;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#0d1017; padding:32px 16px;">
+                    <tr>
+                        <td align="center">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px; background:#17131f; border: 1px solid #6f5420; border-radius:18px; overflow:hidden;">
+                                <tr>
+                                    <td style="padding:28px 28px 18px 28px; background:linear-gradient(135deg, #241b15, #191326);">
+                                        <div style="display:inline-block; padding: 6px 12px; border-radius:999px; background: #4a3714; color:#f9c74f; font-size:13px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">
+                                            Scription
+                                        </div>
+                                        
+                                        <h1 style="margin:18px 0 8px 0; color:#f9c74f; font-size:30px; line-height:1.2; font-weight:500;">
+                                            Your Sunder access is ready
+                                        </h1>
+                                        
+                                        <p style="margin:0; color:#e7dcff; font-size:16px; line-height:1.6;">
+                                            Thank you for supporting Sunder. Your purchase helps fund continued rules development, playtesting, webtool development, and new Scription content.
+                                        </p>
+                                    </td>
+                                </tr>
+                                
+                                <tr>
+                                    <td style="padding:28px;">
+                                        <p style="margin:0 0 14px 0; color:#f5f0ff; font-size:16px; line-height:1.6;">
+                                            Use this code to activate <strong>${safeProductName}</strong> on the Sunder rules site:
+                                        </p>
+                                        
+                                        <div style="margin:20px 0; padding:18px; background:#0d1017; border:1px solid #7d679e; border-radius: 14px; text-align:center;">
+                                            <div style="margin-bottom:8px; color:#cbb7ff; font-size:13px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">
+                                                Access code
+                                            </div>
+                                            
+                                            <div style="font-family:'Courier New', Courier, monospace; color: #ffffff; font-size:24px; line-height:1.35; font-weight:700; letter-spacing:0.04em; word-break:break-word;">
+                                                ${safeCode}
+                                            </div>
+                                        </div>
+                                        
+                                        <table role="presentation" cellspacing="0" cellpadding="0" style="margin:24px 0;">
+                                            <tr>
+                                                <td>
+                                                    <a href="${safeActivateUrl}" style="display:inline-block; padding:14px 22px; border-radius:999px; background:#8b5cf6; color:#ffffff; font-size:16px; font-weight:700; text-decoration:none;">
+                                                        Activate Scription
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                        
+                                        <p style="margin:0; color:#b9aacd; font-size:13px; line-height:1.6;">
+                                            If the button does not work, copy and paste this link into your browser:<br>
+                                            <a href="${safeActivateUrl}" style="color:#c084fc; text-decoration:underline;">${safeActivateUrl}</a>
+                                        </p>
+                                    </td>
+                                </tr>
+                                
+                                <tr>
+                                    <td style="padding:20px 28px 26px 28px; border-top:1px solid rgba(249, 199, 79, 0.22); color:#b9aacd; font-size:13px; line-height:1.6;">
+                                        Need help? Contact
+                                        <a href="mailto:${safeSupportEmail}" style="color:#c084fc; text-decoration:underline;">${safeSupportEmail}</a>.
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <p style="max-width:640px; margin:16px auto 0 auto; color:#837894; font-size:12px; line-height:1.5;">
+                                You received this email because this address purchased Sunder Scription access through Ko-fi.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+        </html>
+    `.trim();
+}
+
 async function sendAccessCodeEmail(args: {
     to: string;
     code: string;
     storeSku: string;
 }) {
     const apiKey = Deno.env.get("RESEND_API_KEY");
-    const from = Deno.env.get("SUNDER_FROM_EMAIL");
+    const from = getSunderFromEmail();
 
     if (!apiKey || !from) {
         throw new Error("Email delivery is not configured");
     }
 
-    const subject = "Your Scription access code";
+    const activateUrl = getScriptionActivateUrl();
+    const supportEmail = getSunderSupportEmail();
 
-    const body = `
-        <h1>Your Scription access code</h1>
-        <p>Thank you for supporting Sunder!</p>
-        <p>Redeem this code while signed in on the Sunder site:</p>
-        <p style="font-size: 20px; font-weight: 700; letter-spacing: 1px;">
-            ${args.code}
-        </p>
-        <p>Product: ${args.storeSku}</p>
-        <p>If you did not make this purchase, you can ignore this email.</p>
-    `;
+    const subject = "You Sunder Scription access code";
+
+    const text = buildAccessCodeTextEmail({
+        code: args.code,
+        storeSku: args.storeSku,
+        activateUrl,
+        supportEmail,
+    });
+
+    const html = buildAccessCodeHtmlEmail({
+        code: args.code,
+        storeSku: args.storeSku,
+        activateUrl,
+        supportEmail,
+    });
+
+    const payload: Record<string, unknown> = {
+        from,
+        to: [args.to],
+        subject,
+        text,
+        html,
+        tags: [
+            {
+                name: "source",
+                value: "kofi",
+            },
+            {
+                name: "product",
+                value: args.storeSku.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 256),
+            },
+        ],
+    };
+
+    const replyTo = getSunderReplyToEmail();
+
+    if (replyTo) {
+        payload.replyTo = replyTo;
+    }
 
     const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -287,19 +560,15 @@ async function sendAccessCodeEmail(args: {
             Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-            from,
-            to: [args.to],
-            subject,
-            html: body,
-            reply_to: "druid@sunderttrpg.world",
-        }),
+        body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Resend email failed: ${res.status} ${text}`);
+        const body = await res.json();
+        throw new Error(`Resend email failed: ${res.status} ${body}`);
     }
+
+    return await res.json();
 }
 
 Deno.serve(async (req: Request) => {
@@ -439,6 +708,42 @@ Deno.serve(async (req: Request) => {
             return json({ error: "Could not record purchase" }, 500);
         }
 
+        if (shouldTryLinkedPurchaseApply(payload, storeSku)) {
+            const linkedApply = await applyLinkedKofiPurchase(supabase, purchase.id);
+
+            if (linkedApply.applied === true) {
+                await markPurchaseProcessed(supabase, purchase.id);
+
+                console.log("[kofi-webhook] Applied linked Ko-fi purchase", {
+                    purchaseId: purchase.id,
+                    buyerEmail,
+                    storeSku,
+                    productSku: skuRow.product_sku,
+                    userId: linkedApply.userId,
+                    expiresAt: linkedApply.expiresAt,
+                });
+
+                return json({
+                    ok: true,
+                    purchaseId: purchase.id,
+                    storeSku,
+                    productSku: skuRow.product_sku,
+                    linked: true,
+                    expiresAt: linkedApply.expiresAt ?? null,
+                });
+            }
+
+            console.log("[kofi-webhook] No linked user for Ko-fi purchase; creating access code", {
+                purchaseId: purchase.id,
+                buyerEmail,
+                storeSku,
+                productSku: skuRow.product_sku,
+                reason: linkedApply.reason ?? "unknown",
+                isSubscriptionPayment: payload.is_subscription_payment ?? null,
+                isFirstSubscriptionPayment: payload.is_first_subscription_payment ?? null,
+            });
+        }
+
         const accessCode = generateAccessCode();
         const codeHash = await sha256Hex(normalizeAccessCode(accessCode));
 
@@ -481,6 +786,9 @@ Deno.serve(async (req: Request) => {
                     provider: "kofi",
                     provider_event_id: messageId ?? null,
                     provider_payment_id: transactionId ?? null,
+                    buyer_email: buyerEmail,
+                    is_subscription_payment: payload.is_subscription_payment ?? false,
+                    is_first_subscription_payment: payload.is_first_subscription_payment ?? false,
                 },
             });
 
@@ -507,19 +815,7 @@ Deno.serve(async (req: Request) => {
             console.log("[kofi-webhook] DEV ACCESS CODE:", accessCode);
         }
 
-        const { error: processedError } = await supabase
-            .from("sunder_purchases")
-            .update({
-                processed_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-            })
-            .eq("id", purchase.id);
-
-        if (processedError) {
-            console.error("[kofi-webhook] Processed update error:", processedError);
-            // Return OK because the buyer got their code. We do not want Ko-fi to retry
-            // and potentially generate duplicates.
-        }
+        await markPurchaseProcessed(supabase, purchase.id);
 
         return json({
             ok: true,

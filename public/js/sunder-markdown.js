@@ -84,18 +84,14 @@
     }
 
     function getSiteBasePath() {
-        const path = window.location.pathname || '/';
-
-        // GitHub Pages deployment.
-        if (path === '/site' || path.startsWith("/site/")) {
-            return "/site";
-        }
-
-        // local dev or custom domain root
-        return "";
+        return window.SUNDER_SITE?.basePath || "";
     }
 
     function internalPage(path) {
+        if (window.SUNDER_SITE?.resolvePath) {
+            return window.SUNDER_SITE.resolvePath(path);
+        }
+
         const base = getSiteBasePath();
         const cleanPath = String(path || "").replace(/^\/+/, "").replace(/\/?$/, "/");
         return `${base}/${cleanPath}`;
@@ -169,29 +165,29 @@
         "armor": "core/equipment/",
 
 
-        "experience": "/site/characters/experience/",
+        "experience": "characters/experience/",
         "experience-points": "characters/experience/",
         "beats": "characters/experience/",
         "strings": "characters/experience/",
         "milestones": "characters/experience/",
 
-        "leveling": "/site/characters/leveling/",
+        "leveling": "characters/leveling/",
         "levels": "characters/leveling/",
 
-        "origin": "/site/characters/origin/",
+        "origin": "characters/origin/",
         "background": "characters/origin/",
         "heritage": "characters/origin/",
 
-        "archetypes": "/site/characters/archetypes/",
+        "archetypes": "characters/archetypes/",
         "archetype": "characters/archetypes/",
         "classes": "characters/archetypes/",
 
-        "proficiencies": "/site/characters/proficiencies/",
+        "proficiencies": "characters/proficiencies/",
         "proficiency": "characters/proficiencies/",
         "knacks": "characters/proficiencies/",
         "domains": "characters/proficiencies/",
 
-        "potentials-and-resistance": "/site/characters/potentials-and-resistance/",
+        "potentials-and-resistance": "characters/potentials-and-resistance/",
         "potentials": "characters/potentials-and-resistance/",
         "potential": "characters/potentials-and-resistance/",
         "resistance": "characters/potentials-and-resistance/",
@@ -528,6 +524,7 @@
 
         source = convertObsidianLinks(source);
         source = convertObsidianCallouts(source);
+        source = protectMath(source);
         source = separateHtmlBlocksForMarked(source);
         source = convertFootnotes(source);
 
@@ -585,11 +582,15 @@
 
         return window.DOMPurify.sanitize(unsafeHtml, {
             ADD_ATTR: ["target", "rel", "class", "id", "title", "style"],
-            ADD_TAGS: ["details", "summary"],
+            ADD_TAGS: ["details", "summary", "span", "div"],
         });
     }
 
     function renderInto(root, markdownOrPayload, options = {}) {
+        if (!root) {
+            throw new Error("renderInto requires a target element.");
+        }
+
         const markdown =
             typeof markdownOrPayload === 'string'
                 ? markdownOrPayload
@@ -604,6 +605,56 @@
         enhanceRenderedContent(root);
 
         return root;
+    }
+
+    function normalizeMathBody(value) {
+        return String(value || "")
+            .replace(/\r\n/g, "\n")
+            .trim();
+    }
+
+    function escapeHtmlPreserveMath(value) {
+        return String(value || "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;");
+    }
+
+    function protectDisplayMath(markdown) {
+        return String(markdown || "").replace(
+            /\$\$([\s\S]*?)\$\$/g,
+            (_match, body) => {
+                const math = normalizeMathBody(body);
+
+                return [
+                    "",
+                    `<div class="arithmatex">\\[`,
+                    escapeHtmlPreserveMath(math),
+                    `\\]</div>`,
+                    "",
+                ].join("\n");
+            }
+        );
+    }
+
+    function protectInlineMath(markdown) {
+        return String(markdown || "").replace(
+            /(^|[^$\\])\$([^\n$]+?)\$([^$]|$)/g,
+            (_match, before, body, after) => {
+                const math = normalizeMathBody(body);
+
+                return `${before}<span class="arithmatex">\\(${escapeHtmlPreserveMath(math)}\\)</span>${after}`;
+            }
+        );
+    }
+
+    function protectMath(markdown) {
+        let source = String(markdown || "");
+
+        source = protectDisplayMath(source);
+        source = protectInlineMath(source);
+
+        return source;
     }
     
     window.SUNDER_MARKDOWN = {

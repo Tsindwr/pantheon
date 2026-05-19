@@ -68,7 +68,11 @@
         signInButton.addEventListener("click", async () => {
             try {
                 status.textContent = "Opening Discord sign-in...";
-                await window.SUNDER_SCRIPTION.signInWithDiscord();
+                if (window.sunder?.auth?.requireUserOrLogin) {
+                    await window.sunder.auth.requireUserOrLogin();
+                } else {
+                    await window.SUNDER_SCRIPTION.signInWithDiscord();
+                }
             } catch (error) {
                 status.textContent = error instanceof Error ? error.message : "Could not start sign-in.";
             }

@@ -1,6 +1,6 @@
 (function () {
     const DEFAULT_KOFI_URL = "https://ko-fi.com/s/7a27b8b0ae";
-    const DEFAULT_ACTIVATE_URL = "/site/meta/activate-scription/";
+    const DEFAULT_ACTIVATE_URL = "https://www.sunderttrpg.world/meta/activate-scription/";
 
     function sleep(ms) {
         return new Promise((resolve) => setTimeout(resolve, ms));
@@ -14,7 +14,10 @@
                 root.dataset.scriptionDescription ||
                 "This page is part of Scription, the premium Sunder rules expansion.",
             kofiUrl: root.dataset.kofiUrl || DEFAULT_KOFI_URL,
-            activateUrl: root.dataset.activateUrl || DEFAULT_ACTIVATE_URL,
+            activateUrl: root.dataset.activateUrl ||
+                (window.SUNDER_SITE?.resolvePath
+                    ? window.SUNDER_SITE.resolvePath("meta/activate-scription/")
+                    : DEFAULT_ACTIVATE_URL),
         };
     }
 
@@ -213,6 +216,14 @@
     }
 
     async function signInWithDiscordFallback() {
+        if (window.sunder?.auth?.requireUserOrLogin) {
+            return window.sunder.auth.requireUserOrLogin();
+        }
+
+        if (window.SUNDER_AUTH?.requireUserOrLogin) {
+            return window.SUNDER_AUTH.requireUserOrLogin();
+        }
+
         if (window.SUNDER_SCRIPTION && window.SUNDER_SCRIPTION.signInWithDiscord) {
             return window.SUNDER_SCRIPTION.signInWithDiscord();
         }
@@ -226,7 +237,9 @@
         const { error } = await client.auth.signInWithOAuth({
             provider: "discord",
             options: {
-                redirectTo: window.location.href,
+                redirectTo: window.SUNDER_SITE?.cleanCurrentUrl
+                    ? window.SUNDER_SITE.cleanCurrentUrl()
+                    : `${window.location.origin}${window.location.pathname}`,
             },
         });
 

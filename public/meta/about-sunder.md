@@ -2,7 +2,7 @@
 <div class="sunder-about-page">
 <h2>Sunder's Vision Statement</h2>
 
-<p>Sunder was created by <a href="/site/meta/contributors/mullburrower.md">@mullburrower</a> with the intent to give TTRPG players a storytelling framework that accommodates for creative choice. In this system, tasteful storytelling is rewarded in a quantifiable manner, and there are little to no limits to the kind of character you can play. Ease of use has been prioritized to cultivate a storytelling space that needs not be hindered by rules when unnecessary. This system encourages players to lean into their strengths, giving a natural blueprint for how to roleplay their character. Anything should be possible in Sunder, as long as a player is willing to pay the price to the story or to Magick itself.</p>
+<p>Sunder was created by <a href="../contributors/mullburrower/">@mullburrower</a> with the intent to give TTRPG players a storytelling framework that accommodates for creative choice. In this system, tasteful storytelling is rewarded in a quantifiable manner, and there are little to no limits to the kind of character you can play. Ease of use has been prioritized to cultivate a storytelling space that needs not be hindered by rules when unnecessary. This system encourages players to lean into their strengths, giving a natural blueprint for how to roleplay their character. Anything should be possible in Sunder, as long as a player is willing to pay the price to the story or to Magick itself.</p>
 
 <div class="sunder-support-note">
   <div class="sunder-support-note__icon sunder-kofi-icon" aria-hidden="true">
@@ -76,4 +76,4 @@
 </div>
 
 <!-- Load release notes script -->
-<script src="/site/js/release-notes.js"></script>
+<script src="../../js/release-notes.js"></script>

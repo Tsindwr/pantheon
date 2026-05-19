@@ -20,9 +20,9 @@ $$
 
 Beats are the smallest Experience Point, and can be earned just by rolling [[resolution-system|Tests]]. When a Test's overall result is a success level of Mixed, Failure, or [[resolution-system|Miff]], the player gains a Beat. These are most commonly used for Volatility [[volatility-and-perks|Perks]][^1].
 
-Strings are the next smallest Experience Point. Oftentimes Strings are accumulated when the party levels up using the **Loom** system. Strings are used for purchasing minor character features and [[abilities]].
+Strings are the next smallest Experience Point. Oftentimes Strings are accumulated when the party levels up using the **Loom** system. Strings are used for purchasing minor character features and [[scenes|abilities]].
 
-Milestones and Zeniths represent major and concluding steps in a hero's arc or progression. These are used to gain powerful [[abilities]] that define a character's archetype.
+Milestones and Zeniths represent major and concluding steps in a hero's arc or progression. These are used to gain powerful [[scenes|abilities]] that define a character's archetype.
 ### Character Goals
 
 Some Experience Points can only be achieved through narrative action. When choosing a character's archetype, a player will need to establish a list of goals that will grant either a String, a Milestone, or a Zenith upon completion.

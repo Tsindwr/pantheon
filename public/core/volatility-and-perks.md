@@ -36,7 +36,7 @@ A Volatility die's **jinx threshold** is determined by the amount of [[stress-an
 ## Perks of the Profession
 <h6>Perks</h6>
 
-**Perks** allow all players, including the GM, to level up their Volatility rolls and tips the odds in their favor. Perks give Volatility results a secondary effect, which can turn the tides in an integral Test. Perks are bought using the [[experience|Experience Points]] system, oftentimes only costing a few [[experience|Beats]] (these are low-cost [[abilities]]).
+**Perks** allow all players, including the GM, to level up their Volatility rolls and tips the odds in their favor. Perks give Volatility results a secondary effect, which can turn the tides in an integral Test. Perks are bought using the [[experience|Experience Points]] system, oftentimes only costing a few [[experience|Beats]] (these are low-cost [[scenes|abilities]]).
 
 A Perk can be assigned to a specific slot on a Volatility Die. A slot is any number on the Volatility Die that is neither its maximum or minimum value. Assigning a Perk to a slot, moving a Perk to a new slot, or swapping two assigned Perks requires spending 1 Beat. A creature can only assign Perks to slots that are equal to their [[potentials-and-resistance|Potential]] score or lower.
 
@@ -54,7 +54,7 @@ Exploding a Volatility Die during a Test causes an automatic [[resolution-system
 - If your Volatility Die is not already a D12, it becomes one die type higher from now on. For now, it is empty of Perks.
 - You are given 1 usage of the Surge: Recollect (see below).
 - You gain 1 String.
-- You may immediately purchase a new Ability from the [[abilities|Experience Market]].
+- You may immediately purchase a new Ability from the [[experience-market|Experience Market]].
 
 > [!info]+ Recollect Surge
 > The Recollect Surge allows a player to reapply the Perks they had assigned to their previous Volatility Die before it exploded. This action only applies to the Volatility Die that generated its usage. This will be referred to as the Previous Die hereafter.

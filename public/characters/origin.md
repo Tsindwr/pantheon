@@ -38,7 +38,7 @@ The second defining section of one's background is the character's **Crux**. Thi
 - 1 sentimental piece of equipment
 ## Heritage
 <h6>Descent & Bloodline</h6>
-An adventurer also gains boons from their upbringing and species. Being a fantasy world, Umbrea's inhabitants not only benefit from the skills taught to them based on their Descent and community, but also gain innate [[abilities]] based on their Bloodline.
+An adventurer also gains boons from their upbringing and species. Being a fantasy world, Umbrea's inhabitants not only benefit from the skills taught to them based on their Descent and community, but also gain innate [[scenes|abilities]] based on their Bloodline.
 ### Descent
 
 A character's descent represents where and by whom the character was raised. This can include what local specialties the community has cultivated or even specific skills that a young adventurer's parents or guardians would have taught them.

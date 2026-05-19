@@ -11,6 +11,7 @@ aliases:
   - Attack
   - Movement
   - Option Cards
+  - Abilities
 ---
 
 # Scenes and Turns
