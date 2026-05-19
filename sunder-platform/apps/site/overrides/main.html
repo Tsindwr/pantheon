@@ -211,7 +211,9 @@
 <!-- End Google Tag Manager (noscript) -->
 <script>
     window.SUNDER_BASE_URL = "{{ base_url }}";
-    window.SUNDER_CHAT_BASE = "{{ base_url }}/chat";
+    window.SUNDER_CHAT_BASE = window.SUNDER_SITE?.resolvePath
+        ? window.SUNDER_SITE.resolvePath("chat/")
+        : "{{ base_url }}/chat";
     // window.SUNDER_LLM_MODEL = "Llama-3.2-1B-Instruct-q4f16_1-MLC"; // weak model
     window.SUNDER_LLM_MODEL = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC"; // strong model
 </script>
@@ -223,8 +225,7 @@
         // bump version whenever you want the toast to reappear for everyone
         var storageKey = "sunder-kofi-toast-dismissed-v2";
 
-        // optional debug override:
-        // /site/.../?debugToast=1
+        // optional debug override: add ?debugToast=1 to the current page
         var debugForced = false;
         try {
             var params = new URLSearchParams(window.location.search);

@@ -1,5 +1,6 @@
 site_name: Sunder
-site_url: https://tsindwr.github.io/site
+site_url: https://www.sunderttrpg.world/
+use_directory_urls: true
 theme:
   name: material
   custom_dir: overrides
@@ -85,6 +86,9 @@ extra_javascript:
   - https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js
   - https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js
   - https://unpkg.com/@supabase/supabase-js@2
+  - https://cdn.jsdelivr.net/npm/marked/marked.min.js
+  - https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js
+  - js/site.js
   - js/auth.js
   - js/bookmarks.js
   - js/math.js
@@ -94,6 +98,12 @@ extra_javascript:
   - js/highlight-popup.js
   - js/image-lightbox.js
   - js/profile.js
+  - js/scription-access.js
+  - js/scription-nav.js
+  - js/sunder-markdown.js
+  - js/scription-page.js
+  - js/scription-slots.js
+  - js/scription-activate.js
   - js/sunder-chatbot.js
   - js/sunder-llm.js
 
@@ -105,6 +115,9 @@ extra_css:
   - css/header-auth.css
   - css/graphics.css
   - css/sunder-chatbot.css
+  - css/vault.css
+  - css/scription-nav.css
+  - css/scription.css
 
 plugins:
   - search
@@ -126,10 +139,10 @@ nav:
           - Stress & Fallout: core/stress-and-fallout.md
           - Spirit Tokens: core/tokens.md
       - Gameplay:
-          - Experience Market: gameplay/abilities.md
-          - Actions: gameplay/actions.md
-          - Spellcasting: characters/spellcasting.md
           - Scenes: gameplay/scenes.md
+          - General Actions: gameplay/actions.md
+          - "Scription: Experience Market": scription/experience-market.md
+          - Spellcasting: characters/spellcasting.md
           - Resting: gameplay/resting.md
       - Characters:
           - Levels: characters/leveling.md
@@ -138,7 +151,7 @@ nav:
           - Equipment: core/equipment.md
           - Experience: characters/experience.md
       - Miscellaneous:
-          - Adversaries: gameplay/adversaries.md
+          - GM Tools: gameplay/gm-tools.md
           - Damage: gameplay/damage.md
           - Conditions: gameplay/conditions.md
   - About:
@@ -151,3 +164,4 @@ nav:
           - msasterisk: meta/contributors/msasterisk.md
   - Resources:
       - Character Sheets: resources/character-sheet.md
+      - Activate Scription: meta/activate-scription.md
