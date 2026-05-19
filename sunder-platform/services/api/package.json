@@ -1,0 +1,25 @@
+{
+  "name": "@sunderttrpg/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "latest",
+    "@sunderttrpg/discord": "workspace:*",
+    "@sunderttrpg/core": "workspace:*",
+    "@sunderttrpg/schema": "workspace:*",
+    "zod": "latest",
+    "dotenv": "latest",
+    "hono": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "tsx": "latest",
+    "typescript": "latest"
+  }
+}

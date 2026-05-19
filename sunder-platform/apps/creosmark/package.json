@@ -1,12 +1,14 @@
 {
   "name": "@sunderttrpg/creosmark",
+  "private": true,
   "type": "module",
   "version": "0.0.1",
   "scripts": {
     "dev": "astro dev --port 5174",
     "build": "astro build",
-    "preview": "astro preview",
-    "astro": "astro"
+    "preview": "astro preview --port 4174",
+    "astro": "astro",
+    "check": "astro check"
   },
   "dependencies": {
     "@3d-dice/dice-box": "^1.1.4",
@@ -14,14 +16,15 @@
     "@fortawesome/fontawesome-free": "^7.2.0",
     "@fortawesome/fontawesome-svg-core": "^7.2.0",
     "@fortawesome/free-solid-svg-icons": "^7.2.0",
+    "@sunderttrpg/core": "workspace:*",
+    "@sunderttrpg/schema": "workspace:*",
     "@supabase/supabase-js": "^2.99.1",
     "@types/react": "^19.2.13",
     "@types/react-dom": "^19.2.3",
     "@xyflow/react": "^12.10.1",
     "astro": "^6.1.5",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "@sunderttrpg/core": "workspace:*"
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
     "supabase": "^2.78.1"

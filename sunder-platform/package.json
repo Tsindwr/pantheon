@@ -9,9 +9,21 @@
     "build": "turbo build",
     "check": "turbo check",
     "lint": "turbo lint",
+
     "dev:creosmark": "pnpm --filter @sunderttrpg/creosmark dev",
     "dev:gauntlet": "pnpm --filter @sunderttrpg/gauntlet dev",
-    "dev:site": "pnpm --filter @sunderttrpg/site dev"
+    "dev:site": "pnpm --filter @sunderttrpg/site dev",
+    "dev:api": "pnpm --filter @sunderttrpg/api dev",
+
+    "build:creosmark": "pnpm --filter @sunderttrpg/creosmark build",
+    "build:site": "pnpm --filter @sunderttrpg/site build",
+    "build:gauntlet": "pnpm --filter @sunderttrpg/gauntlet build",
+    "build:api": "pnpm --filter @sunderttrpg/api build",
+
+    "check:creosmark": "pnpm --filter @sunderttrpg/creosmark check",
+    "check:site": "pnpm --filter @sunderttrpg/site check",
+    "check:gauntlet": "pnpm --filter @sunderttrpg/gauntlet check",
+    "check:api": "pnpm --filter @sunderttrpg/api check"
   },
   "keywords": [],
   "author": "",

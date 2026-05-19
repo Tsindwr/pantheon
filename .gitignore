@@ -1,3 +1,7 @@
 /sunder-platform/apps/gauntlet/node_modules/
 /sunder-platform/node_modules/
 /sunder-platform/apps/creosmark/node_modules/
+
+.env
+.env.local
+.env.*.local
