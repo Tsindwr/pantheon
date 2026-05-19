@@ -28,6 +28,6 @@ Rests represent a period of downtime and recuperation for our weary adventurers.
 
 Long Rests allow for most character resources to be replenished and statuses to be refreshed, and involve 10 hours of resting, 2 of which can be spent doing light activity, such as a Rest Action. 
 
-During a Long Rest, players can spend any amount of [[Experience]] Points on [[Abilities]] from the [[abilities|Experience Market]].
+During a Long Rest, players can spend any amount of [[Experience]] Points on [[scenes|Abilities]] from the [[experience-market|Experience Market]].
 
 [[damage|Marks]] can also be recovered during a Long Rest, but only a portion. [[damage|Marks]] are representations of the wounds that cut deep during adventuring, and those take time to heal. Choose Nerve or Heart: whichever your current Tier is, roll that number of the associated [[volatility-and-perks|Volatility Die]] and regain a number of [[damage|Marks]] equal to that total.

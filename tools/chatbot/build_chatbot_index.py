@@ -149,12 +149,12 @@ def page_url(path: Path) -> str:
     parts = list(rel.parts)
 
     if parts == ["index"]:
-        return "/site/"
+        return "/"
 
     if parts and parts[-1] == "index":
-        return "/site/" + "/".join(parts[:-1]) + "/"
+        return "/" + "/".join(parts[:-1]) + "/"
 
-    return "/site/" + "/".join(parts) + "/"
+    return "/" + "/".join(parts) + "/"
 
 def prettify_stem(stem: str) -> str:
     return stem.replace("-", " ").replace("_", " ").title()

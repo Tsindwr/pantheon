@@ -137,7 +137,7 @@ Deno.serve(async (req: Request) => {
     fields,
     timestamp: new Date().toISOString(),
     footer: {
-      text: "https://tsindwr.github.io/site/",
+      text: "https://www.sunderttrpg.world/",
     },
   };
 

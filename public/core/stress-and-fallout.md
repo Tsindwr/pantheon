@@ -54,7 +54,7 @@ Depending on the context of the Fallout, Fallout can take different forms or int
 
 **Major Fallout** can be a result of a [[resolution-system|Miff]], and causes either [[equipment|Equipment Fallout]], 3 [[damage|Marks]], Minor Condition with 1 Mark, or a Major Condition, then resetting the relevant [[potentials-and-resistance|Stress Track]]. 
 
-**Severe Fallout** can only be caused by [[Abilities]], and often causes a Major Condition with 3 [[damage|Marks]] or a number of [[damage|Marks]] equal to the number of [[damage|Stress]] points applied, then resetting the relevant [[potentials-and-resistance|Stress Track]].
+**Severe Fallout** can only be caused by [[scenes|Abilities]], and often causes a Major Condition with 3 [[damage|Marks]] or a number of [[damage|Marks]] equal to the number of [[damage|Stress]] points applied, then resetting the relevant [[potentials-and-resistance|Stress Track]].
 
 > [!important]+ GM Discretion
 > Determining the exact outcome of Fallout can be interpreted by the GM based on the narrative situation. Your GM may be open to increasing the duration of a Condition applied in a lower Fallout outcome, thus considering it as a higher level of Fallout (e.g. a Major Condition that lasts Until a Long Rest or even Until Dispelled may be considered Severe Fallout instead of Major Fallout).
