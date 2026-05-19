@@ -109,7 +109,7 @@ We rely on feedback from the community to improve Sunder TTRPG. Here's how to re
 
 <h3>Using the Report Form Directly</h3>
 
-You can also visit the <a href="https://tsindwr.github.io/site/meta/report-issue/">Report an Issue</a> page directly to submit feedback without highlighting text first.
+You can also visit the <a href="../report-issue/">Report an Issue</a> page directly to submit feedback without highlighting text first.
 
 <h3>What to Include</h3>
 
@@ -172,4 +172,3 @@ On mobile devices, tap the hamburger menu (<i class="fa-solid fa-bars"></i>) to 
     <i class="fa-solid fa-arrow-left"></i> Back to About
   </a>
 </div>
-
