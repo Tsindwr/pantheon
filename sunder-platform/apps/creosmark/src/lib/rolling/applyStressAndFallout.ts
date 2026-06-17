@@ -1,5 +1,5 @@
 export {
-  successLevelAppliesStress,
-  successLevelAppliesFallout,
   successLevelAppliesBeat,
-} from "../../domain/rules/resolution-system.ts";
+  successLevelAppliesFallout,
+  successLevelAppliesStress,
+} from "@sunderttrpg/core";

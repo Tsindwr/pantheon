@@ -35,6 +35,9 @@ importers:
       '@sunderttrpg/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@sunderttrpg/experience-market':
+        specifier: workspace:*
+        version: link:../../packages/experience-market
       '@sunderttrpg/schema':
         specifier: workspace:*
         version: link:../../packages/schema
@@ -76,6 +79,16 @@ importers:
   apps/site: {}
 
   packages/core:
+    devDependencies:
+      typescript:
+        specifier: latest
+        version: 6.0.3
+
+  packages/experience-market:
+    dependencies:
+      '@sunderttrpg/core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       typescript:
         specifier: latest

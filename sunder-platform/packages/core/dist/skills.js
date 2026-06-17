@@ -1,0 +1,27 @@
+export const SKILL_LABELS = {
+    force: "Force",
+    brace: "Brace",
+    feat: "Feat",
+    sleight: "Sleight",
+    squirm: "Squirm",
+    grace: "Grace",
+    bear: "Bear",
+    steel: "Steel",
+    grit: "Grit",
+    draw: "Draw",
+    frame: "Frame",
+    form: "Form",
+    read: "Read",
+    reflex: "Reflex",
+    sense: "Sense",
+    reason: "Reason",
+    recall: "Recall",
+    esoterica: "Esoterica",
+    aura: "Aura",
+    hope: "Hope",
+    sway: "Sway",
+    grasp: "Grasp",
+    anchor: "Anchor",
+    weave: "Weave"
+};
+//# sourceMappingURL=skills.js.map

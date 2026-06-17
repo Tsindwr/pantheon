@@ -4,7 +4,9 @@ export async function sendReleaseToDiscord(release) {
     if (!webhookUrl) {
         throw new Error("Missing DISCORD_RELEASE_WEBHOOK_URL.");
     }
-    const payload = buildDiscordReleasePayload(release);
+    const payload = buildDiscordReleasePayload(release, {
+        defaultContent: process.env.DISCORD_RELEASE_MENTION
+    });
     const response = await fetch(webhookUrl, {
         method: "POST",
         headers: {

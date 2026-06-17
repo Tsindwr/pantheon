@@ -1,9 +1,9 @@
 export {
-  rollDV,
-  resolveVolatilityRoll,
-  resolveVolatilityModifier,
   calculateTotalVolatility,
   getVolatilityPlan,
+  resolveVolatilityModifier,
   resolveVolatilityPoolFromFaces,
   resolveVolatilityPoolRoll,
-} from "../../domain/rolling/resolve-volatility-pool.ts";
+  resolveVolatilityRoll,
+  rollDV,
+} from "@sunderttrpg/core";

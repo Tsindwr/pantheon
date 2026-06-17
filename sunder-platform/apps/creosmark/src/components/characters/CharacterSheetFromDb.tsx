@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import CharacterSheetShell from "../shell/CharacterSheetShell";
 import type { CampaignAssignment } from "../../types/roll-feed";
 import type { CharacterSheetState } from "../../types/sheet";
-import { supabaseLibraryCampaignService } from "../../infrastructure/library/supabase-library-campaign-service.ts";
+import { supabaseLibraryCampaignService } from "../../infrastructure/library/supabase-library-campaign-service";
+import { normalizeFeatureDrivenSheetState } from "../../application/character-sheet/commands";
 
 type CharacterSheetFromDbProps = {
     characterId: string;
@@ -31,15 +32,20 @@ export default function CharacterSheetFromDb({
                 setErrorText(null);
 
                 const row = await supabaseLibraryCampaignService.getMyCharacterSheet(characterId);
-                if (!row) throw new Error("Character sheet not found.");
+                if (!row) {
+                    setErrorText("Character sheet not found.");
+                    return;
+                }
 
                 const campaign = await supabaseLibraryCampaignService.getCampaignForCharacter(characterId);
                 if (cancelled) return;
 
-                setSheet(row.sheet);
+                const normalizedSheet = normalizeFeatureDrivenSheetState(row.sheet);
+                setSheet(normalizedSheet);
                 setAssignedCampaign(campaign);
 
                 loadedRef.current = true;
+                lastSavedJsonRef.current = JSON.stringify(normalizedSheet);
                 setSaveState("idle");
             } catch (error) {
                 console.error("Failed to load library:", error);

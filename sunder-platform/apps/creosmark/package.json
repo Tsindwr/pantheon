@@ -19,6 +19,7 @@
     "@fortawesome/fontawesome-svg-core": "^7.2.0",
     "@fortawesome/free-solid-svg-icons": "^7.2.0",
     "@sunderttrpg/core": "workspace:*",
+    "@sunderttrpg/experience-market": "workspace:*",
     "@sunderttrpg/schema": "workspace:*",
     "@supabase/supabase-js": "^2.99.1",
     "@types/react": "^19.2.13",

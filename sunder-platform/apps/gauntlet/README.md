@@ -42,3 +42,5 @@ This repository is intentionally framework-free and uses static files:
 - `index.html`
 - `styles.css`
 - `app.js`
+
+Run `npm run build` to copy the publishable static files into `dist/` for GitHub Pages.

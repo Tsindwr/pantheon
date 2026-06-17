@@ -21,6 +21,16 @@
 # run all dev servers
 `pnpm dev`
 
+# Public GitHub Pages deploys
+
+App deploy workflows live at the repo root in `.github/workflows` so they can build from the full monorepo, including shared packages. Each public app has its own path-filtered workflow:
+
+- `publish-site-pages.yml`
+- `publish-creosmark-pages.yml`
+- `publish-gauntlet-pages.yml`
+
+See `sunder-platform/docs/public-pages-workflows.md` for required public repo deploy keys and the pattern for adding another app.
+
 # Pulling Remote Subtree Changes
 
 1. Change Directory to pantheon/

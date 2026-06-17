@@ -1,1 +1,1 @@
-export { BASE_PERKS, getPerkById } from "../../domain/rules/perks.ts";
+export { BASE_PERKS, getPerkById } from "@sunderttrpg/core";

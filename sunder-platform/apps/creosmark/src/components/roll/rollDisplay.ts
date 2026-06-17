@@ -141,7 +141,7 @@ export function buildDisplayRollMeta(
         potentialValue: potential.score,
         domainLabels: sheet.domains
             .filter((entry) => draft.selectedDomains.includes(entry.id))
-            .map((entry) => entry.name),
+            .map((entry) => entry.label),
         knackLabels: sheet.knacks
             .filter((entry) => draft.selectedKnacks.includes(entry.id))
             .map((entry) => entry.name),

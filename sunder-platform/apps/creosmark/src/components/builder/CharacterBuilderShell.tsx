@@ -9,14 +9,16 @@ import BuilderPotentialRoller, {
 } from "./BuilderPotentialRoller.tsx";
 import styles from './CharacterBuilderShell.module.css';
 import { applyRolledPotentialBaseScore } from "../../application";
+import { routes } from "../../lib/routing.ts";
 
 const BUILDER_STEPS = [
     { id: 'identity', label: '1. Identity' },
     { id: 'origin', label: '2. Origin' },
-    { id: 'potentials', label: '3. Potentials' },
-    { id: 'proficiencies', label: '4. Proficiencies' },
-    { id: 'abilities', label: '5. Abilities' },
-    { id: 'goals', label: '6. Goals' },
+    { id: 'levels', label: '3. Levels' },
+    { id: 'potentials', label: '4. Potentials' },
+    { id: 'proficiencies', label: '5. Proficiencies' },
+    { id: 'abilities', label: '6. Abilities' },
+    { id: 'goals', label: '7. Goals' },
 ] as const;
 
 type BuilderStepId = (typeof BUILDER_STEPS)[number]['id'];
@@ -25,12 +27,16 @@ type CharacterBuilderShellProps = {
     sheet: CharacterSheetState;
     onChange: (next: CharacterSheetState) => void;
     saveState?: 'idle' | 'saving' | 'saved' | 'error';
+    characterId?: string;
+    onRequestView?: () => void;
 };
 
 export default function CharacterBuilderShell({
     sheet,
     onChange,
     saveState = 'idle',
+    characterId,
+    onRequestView,
 }: CharacterBuilderShellProps) {
     const [step, setStep] = useState<BuilderStepId>('identity');
     const [rollRequest, setRollRequest] =
@@ -38,6 +44,25 @@ export default function CharacterBuilderShell({
 
     function applyRolledBaseScore(potentialKey: PotentialKey, total: number) {
         onChange(applyRolledPotentialBaseScore(sheet, potentialKey, total));
+    }
+
+    const statusText =
+        saveState === 'saving'
+            ? 'Saving...'
+            : saveState === 'saved'
+                ? 'Saved'
+                : saveState === 'error'
+                    ? 'Save error'
+                    : 'Editing';
+
+    function viewCharacterSheet() {
+        if (onRequestView) {
+            onRequestView();
+            return;
+        }
+
+        if (!characterId) return;
+        window.location.href = routes.characterView(characterId);
     }
 
     return (
@@ -48,15 +73,17 @@ export default function CharacterBuilderShell({
                     <h1 className={styles.title}>{sheet.header.name || 'New Character'}</h1>
                 </div>
 
-                <div className={styles.status}>
-                    {saveState === 'saving'
-                        ? 'Saving...'
-                        : saveState === 'saved'
-                            ? 'Saved'
-                            : saveState === 'error'
-                                ? 'Save error'
-                                : 'Editing'}
-                </div>
+                <button
+                    type="button"
+                    className={styles.statusButton}
+                    onClick={viewCharacterSheet}
+                    disabled={!characterId && !onRequestView}
+                    aria-label={`View character sheet. Current status: ${statusText}`}
+                    title={statusText}
+                >
+                    <span className={styles.statusText}>{statusText}</span>
+                    <span className={styles.statusHoverText}>View</span>
+                </button>
             </header>
 
             <nav className={styles.steps}>

@@ -8,49 +8,82 @@ import {
     REWARD_FROM_GOAL,
     ARCHETYPE_LABELS,
     ARCHETYPE_MARKS,
-    createEmptyArchetypeLevel,
     type ArchetypeKey,
     type PurchasedArchetypeLevel,
-} from "../../types/sheet.ts";
+} from "../../types/sheet";
 import {
-    type ArchetypeId,
     ARCHETYPES,
     DOMAINS,
     EDITOR_TABS,
     type EditorTabId,
-    type DomainId,
-} from '../../lib/sheet-data.ts';
+} from '../../lib/sheet-data';
 import { BASE_PERKS } from "../../domain";
-import type {PerkDefinition, PerkId} from "../../lib/rolling/types.ts";
+import type { PerkDefinition, PerkId } from "@sunderttrpg/core";
 import {
-    addArchetypeLevel as addArchetypeLevelCommand,
     addPotentialPerk,
     applyOriginPotentialBonus as applyOriginPotentialBonusCommand,
     applyOriginSkillSelection as applyOriginSkillSelectionCommand,
     patchOriginFacet as patchOriginFacetCommand,
-    removeArchetypeLevel as removeArchetypeLevelCommand,
     removePotentialPerk as removePotentialPerkCommand,
-    setArchetypeLevel as setArchetypeLevelCommand,
     setArchetypeLevelStatIncrease,
-    setManualSkillProficiency as setManualSkillProficiencyCommand,
+    setArchetypeLevelCount as setArchetypeLevelCountCommand,
     setPotentialBaseScore as setPotentialBaseScoreCommand,
     setPotentialCharged as setPotentialChargedCommand,
     setPotentialVolatilityDie,
-    toggleDomain as toggleDomainCommand,
     updateArchetypeLevel as updateArchetypeLevelCommand,
-    updateArchetypeLevels as updateArchetypeLevelsCommand,
     updateFirstArchetypeBoons as updateFirstArchetypeBoonsCommand,
-    movePotentialPerk as movePotentialPerkCommand, getTierForAbsoluteLevelIndex, getBlockedPotentialKeysForTier,
-} from "../../application/character-sheet/commands.ts";
+    movePotentialPerk as movePotentialPerkCommand,
+    getTierForAbsoluteLevelIndex,
+    getBlockedPotentialKeysForTier,
+    getCharacterTierForLevelCount,
+} from "../../application/character-sheet/commands";
 import {
     getAllowedPerkFaces,
     getPotentialBaseScore,
-    getPotentialBonusTotal,
     getPotentialTotalScore,
 } from "../../domain";
 import EditorAbilitiesSection from "./EditorAbilitiesSection.tsx";
 
 type BuilderTabId = EditorTabId | "origin";
+
+function getSkillNameFromChoiceId(choiceId?: string): string | undefined {
+    if (!choiceId) return undefined;
+
+    const separatorIndex = choiceId.indexOf(":");
+    return separatorIndex >= 0 ? choiceId.slice(separatorIndex + 1) : choiceId;
+}
+
+function getSelectedSkillNames(sheet: CharacterSheetState): Set<string> {
+    const selected = new Set<string>();
+
+    [
+        sheet.originSelections?.profession?.skillName,
+        sheet.originSelections?.crux?.skillName,
+        sheet.originSelections?.descent?.skillName,
+    ].forEach((skillName) => {
+        if (skillName) selected.add(skillName);
+    });
+
+    if (sheet.archetypeLevels.length > 0) {
+        sheet.firstArchetypeBoons.skillIds.forEach((choiceId) => {
+            const skillName = getSkillNameFromChoiceId(choiceId);
+            if (skillName) selected.add(skillName);
+        });
+    }
+
+    return selected;
+}
+
+function getSelectedDomainIds(sheet: CharacterSheetState): Set<string> {
+    return new Set(
+        [
+            sheet.originSelections?.descent?.domainId,
+            sheet.archetypeLevels.length > 0 ? sheet.firstArchetypeBoons.domainId : undefined,
+        ].filter(
+            (value): value is string => Boolean(value),
+        ),
+    );
+}
 
 type EditorWorkspaceProps = {
     sheet: CharacterSheetState;
@@ -71,11 +104,6 @@ export default function EditorWorkspace({
     const tab = forcedTab ?? internalTab;
     const setTab = forcedTab ? (() => {}) : setInternalTab;
 
-    const proficientDomainIds = useMemo(
-        () => new Set(sheet.domains.map((entry) => entry.id)),
-        [sheet.domains],
-    );
-
     const allSkills = useMemo(
         () =>
             sheet.potentials.flatMap((potential) =>
@@ -88,6 +116,36 @@ export default function EditorWorkspace({
             ),
         [sheet.potentials],
     );
+
+    const selectedSkillNames = useMemo(() => getSelectedSkillNames(sheet), [sheet]);
+    const selectedDomainIds = useMemo(() => getSelectedDomainIds(sheet), [sheet]);
+
+    const skillOptions = useMemo(
+        () =>
+            allSkills.map((skill) => ({
+                ...skill,
+                id: `${skill.potentialKey}:${skill.name}`,
+            })),
+        [allSkills],
+    );
+
+    function getAvailableSkillOptions(currentSkillName?: string) {
+        return allSkills.filter(
+            (skill) => skill.name === currentSkillName || !selectedSkillNames.has(skill.name),
+        );
+    }
+
+    function getAvailableSkillChoiceOptions(currentSkillName?: string) {
+        return skillOptions.filter(
+            (skill) => skill.name === currentSkillName || !selectedSkillNames.has(skill.name),
+        );
+    }
+
+    function getAvailableDomainOptions(currentDomainId?: string) {
+        return DOMAINS.filter(
+            (domain) => domain.id === currentDomainId || !selectedDomainIds.has(domain.id),
+        );
+    }
 
     const allPerkOptions = useMemo(
         () =>
@@ -199,14 +257,6 @@ export default function EditorWorkspace({
         applyCommand(removePotentialPerkCommand(sheet, potentialKey, perkId));
     }
 
-    function setManualSkillProficiency(
-        potentialKey: PotentialKey,
-        skillName: string,
-        enabled: boolean,
-    ) {
-        applyCommand(setManualSkillProficiencyCommand(sheet, potentialKey, skillName, enabled));
-    }
-
     function applyOriginSkillSelection(
         facet: "profession" | "crux" | "descent",
         nextSkillName?: string,
@@ -228,50 +278,40 @@ export default function EditorWorkspace({
         applyCommand(patchOriginFacetCommand(sheet, facet, patch));
     }
 
-    function setArchetypeLevel(archetypeId: ArchetypeId, levels: number) {
-        applyCommand(setArchetypeLevelCommand(sheet, archetypeId, levels));
-    }
-
-    function toggleDomain(domainId: DomainId) {
-        applyCommand(toggleDomainCommand(sheet, domainId));
-    }
 
     // ============ ADDING ARCHETYPE LEVEL BOONS ==============
     const totalArchetypeLevels = sheet.archetypeLevels.length;
-
-    const characterTier =
-        totalArchetypeLevels === 0
-            ? 0
-            : Math.floor((totalArchetypeLevels - 1) / 4) + 1;
-
+    const characterTier = getCharacterTierForLevelCount(totalArchetypeLevels);
     const firstArchetype = sheet.archetypeLevels[0]?.archetype ?? null;
 
     const firstArchetypeBaseMarks =
         firstArchetype ? ARCHETYPE_MARKS[firstArchetype] : 1;
-
-    const bonusMarksFromLevels = sheet.archetypeLevels.filter(
-        (level) => level.statIncrease?.kind === "marks",
-    ).length;
-
-    const effectiveMarkPool =
-        totalArchetypeLevels > 0
-            ? firstArchetypeBaseMarks + bonusMarksFromLevels
-            : 1;
+    const effectiveMarkPool = sheet.marks.total;
 
     const totalSpecialStrings = sheet.archetypeLevels.reduce(
         (sum, level) => sum + level.specialStrings,
         0,
     );
 
-    const skillOptions = useMemo(
+    const archetypeLevelGroups = useMemo(
         () =>
-            sheet.potentials.flatMap((potential) =>
-                potential.skills.map((skill) => ({
-                    id: `${potential.key}:${skill.name}`,
-                    label: `${potential.title} · ${skill.name}`,
-                })),
+            sheet.header.archetypes.map((archetype) => ({
+                ...archetype,
+                levelRecords: sheet.archetypeLevels.filter(
+                    (level) => level.archetype === archetype.id,
+                ),
+            })),
+        [sheet.header.archetypes, sheet.archetypeLevels],
+    );
+
+    const selectedLevelPerkIds = useMemo(
+        () =>
+            new Set(
+                sheet.archetypeLevels
+                    .map((level) => level.perkId)
+                    .filter((perkId): perkId is PerkId => Boolean(perkId)),
             ),
-        [sheet.potentials],
+        [sheet.archetypeLevels],
     );
 
     const potentialOptions = useMemo(
@@ -282,18 +322,6 @@ export default function EditorWorkspace({
             })),
         [sheet.potentials],
     );
-
-    function updateArchetypeLevels(nextLevels: PurchasedArchetypeLevel[]) {
-        applyCommand(updateArchetypeLevelsCommand(sheet, nextLevels));
-    }
-
-    function addArchetypeLevel(archetype: ArchetypeKey = 'frontliner') {
-        applyCommand(addArchetypeLevelCommand(sheet, createEmptyArchetypeLevel(archetype)));
-    }
-
-    function removeArchetypeLevel(levelId: string) {
-        applyCommand(removeArchetypeLevelCommand(sheet, levelId));
-    }
 
     function updateArchetypeLevel(
         levelId: string,
@@ -310,6 +338,16 @@ export default function EditorWorkspace({
 
     function setLevelStatIncrease(levelId: string, rawValue: string) {
         applyCommand(setArchetypeLevelStatIncrease(sheet, levelId, rawValue));
+    }
+
+    function setArchetypeLevelCount(archetype: ArchetypeKey, levels: number) {
+        applyCommand(setArchetypeLevelCountCommand(sheet, archetype, levels));
+    }
+
+    function getAvailableLevelPerkOptions(currentPerkId?: PerkId | null) {
+        return allPerkOptions.filter(
+            (perk) => perk.id === currentPerkId || !selectedLevelPerkIds.has(perk.id),
+        );
     }
 
     return (
@@ -401,131 +439,6 @@ export default function EditorWorkspace({
                             </label>
                         </div>
 
-                        <section className={styles.section}>
-                            <header className={styles.sectionHeader}>
-                                <div className={styles.sectionEyebrow}>Archetypes</div>
-                                <h3>Chosen Archetypes</h3>
-                            </header>
-
-                            <div className={styles.card}>
-                                <div className={styles.cardHeader}>
-                                    <strong>Add Archetype</strong>
-                                </div>
-
-                                <div className={styles.addRow}>
-                                    <select
-                                        value={''}
-                                        onChange={(e) => {
-                                            const nextId = e.target.value as ArchetypeId;
-                                            if (!nextId) return;
-
-                                            const alreadyExists = sheet.header.archetypes.some(
-                                                (entry) => entry.id === nextId,
-                                            );
-                                            if (alreadyExists) return;
-
-                                            const base = ARCHETYPES.find((entry) => entry.id === nextId);
-                                            if (!base) return;
-
-                                            onChange({
-                                                ...sheet,
-                                                header: {
-                                                    ...sheet.header,
-                                                    archetypes: [
-                                                        ...sheet.header.archetypes,
-                                                        {
-                                                            id: base.id,
-                                                            label: base.label,
-                                                            levels: 1,
-                                                        },
-                                                    ],
-                                                },
-                                            });
-
-                                            e.target.value = "";
-                                        }}
-                                        >
-                                        <option value={""}>Choose archetype...</option>
-                                        {ARCHETYPES.filter(
-                                            (archetype) =>
-                                                !sheet.header.archetypes.some(
-                                                    (entry) => entry.id === archetype.id,
-                                                ),
-                                        ).map((archetype) => (
-                                            <option key={archetype.id} value={archetype.id}>
-                                                {archetype.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className={styles.stack}>
-                                {sheet.header.archetypes.length === 0 ? (
-                                    <div className={styles.inlineCard}>
-                                        <strong>No archetypes added yet.</strong>
-                                        <p>Add one to start tracking archetype levels and Tier.</p>
-                                    </div>
-                                ) : (
-                                    sheet.header.archetypes
-                                        .slice()
-                                        .sort((a, b) => a.label.localeCompare(b.label))
-                                        .map((archetype) => (
-                                            <article key={archetype.id} className={styles.card}>
-                                                <div className={styles.cardHeader}>
-                                                    <strong>{archetype.label}</strong>
-
-                                                    <button
-                                                        type={'button'}
-                                                        className={styles.removeButton}
-                                                        onClick={() => {
-                                                            onChange({
-                                                                ...sheet,
-                                                                header: {
-                                                                    ...sheet.header,
-                                                                    archetypes: sheet.header.archetypes.filter(
-                                                                        (entry) => entry.id !== archetype.id,
-                                                                    ),
-                                                                },
-                                                            })
-                                                        }}
-                                                        >
-                                                        Remove
-                                                    </button>
-                                                </div>
-
-                                                <div className={styles.grid2}>
-                                                    <label className={styles.field}>
-                                                        <span>Levels</span>
-                                                        <input
-                                                            type={'number'}
-                                                            min={1}
-                                                            value={archetype.levels}
-                                                            onChange={(e) => {
-                                                                const nextLevels = Math.max(1, Number(e.target.value) || 1);
-
-                                                                onChange({
-                                                                    ...sheet,
-                                                                    header: {
-                                                                        ...sheet.header,
-                                                                        archetypes: sheet.header.archetypes.map(
-                                                                            (entry) =>
-                                                                                entry.id === archetype.id
-                                                                                    ? { ...entry, levels: nextLevels }
-                                                                                    : entry,
-                                                                        ),
-                                                                    },
-                                                                });
-                                                            }}
-                                                            />
-                                                    </label>
-                                                </div>
-                                            </article>
-                                        ))
-
-                                )}
-                            </div>
-                        </section>
                     </section>
                 ) : null}
 
@@ -565,7 +478,7 @@ export default function EditorWorkspace({
                                             }
                                         >
                                             <option value="">Choose skill...</option>
-                                            {allSkills.map((skill) => (
+                                                {getAvailableSkillOptions(sheet.originSelections?.profession?.skillName).map((skill) => (
                                                 <option key={`profession-${skill.name}`} value={skill.name}>
                                                     {skill.label}
                                                 </option>
@@ -643,7 +556,7 @@ export default function EditorWorkspace({
                                             }
                                         >
                                             <option value="">Choose skill...</option>
-                                            {allSkills.map((skill) => (
+                                                {getAvailableSkillOptions(sheet.originSelections?.crux?.skillName).map((skill) => (
                                                 <option key={`crux-${skill.name}`} value={skill.name}>
                                                     {skill.label}
                                                 </option>
@@ -662,11 +575,37 @@ export default function EditorWorkspace({
                                     </label>
 
                                     <label className={styles.field}>
-                                        <span>Minor / Major goals & sentimental equipment</span>
+                                        <span>Minor Goal</span>
                                         <textarea
-                                            value={sheet.originSelections?.crux?.notes ?? ""}
+                                            value={sheet.originSelections?.crux?.minorGoalLabel ?? ""}
                                             onChange={(e) =>
-                                                patchOriginFacet("crux", { notes: e.target.value })
+                                                patchOriginFacet("crux", {
+                                                    minorGoalLabel: e.target.value,
+                                                })
+                                            }
+                                        />
+                                    </label>
+
+                                    <label className={styles.field}>
+                                        <span>Major Goal</span>
+                                        <textarea
+                                            value={sheet.originSelections?.crux?.majorGoalLabel ?? ""}
+                                            onChange={(e) =>
+                                                patchOriginFacet("crux", {
+                                                    majorGoalLabel: e.target.value,
+                                                })
+                                            }
+                                        />
+                                    </label>
+
+                                    <label className={styles.field}>
+                                        <span>Sentimental Equipment</span>
+                                        <textarea
+                                            value={sheet.originSelections?.crux?.equipmentNote ?? ""}
+                                            onChange={(e) =>
+                                                patchOriginFacet("crux", {
+                                                    equipmentNote: e.target.value,
+                                                })
                                             }
                                         />
                                     </label>
@@ -701,7 +640,7 @@ export default function EditorWorkspace({
                                             }
                                         >
                                             <option value="">Choose skill...</option>
-                                            {allSkills.map((skill) => (
+                                                {getAvailableSkillOptions(sheet.originSelections?.descent?.skillName).map((skill) => (
                                                 <option key={`descent-${skill.name}`} value={skill.name}>
                                                     {skill.label}
                                                 </option>
@@ -720,7 +659,7 @@ export default function EditorWorkspace({
                                             }
                                         >
                                             <option value="">Choose domain...</option>
-                                            {DOMAINS.map((domain) => (
+                                                {getAvailableDomainOptions(sheet.originSelections?.descent?.domainId).map((domain) => (
                                                 <option key={domain.id} value={domain.id}>
                                                     {domain.label}
                                                 </option>
@@ -809,15 +748,127 @@ export default function EditorWorkspace({
                             </div>
                         </div>
 
-                        <div className={styles.levelActionsRow}>
-                            <button
-                                type="button"
-                                className={styles.smallButton}
-                                onClick={() => addArchetypeLevel()}
-                            >
-                                Add Archetype Level
-                            </button>
-                        </div>
+                        <section className={styles.section}>
+                            <header className={styles.sectionHeader}>
+                                <div className={styles.sectionEyebrow}>Archetypes</div>
+                                <h3>Chosen Archetypes</h3>
+                            </header>
+
+                            <div className={styles.card}>
+                                <div className={styles.cardHeader}>
+                                    <strong>Add Archetype</strong>
+                                    <span className={styles.metaMuted}>Optional for Level 0 characters</span>
+                                </div>
+
+                                <div className={styles.addRow}>
+                                    <select
+                                        value=""
+                                        onChange={(e) => {
+                                            const nextId = e.target.value as ArchetypeKey;
+                                            if (!nextId) return;
+                                            setArchetypeLevelCount(nextId, 1);
+                                            e.currentTarget.value = "";
+                                        }}
+                                    >
+                                        <option value="">Choose archetype...</option>
+                                        {ARCHETYPES.filter(
+                                            (archetype) =>
+                                                !sheet.header.archetypes.some(
+                                                    (entry) => entry.id === archetype.id,
+                                                ),
+                                        ).map((archetype) => (
+                                            <option key={archetype.id} value={archetype.id}>
+                                                {archetype.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className={styles.stack}>
+                                {archetypeLevelGroups.length === 0 ? (
+                                    <div className={styles.inlineCard}>
+                                        <strong>No archetype selected.</strong>
+                                        <p>Level 0 characters use a base Mark pool of 1 and receive no first-level boons.</p>
+                                    </div>
+                                ) : (
+                                    archetypeLevelGroups.map((archetype) => (
+                                        <article key={archetype.id} className={styles.card}>
+                                            <div className={styles.cardHeader}>
+                                                <div>
+                                                    <strong>{archetype.label}</strong>
+                                                    <div className={styles.metaMuted}>
+                                                        Base Marks {ARCHETYPE_MARKS[archetype.id as ArchetypeKey]}
+                                                    </div>
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    className={styles.removeButton}
+                                                    onClick={() =>
+                                                        setArchetypeLevelCount(
+                                                            archetype.id as ArchetypeKey,
+                                                            0,
+                                                        )
+                                                    }
+                                                >
+                                                    Remove
+                                                </button>
+                                            </div>
+
+                                            <div className={styles.levelControlRow}>
+                                                <label className={styles.field}>
+                                                    <span>Levels in Archetype</span>
+                                                    <input
+                                                        type="number"
+                                                        min={1}
+                                                        value={archetype.levels}
+                                                        onChange={(e) => {
+                                                            const nextLevels = Math.max(
+                                                                1,
+                                                                Number(e.target.value) || 1,
+                                                            );
+                                                            setArchetypeLevelCount(
+                                                                archetype.id as ArchetypeKey,
+                                                                nextLevels,
+                                                            );
+                                                        }}
+                                                    />
+                                                </label>
+
+                                                <div className={styles.stepperRow}>
+                                                    <button
+                                                        type="button"
+                                                        className={styles.secondaryButton}
+                                                        onClick={() =>
+                                                            setArchetypeLevelCount(
+                                                                archetype.id as ArchetypeKey,
+                                                                Math.max(1, archetype.levels - 1),
+                                                            )
+                                                        }
+                                                    >
+                                                        -1
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        className={styles.secondaryButton}
+                                                        onClick={() =>
+                                                            setArchetypeLevelCount(
+                                                                archetype.id as ArchetypeKey,
+                                                                archetype.levels + 1,
+                                                            )
+                                                        }
+                                                    >
+                                                        +1
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </article>
+                                    ))
+                                )}
+                            </div>
+                        </section>
 
                         {totalArchetypeLevels > 0 ? (
                             <article className={`${styles.card} ${styles.levelCard}`}>
@@ -825,23 +876,18 @@ export default function EditorWorkspace({
                                     <div>
                                         <strong>1st-Level Boons</strong>
                                         <div className={styles.metaMuted}>
-                                            Granted by your first archetype level.
+                                            Granted once the character has at least one archetype.
                                         </div>
                                     </div>
                                     <div className={styles.metaMuted}>
-                                        {firstArchetype
-                                            ? ARCHETYPE_LABELS[firstArchetype]
-                                            : "No archetype selected"}
+                                        {firstArchetype ? ARCHETYPE_LABELS[firstArchetype] : "No archetype selected"}
                                     </div>
                                 </div>
 
                                 <div className={styles.levelGrid}>
                                     <label className={styles.field}>
                                         <span>Starting Marks</span>
-                                        <input
-                                            value={String(firstArchetypeBaseMarks)}
-                                            readOnly
-                                        />
+                                        <input value={String(firstArchetypeBaseMarks)} readOnly />
                                     </label>
 
                                     <label className={styles.field}>
@@ -855,7 +901,7 @@ export default function EditorWorkspace({
                                             }
                                         >
                                             <option value="">Select domain...</option>
-                                            {DOMAINS.map((domain) => (
+                                            {getAvailableDomainOptions(sheet.firstArchetypeBoons.domainId).map((domain) => (
                                                 <option key={domain.id} value={domain.id}>
                                                     {domain.label}
                                                 </option>
@@ -877,7 +923,9 @@ export default function EditorWorkspace({
                                             }
                                         >
                                             <option value="">Select skill...</option>
-                                            {skillOptions.map((skill) => (
+                                            {getAvailableSkillChoiceOptions(
+                                                getSkillNameFromChoiceId(sheet.firstArchetypeBoons.skillIds[0]),
+                                            ).map((skill) => (
                                                 <option key={skill.id} value={skill.id}>
                                                     {skill.label}
                                                 </option>
@@ -899,7 +947,9 @@ export default function EditorWorkspace({
                                             }
                                         >
                                             <option value="">Select skill...</option>
-                                            {skillOptions.map((skill) => (
+                                            {getAvailableSkillChoiceOptions(
+                                                getSkillNameFromChoiceId(sheet.firstArchetypeBoons.skillIds[1]),
+                                            ).map((skill) => (
                                                 <option key={skill.id} value={skill.id}>
                                                     {skill.label}
                                                 </option>
@@ -923,159 +973,185 @@ export default function EditorWorkspace({
                             </article>
                         ) : null}
 
-                        <div className={styles.levelList}>
-                            {sheet.archetypeLevels.map((level, index) => {
-                                const absoluteLevel = index + 1;
-                                const levelTier = getTierForAbsoluteLevelIndex(index);
-                                const blockedPotentialKeys = getBlockedPotentialKeysForTier(
-                                    sheet,
-                                    levelTier,
-                                    level.id,
-                                );
+                        {archetypeLevelGroups.length > 0 ? (
+                            <section className={styles.section}>
+                                <header className={styles.sectionHeader}>
+                                    <div className={styles.sectionEyebrow}>Level Boons</div>
+                                    <h3>Archetype Boon Choices</h3>
+                                </header>
 
-                                return (
-                                    <article
-                                        key={level.id}
-                                        className={`${styles.card} ${styles.levelCard}`}
-                                    >
-                                        <div className={styles.cardHeader}>
-                                            <div>
-                                                <strong>
-                                                    Level {absoluteLevel} ·{" "}
-                                                    {ARCHETYPE_LABELS[level.archetype]} {level.rank}
-                                                </strong>
-                                                <div className={styles.metaMuted}>
-                                                    Tier {levelTier} · grants 9 special Strings
+                                <div className={styles.levelList}>
+                                    {archetypeLevelGroups.map((archetype) => (
+                                        <article
+                                            key={`boons-${archetype.id}`}
+                                            className={`${styles.card} ${styles.levelCard}`}
+                                        >
+                                            <div className={styles.cardHeader}>
+                                                <div>
+                                                    <strong>{archetype.label}</strong>
+                                                    <div className={styles.metaMuted}>
+                                                        {archetype.levelRecords.length} level boon slots
+                                                    </div>
                                                 </div>
                                             </div>
 
-                                            <button
-                                                type="button"
-                                                className={styles.removeButton}
-                                                onClick={() => removeArchetypeLevel(level.id)}
-                                            >
-                                                Remove
-                                            </button>
-                                        </div>
+                                            <div className={styles.levelBoonList}>
+                                                {archetype.levelRecords.map((level) => {
+                                                    const absoluteIndex = sheet.archetypeLevels.findIndex(
+                                                        (entry) => entry.id === level.id,
+                                                    );
+                                                    const absoluteLevel =
+                                                        absoluteIndex >= 0 ? absoluteIndex + 1 : level.rank;
+                                                    const levelTier =
+                                                        absoluteIndex >= 0
+                                                            ? getTierForAbsoluteLevelIndex(absoluteIndex)
+                                                            : 1;
+                                                    const blockedPotentialKeys = getBlockedPotentialKeysForTier(
+                                                        sheet,
+                                                        levelTier,
+                                                        level.id,
+                                                    );
 
-                                        <div className={styles.levelGrid}>
-                                            <label className={styles.field}>
-                                                <span>Archetype</span>
-                                                <select
-                                                    value={level.archetype}
-                                                    onChange={(e) =>
-                                                        updateArchetypeLevel(level.id, {
-                                                            archetype: e.target.value as ArchetypeKey,
-                                                        })
-                                                    }
-                                                >
-                                                    {(
-                                                        Object.keys(
-                                                            ARCHETYPE_LABELS,
-                                                        ) as ArchetypeKey[]
-                                                    ).map((archetype) => (
-                                                        <option key={archetype} value={archetype}>
-                                                            {ARCHETYPE_LABELS[archetype]}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </label>
+                                                    return (
+                                                        <div key={level.id} className={styles.levelBoonRow}>
+                                                            <div className={styles.levelBoonHeader}>
+                                                                <strong>
+                                                                    Level {absoluteLevel} · {archetype.label} {level.rank}
+                                                                </strong>
+                                                                <span>Tier {levelTier} · 9 special Strings</span>
+                                                            </div>
 
-                                            <label className={styles.field}>
-                                                <span>Reward Type</span>
-                                                <select
-                                                    value={level.rewardChoice}
-                                                    onChange={(e) =>
-                                                        updateArchetypeLevel(level.id, {
-                                                            rewardChoice: e.target.value as
-                                                                | ""
-                                                                | "knack"
-                                                                | "perk",
-                                                        })
-                                                    }
-                                                >
-                                                    <option value="">Choose…</option>
-                                                    <option value="knack">Knack</option>
-                                                    <option value="perk">Perk</option>
-                                                </select>
-                                            </label>
+                                                            <div className={styles.levelGrid}>
+                                                                <label className={styles.field}>
+                                                                    <span>Reward Type</span>
+                                                                    <select
+                                                                        value={level.rewardChoice}
+                                                                        onChange={(e) =>
+                                                                            updateArchetypeLevel(level.id, {
+                                                                                rewardChoice: e.target.value as
+                                                                                    | ""
+                                                                                    | "knack"
+                                                                                    | "perk",
+                                                                                knackName:
+                                                                                    e.target.value === "perk"
+                                                                                        ? ""
+                                                                                        : level.knackName,
+                                                                                perkId:
+                                                                                    e.target.value === "knack"
+                                                                                        ? null
+                                                                                        : level.perkId,
+                                                                            })
+                                                                        }
+                                                                    >
+                                                                        <option value="">Choose...</option>
+                                                                        <option value="knack">Knack</option>
+                                                                        <option value="perk">Perk</option>
+                                                                    </select>
+                                                                </label>
 
-                                            {level.rewardChoice === "knack" ? (
-                                                <label className={styles.field}>
-                                                    <span>Knack</span>
-                                                    <input
-                                                        value={level.knackName}
-                                                        placeholder="Enter knack name"
-                                                        onChange={(e) =>
-                                                            updateArchetypeLevel(level.id, {
-                                                                knackName: e.target.value,
-                                                            })
-                                                        }
-                                                    />
-                                                </label>
-                                            ) : null}
+                                                                {level.rewardChoice === "knack" ? (
+                                                                    <label className={styles.field}>
+                                                                        <span>Knack</span>
+                                                                        <input
+                                                                            value={level.knackName}
+                                                                            placeholder="Name the knack"
+                                                                            onChange={(e) =>
+                                                                                updateArchetypeLevel(level.id, {
+                                                                                    knackName: e.target.value,
+                                                                                })
+                                                                            }
+                                                                        />
+                                                                    </label>
+                                                                ) : null}
 
-                                            <label className={styles.field}>
-                                                <span>Stat Increase</span>
-                                                <select
-                                                    value={
-                                                        level.statIncrease?.kind === "marks"
-                                                            ? "marks"
-                                                            : level.statIncrease?.kind === "potential"
-                                                                ? level.statIncrease.potentialKey
-                                                                : ""
-                                                    }
-                                                    onChange={(e) =>
-                                                        setLevelStatIncrease(level.id, e.target.value)
-                                                    }
-                                                >
-                                                    <option value="">Choose…</option>
-                                                    <option value="marks">+1 Mark Pool</option>
-                                                    {potentialOptions.map((potential) => (
-                                                        <option
-                                                            key={potential.key}
-                                                            value={potential.key}
-                                                            disabled={blockedPotentialKeys.has(
-                                                                potential.key,
-                                                            )}
-                                                        >
-                                                            +1 {potential.label}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </label>
+                                                                {level.rewardChoice === "perk" ? (
+                                                                    <label className={styles.field}>
+                                                                        <span>Perk</span>
+                                                                        <select
+                                                                            value={level.perkId ?? ""}
+                                                                            onChange={(e) =>
+                                                                                updateArchetypeLevel(level.id, {
+                                                                                    perkId: (e.target.value || null) as PerkId | null,
+                                                                                })
+                                                                            }
+                                                                        >
+                                                                            <option value="">Choose perk...</option>
+                                                                            {getAvailableLevelPerkOptions(level.perkId).map((perk) => (
+                                                                                <option key={perk.id} value={perk.id}>
+                                                                                    {perk.name}
+                                                                                </option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </label>
+                                                                ) : null}
 
-                                            <label className={styles.field}>
-                                                <span>Special Strings</span>
-                                                <input
-                                                    type="number"
-                                                    value={level.specialStrings}
-                                                    onChange={(e) =>
-                                                        updateArchetypeLevel(level.id, {
-                                                            specialStrings:
-                                                                Number(e.target.value) || 0,
-                                                        })
-                                                    }
-                                                />
-                                            </label>
+                                                                <label className={styles.field}>
+                                                                    <span>Stat Increase</span>
+                                                                    <select
+                                                                        value={
+                                                                            level.statIncrease?.kind === "marks"
+                                                                                ? "marks"
+                                                                                : level.statIncrease?.kind === "potential"
+                                                                                    ? level.statIncrease.potentialKey
+                                                                                    : ""
+                                                                        }
+                                                                        onChange={(e) =>
+                                                                            setLevelStatIncrease(level.id, e.target.value)
+                                                                        }
+                                                                    >
+                                                                        <option value="">Choose...</option>
+                                                                        <option value="marks">+1 Mark Pool</option>
+                                                                        {potentialOptions.map((potential) => (
+                                                                            <option
+                                                                                key={potential.key}
+                                                                                value={potential.key}
+                                                                                disabled={blockedPotentialKeys.has(
+                                                                                    potential.key,
+                                                                                )}
+                                                                            >
+                                                                                +1 {potential.label}
+                                                                            </option>
+                                                                        ))}
+                                                                    </select>
+                                                                </label>
 
-                                            <label className={styles.field}>
-                                                <span>Notes</span>
-                                                <input
-                                                    value={level.notes}
-                                                    placeholder="Optional notes"
-                                                    onChange={(e) =>
-                                                        updateArchetypeLevel(level.id, {
-                                                            notes: e.target.value,
-                                                        })
-                                                    }
-                                                />
-                                            </label>
-                                        </div>
-                                    </article>
-                                );
-                            })}
-                        </div>
+                                                                <label className={styles.field}>
+                                                                    <span>Special Strings</span>
+                                                                    <input
+                                                                        type="number"
+                                                                        min={0}
+                                                                        value={level.specialStrings}
+                                                                        onChange={(e) =>
+                                                                            updateArchetypeLevel(level.id, {
+                                                                                specialStrings:
+                                                                                    Math.max(0, Number(e.target.value) || 0),
+                                                                            })
+                                                                        }
+                                                                    />
+                                                                </label>
+
+                                                                <label className={styles.field}>
+                                                                    <span>Notes</span>
+                                                                    <input
+                                                                        value={level.notes}
+                                                                        placeholder="Optional notes"
+                                                                        onChange={(e) =>
+                                                                            updateArchetypeLevel(level.id, {
+                                                                                notes: e.target.value,
+                                                                            })
+                                                                        }
+                                                                    />
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </article>
+                                    ))}
+                                </div>
+                            </section>
+                        ) : null}
                     </section>
                 ) : null}
 
@@ -1262,9 +1338,17 @@ export default function EditorWorkspace({
                 {tab === "proficiencies" ? (
                     <section className={styles.section}>
                         <header className={styles.sectionHeader}>
-                            <div className={styles.sectionEyebrow}>Volatility Sources</div>
+                            <div className={styles.sectionEyebrow}>Feature Sources</div>
                             <h3>Proficiencies</h3>
                         </header>
+
+                        <div className={styles.inlineCard}>
+                            <strong>Feature-driven only.</strong>
+                            <p>
+                                Skill proficiencies, domains, and knacks are populated by origin choices and
+                                archetype boons.
+                            </p>
+                        </div>
 
                         <section className={styles.section}>
                             <header className={styles.sectionHeader}>
@@ -1278,44 +1362,23 @@ export default function EditorWorkspace({
                                         <div className={styles.cardHeader}>
                                             <strong>{potential.title}</strong>
                                             <span className={styles.metaMuted}>
-                                {potential.skills.filter((skill) => skill.proficient).length} proficient
-                            </span>
+                                                {potential.skills.filter((skill) => skill.proficient).length} proficient
+                                            </span>
                                         </div>
 
                                         <div className={styles.skillList}>
                                             {potential.skills.map((skill) => {
-                                                const locked = Boolean(skill.locked);
                                                 const sourceLabel = skill.sources?.map((source) => source.label).join(", ");
 
                                                 return (
-                                                    <label
-                                                        key={`${potential.key}-${skill.name}`}
-                                                        className={styles.skillRow}
-                                                    >
+                                                    <div key={`${potential.key}-${skill.name}`} className={styles.skillRow}>
                                                         <div className={styles.skillText}>
                                                             <strong>{skill.name}</strong>
                                                             <span>{skill.summary}</span>
-                                                            {sourceLabel ? (
-                                                                <small>Source: {sourceLabel}</small>
-                                                            ) : null}
+                                                            {skill.proficient ? <small>Proficient</small> : null}
+                                                            {sourceLabel ? <small>Source: {sourceLabel}</small> : null}
                                                         </div>
-
-                                                        <span className={styles.checkboxCompact}>
-                                            <input
-                                                type="checkbox"
-                                                checked={Boolean(skill.proficient)}
-                                                disabled={locked}
-                                                onChange={(e) =>
-                                                    setManualSkillProficiency(
-                                                        potential.key,
-                                                        skill.name,
-                                                        e.target.checked,
-                                                    )
-                                                }
-                                            />
-                                            Proficient
-                                        </span>
-                                                    </label>
+                                                    </div>
                                                 );
                                             })}
                                         </div>
@@ -1331,120 +1394,59 @@ export default function EditorWorkspace({
                                 </div>
 
                                 <div className={styles.domainGrid}>
-                                    {DOMAINS.map((domain) => (
-                                        <label key={domain.id} className={styles.domainRow}>
-                                            <div className={styles.domainText}>
-                                                <strong>{domain.label}</strong>
-                                                {domain.deity ? <span>{domain.deity}</span> : null}
-                                                <small>{domain.summary}</small>
-                                            </div>
+                                    {sheet.domains.length === 0 ? (
+                                        <div className={styles.inlineCard}>
+                                            <strong>No domain proficiencies yet.</strong>
+                                            <p>Add a domain from origin or your first archetype boon.</p>
+                                        </div>
+                                    ) : (
+                                        sheet.domains.map((domain) => {
+                                            const sourceLabel = domain.sources?.map((source) => source.label).join(", ");
 
-                                            <span className={styles.checkboxCompact}>
-                                <input
-                                    type="checkbox"
-                                    checked={proficientDomainIds.has(domain.id)}
-                                    onChange={() => toggleDomain(domain.id)}
-                                />
-                                Proficient
-                            </span>
-                                        </label>
-                                    ))}
+                                            return (
+                                                <div key={domain.id} className={styles.domainRow}>
+                                                    <div className={styles.domainText}>
+                                                        <strong>{domain.label}</strong>
+                                                        {domain.deity ? <span>{domain.deity}</span> : null}
+                                                        <small>{domain.summary}</small>
+                                                        {sourceLabel ? <small>Source: {sourceLabel}</small> : null}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
                                 </div>
                             </article>
 
                             <article className={styles.card}>
                                 <div className={styles.cardHeader}>
                                     <strong>Knacks</strong>
-                                    <button
-                                        type="button"
-                                        className={styles.smallButton}
-                                        onClick={() => {
-                                            onChange({
-                                                ...sheet,
-                                                knacks: [
-                                                    ...sheet.knacks,
-                                                    {
-                                                        id: crypto.randomUUID(),
-                                                        name: "New Knack",
-                                                        summary: "",
-                                                        linkedSkills: [],
-                                                    },
-                                                ],
-                                            });
-                                        }}
-                                    >
-                                        Add
-                                    </button>
                                 </div>
 
                                 <div className={styles.knackList}>
-                                    {sheet.knacks.map((knack) => (
-                                        <div key={knack.id} className={styles.knackRow}>
-                                            <input
-                                                value={knack.name}
-                                                placeholder="Knack name"
-                                                onChange={(e) => {
-                                                    onChange({
-                                                        ...sheet,
-                                                        knacks: sheet.knacks.map((entry) =>
-                                                            entry.id === knack.id
-                                                                ? { ...entry, name: e.target.value }
-                                                                : entry,
-                                                        ),
-                                                    });
-                                                }}
-                                            />
-
-                                            <input
-                                                value={knack.summary ?? ""}
-                                                placeholder="Summary"
-                                                onChange={(e) => {
-                                                    onChange({
-                                                        ...sheet,
-                                                        knacks: sheet.knacks.map((entry) =>
-                                                            entry.id === knack.id
-                                                                ? { ...entry, summary: e.target.value }
-                                                                : entry,
-                                                        ),
-                                                    });
-                                                }}
-                                            />
-
-                                            <input
-                                                value={knack.linkedSkills?.join(", ") ?? ""}
-                                                placeholder="Linked skills"
-                                                onChange={(e) => {
-                                                    onChange({
-                                                        ...sheet,
-                                                        knacks: sheet.knacks.map((entry) =>
-                                                            entry.id === knack.id
-                                                                ? {
-                                                                    ...entry,
-                                                                    linkedSkills: e.target.value
-                                                                        .split(",")
-                                                                        .map((part) => part.trim())
-                                                                        .filter(Boolean),
-                                                                }
-                                                                : entry,
-                                                        ),
-                                                    });
-                                                }}
-                                            />
-
-                                            <button
-                                                type="button"
-                                                className={styles.removeButton}
-                                                onClick={() => {
-                                                    onChange({
-                                                        ...sheet,
-                                                        knacks: sheet.knacks.filter((entry) => entry.id !== knack.id),
-                                                    });
-                                                }}
-                                            >
-                                                Remove
-                                            </button>
+                                    {sheet.knacks.length === 0 ? (
+                                        <div className={styles.inlineCard}>
+                                            <strong>No knacks attached yet.</strong>
+                                            <p>Add knack selections in Origin to populate this list.</p>
                                         </div>
-                                    ))}
+                                    ) : (
+                                        sheet.knacks.map((knack) => {
+                                            const sourceLabel = knack.sources?.map((source) => source.label).join(", ");
+
+                                            return (
+                                                <div key={knack.id} className={styles.knackRow}>
+                                                    <div className={styles.knackText}>
+                                                        <strong>{knack.name}</strong>
+                                                        {knack.summary ? <span>{knack.summary}</span> : null}
+                                                        {knack.linkedSkills?.length ? (
+                                                            <small>{knack.linkedSkills.join(" · ")}</small>
+                                                        ) : null}
+                                                        {sourceLabel ? <small>Source: {sourceLabel}</small> : null}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
                                 </div>
                             </article>
                         </div>
@@ -1463,6 +1465,29 @@ export default function EditorWorkspace({
                         </header>
 
                         <div className={styles.stack}>
+                            <article className={styles.card}>
+                                <div className={styles.cardHeader}>
+                                    <strong>Origin-linked goals</strong>
+                                </div>
+
+                                <div className={styles.grid2}>
+                                    <div className={styles.inlineCard}>
+                                        <strong>Minor Goal</strong>
+                                        <p>{sheet.originSelections?.crux?.minorGoalLabel || "Not set"}</p>
+                                    </div>
+
+                                    <div className={styles.inlineCard}>
+                                        <strong>Major Goal</strong>
+                                        <p>{sheet.originSelections?.crux?.majorGoalLabel || "Not set"}</p>
+                                    </div>
+
+                                    <div className={styles.inlineCard}>
+                                        <strong>Heroic Goal</strong>
+                                        <p>{sheet.firstArchetypeBoons.heroicGoalLabel || "Not set"}</p>
+                                    </div>
+                                </div>
+                            </article>
+
                             <button
                                 type={'button'}
                                 className={styles.smallButton}

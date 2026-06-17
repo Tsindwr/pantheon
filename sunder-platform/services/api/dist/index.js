@@ -6,14 +6,20 @@ import { sendReleaseToDiscord } from "./discord/sendReleaseToDiscord.js";
 config({ path: ".env.local" });
 const app = new Hono();
 const ReleaseAnnouncementRequestSchema = z.object({
+    appName: z.string().min(1).optional(),
+    app: z.string().min(1).optional(),
     version: z.string().min(1),
-    title: z.string().min(1),
-    summary: z.string().min(1),
+    title: z.string().min(1).optional(),
+    summary: z.string().optional(),
     url: z.string().url().optional(),
+    color: z.number().int().min(0).max(0xffffff).optional(),
+    content: z.string().optional(),
     sections: z
         .array(z.object({
-        heading: z.string().min(1),
-        body: z.string().min(1)
+        heading: z.string().min(1).optional(),
+        title: z.string().min(1).optional(),
+        body: z.string().min(1).optional(),
+        description: z.string().min(1).optional()
     }))
         .optional()
 });

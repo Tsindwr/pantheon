@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "serve . -l 5175",
     "preview": "serve . -l 4175",
-    "build": "node -e \"const fs=require('fs'); if(!fs.existsSync('index.html')){console.error('Missing index.html'); process.exit(1)} console.log('Gauntlet static site verified.')\"",
-    "check": "pnpm build"
+    "build": "node scripts/build.mjs",
+    "check": "node scripts/build.mjs"
   },
   "devDependencies": {
     "serve": "latest"

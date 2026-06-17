@@ -45,6 +45,7 @@ type PendingCaretSelection = {
 };
 
 const SECTION_DRAG_MIME = "application/sunder-card-section";
+type ModifierTextRun = Extract<AbilityCardTextRun, { kind: "modifier" }>;
 
 const SECTION_TYPE_OPTIONS: Array<{ type: AbilityCardModule["type"]; label: string }> = [
     { type: "rules_text", label: "Rules Text" },
@@ -61,8 +62,8 @@ function moduleAllowsFreeText(type: AbilityCardModule["type"]): boolean {
 
 function resolveSectionInlineMode(
     moduleType: AbilityCardModule["type"],
-    fallback: AbilityCardTextRun["displayMode"] | undefined,
-): AbilityCardTextRun["displayMode"] {
+    fallback: ModifierTextRun["displayMode"] | undefined,
+): ModifierTextRun["displayMode"] {
     if (
         fallback === "inline_chip" ||
         fallback === "inline_keyword" ||
@@ -278,7 +279,7 @@ export default function AbilityCardModuleRenderer({
     };
 
     const handleModuleDrop = (
-        event: React.DragEvent<HTMLDivElement>,
+        event: React.DragEvent<HTMLElement>,
         moduleId: string,
     ) => {
         event.preventDefault();
@@ -744,7 +745,7 @@ export default function AbilityCardModuleRenderer({
                     onClick={() => {
                         const next = addModuleToFace(cardState, faceId, "rules_text");
                         const nextFace = next.faces.find((candidate) => candidate.id === faceId);
-                        const newModule = nextFace?.modules.at(-1);
+                        const newModule = nextFace?.modules[nextFace.modules.length - 1];
 
                         onCardStateChange(next);
                         setSelectedModuleId(newModule?.id ?? null);

@@ -19,6 +19,7 @@ import SheetCard from "../common/SheetCard.tsx";
 import AttacksPanel from "../attacks/AttacksPanel.tsx";
 import GoalsPanel from "../story/GoalsPanel.tsx";
 import KnacksDomainsPanel from "../story/KnacksDomainsPanel.tsx";
+import ArchetypeProgressionPanel from "../story/ArchetypeProgressionPanel.tsx";
 import InventoryPanel from "../inventory/InventoryPanel.tsx";
 import DiceRoller from "../roll/DiceRoller.tsx";
 import EditorWorkspace from "../manage/EditorWorkspace.tsx";
@@ -31,6 +32,7 @@ import type { TestResult } from "../../lib/rolling/types.ts";
 import styles from "./CharacterSheetShell.module.css";
 import {routes} from "../../lib/routing.ts";
 import { supabaseLibraryCampaignService } from "../../infrastructure";
+import { normalizeFeatureDrivenSheetState } from "../../application/character-sheet/commands.ts";
 
 type CharacterSheetShellProps = {
     initialSheet: CharacterSheetState;
@@ -57,7 +59,7 @@ export default function CharacterSheetShell({
     characterId,
     assignedCampaign = null,
 }: CharacterSheetShellProps) {
-    const [sheet, setSheet] = useState(initialSheet);
+    const [sheet, setSheet] = useState(() => normalizeFeatureDrivenSheetState(initialSheet));
     const [activeTab, setActiveTab] = useState<SheetTabId>("overview");
     const [rollBuilderSeed, setRollBuilderSeed] =
         useState<Partial<RollComposerDraft> | null>(null);
@@ -110,7 +112,7 @@ export default function CharacterSheetShell({
     }
 
     useEffect(() => {
-        setSheet(initialSheet);
+        setSheet(normalizeFeatureDrivenSheetState(initialSheet));
     }, [initialSheet]);
 
     useEffect(() => {
@@ -216,6 +218,7 @@ export default function CharacterSheetShell({
 
                         {activeTab === "background" ? (
                             <div className={styles.storyLayout}>
+                                <ArchetypeProgressionPanel sheet={sheet} />
                                 <GoalsPanel goals={sheet.goals}
                                             onChange={(goals) => setSheetField("goals", goals)}
                                 />

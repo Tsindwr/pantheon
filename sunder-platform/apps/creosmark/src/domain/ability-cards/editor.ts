@@ -5,6 +5,8 @@ import type {
     AbilityCardModifierOverride,
     AbilityCardModule,
     AbilityCardModuleType,
+    AbilityCardRulesModule,
+    AbilityCardTextModule,
     AbilityCardRailDisplayMode,
     AbilityCardState,
     AbilityCardTextRun,
@@ -50,7 +52,10 @@ function createModule(type: AbilityCardModuleType): AbilityCardModule {
     }
 }
 
-type TextSectionModule = Exclude<AbilityCardModule, { type: "icon_rail" }>;
+type TextSectionModule = AbilityCardRulesModule | AbilityCardTextModule;
+type TextSectionModuleWithRuns =
+    | AbilityCardRulesModule
+    | (AbilityCardTextModule & { runs: AbilityCardTextRun[] });
 
 function isTextSectionModule(module: AbilityCardModule): module is TextSectionModule {
     return module.type !== "icon_rail";
@@ -92,7 +97,7 @@ function extractTextFromRuns(runs: AbilityCardTextRun[]): string {
         .join("");
 }
 
-function ensureTextSectionRuns(module: TextSectionModule): TextSectionModule {
+function ensureTextSectionRuns(module: TextSectionModule): TextSectionModuleWithRuns {
     if (module.type === "rules_text") {
         return {
             ...module,
@@ -113,7 +118,7 @@ function ensureTextSectionRuns(module: TextSectionModule): TextSectionModule {
 function withUpdatedTextSectionRuns(
     module: TextSectionModule,
     updater: (runs: AbilityCardTextRun[]) => AbilityCardTextRun[],
-): TextSectionModule {
+): TextSectionModuleWithRuns {
     const ensured = ensureTextSectionRuns(module);
     const nextRuns = normalizeTextRuns(updater(ensured.runs));
 
@@ -433,10 +438,11 @@ function convertModuleType(
         }
 
         const ensured = ensureTextSectionRuns(module);
+        const runs = ensured.runs;
         return {
             id: module.id,
             type: "rules_text",
-            runs: ensured.runs,
+            runs,
         };
     }
 
@@ -450,11 +456,12 @@ function convertModuleType(
     }
 
     const ensured = ensureTextSectionRuns(module);
+    const runs = ensured.runs;
     return {
         id: module.id,
         type: nextType,
-        text: extractTextFromRuns(ensured.runs),
-        runs: ensured.runs.map((run) =>
+        text: extractTextFromRuns(runs),
+        runs: runs.map((run) =>
             run.kind === "modifier"
                 ? {
                     ...run,
@@ -855,9 +862,9 @@ export function reconcileModifierPlacementForRenderKind(
         const hasInline = face.modules.some(
             (module) =>
                 isTextSectionModule(module) &&
-                ensureTextSectionRuns(module).runs.some(
+                Boolean(ensureTextSectionRuns(module).runs.some(
                     (run) => run.kind === "modifier" && run.modifierNodeId === modifierNodeId,
-                ),
+                )),
         );
 
         const hasRail = face.modules.some(

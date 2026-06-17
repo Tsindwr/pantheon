@@ -37,3 +37,26 @@ npx supabase login
 npx supabase functions deploy --project-ref your-project-ref
 ```
 Replace `your-project-ref` with your actual Supabase project reference (in URL).
+
+## Release Announcements
+
+The `post-update` Supabase Edge Function announces release notes to Discord and records idempotency in `release_announcements` by `appName + version`. Existing site release note JSON still works; new app workflows should send an explicit `appName`.
+
+```shell
+curl -sS -X POST "$SUPABASE_RELEASE_FUNCTION_URL" \
+  -H "Content-Type: application/json" \
+  -H "x-post-update-secret: $SUPABASE_POST_UPDATE_SECRET" \
+  -d '{
+    "appName": "creosmark",
+    "version": "2.5.0",
+    "summary": "Character builder update.",
+    "sections": [
+      {
+        "title": "Builder Improvements",
+        "description": "Describe the shipped changes here."
+      }
+    ]
+  }'
+```
+
+The same Discord webhook can be used for every app. Embed colors are selected by app name in `@sunderttrpg/discord`; unknown app names use a neutral default color.

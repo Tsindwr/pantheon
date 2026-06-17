@@ -1,0 +1,1 @@
+{"version":3,"file":"resolve-base-roll.d.ts","sourceRoot":"","sources":["../../src/rolling/resolve-base-roll.ts"],"names":[],"mappings":"AACA,OAAO,KAAK,EAAE,YAAY,EAAE,cAAc,EAAE,MAAM,YAAY,CAAC;AAE/D,wBAAgB,OAAO,IAAI,MAAM,CAEhC;AAED,wBAAgB,uBAAuB,CACnC,QAAQ,EAAE,YAAY,EACtB,IAAI,EAAE,MAAM,GACb,cAAc,CAShB;AAED,wBAAgB,eAAe,CAAC,QAAQ,EAAE,YAAY,GAAG,cAAc,CAGtE"}

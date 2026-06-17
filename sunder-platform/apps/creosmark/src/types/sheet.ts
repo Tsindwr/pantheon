@@ -1,49 +1,32 @@
-import type { InventoryState } from './inventory.ts'
-import type { AssignedPerkMap, PerkId } from "../lib/rolling/types.ts";
-import type {ArchetypeData, DomainData, DomainId} from "../lib/sheet-data.ts";
+import type { InventoryState } from './inventory'
+import {
+  POTENTIAL_ABBREVIATIONS,
+  POTENTIAL_LABELS,
+  RISKINESS_LABELS,
+  SKILL_LABELS,
+  type PotentialKey,
+  type RiskinessLevel,
+  type RollMode,
+  type SkillKey,
+} from "@sunderttrpg/core";
+import type { AssignedPerkMap, PerkId } from "../lib/rolling/types";
+import type {ArchetypeData, DomainData, DomainId} from "../lib/sheet-data";
 
-export type PotentialPerkSlot = {
-  perkId: PerkId,
+export {
+  POTENTIAL_ABBREVIATIONS,
+  POTENTIAL_LABELS,
+  RISKINESS_LABELS,
+  SKILL_LABELS,
 };
-
-export type PotentialKey =
-  | "might"
-  | "finesse"
-  | "nerve"
-  | "seep"
-  | "instinct"
-  | "wit"
-  | "heart"
-  | "tether";
-
-export const POTENTIAL_LABELS: Record<PotentialKey, string> = {
-    might: "Might",
-    finesse: "Finesse",
-    nerve: "Nerve",
-    seep: "Seep",
-    instinct: "Instinct",
-    wit: "Wit",
-    heart: "Heart",
-    tether: "Tether",
-};
-
-export const POTENTIAL_ABBREVIATIONS: Record<PotentialKey, string> = {
-  might: "M",
-  finesse: "F",
-  nerve: "N",
-  seep: "S",
-  instinct: "I",
-  wit: "W",
-  heart: "H",
-  tether: "T",
-};
+export type { PotentialKey, RiskinessLevel, RollMode, SkillKey };
 
 export type SheetSourceKind =
   | "manual"
   | "origin-profession"
   | "origin-crux"
   | "origin-descent"
-  | "origin-bloodline";
+  | "origin-bloodline"
+  | "archetype-level";
 
 export type ArchetypeKey =
   | "spellslinger"
@@ -135,59 +118,6 @@ export type PotentialScoreBonus = SheetSourceTag & {
   amount: number;
 };
 
-export type SkillKey =
-  | "force"
-  | "brace"
-  | "feat"
-  | "sleight"
-  | "squirm"
-  | "grace"
-  | "bear"
-  | "steel"
-  | "grit"
-  | "draw"
-  | "frame"
-  | "form"
-  | "read"
-  | "reflex"
-  | "sense"
-  | "reason"
-  | "recall"
-  | "esoterica"
-  | "aura"
-  | "hope"
-  | "sway"
-  | "grasp"
-  | "anchor"
-  | "weave";
-
-export const SKILL_LABELS: Record<SkillKey, string> = {
-    force: "Force",
-    brace: "Brace",
-    feat: "Feat",
-    sleight: "Sleight",
-    squirm: "Squirm",
-    grace: "Grace",
-    bear: "Bear",
-    steel: "Steel",
-    grit: "Grit",
-    draw: "Draw",
-    frame: "Frame",
-    form: "Form",
-    read: "Read",
-    reflex: "Reflex",
-    sense: "Sense",
-    reason: "Reason",
-    recall: "Recall",
-    esoterica: "Esoterica",
-    aura: "Aura",
-    hope: "Hope",
-    sway: "Sway",
-    grasp: "Grasp",
-    anchor: "Anchor",
-    weave: "Weave",
-}
-
 export type SkillDef = {
   name: string;
   summary: string;
@@ -268,7 +198,11 @@ export const REWARD_FROM_GOAL = new Map<GoalTier, GoalReward>([
 
 export type DomainState = {
   id: DomainId;
+  label: string;
+  deity?: string;
+  summary: string;
   proficient: boolean;
+  sources?: SheetSourceTag[];
 };
 
 export type KnackState = {
@@ -276,6 +210,7 @@ export type KnackState = {
   name: string;
   summary?: string;
   linkedSkills?: string[];
+  sources?: SheetSourceTag[];
 };
 
 export type AttackState = {
@@ -301,16 +236,6 @@ export type CharacterHeaderState = {
   tier?: string;
 };
 
-export type RollMode = "normal" | "advantage" | "disadvantage";
-export type RiskinessLevel = "uncertain" | "risky" | "dire" | "desperate";
-
-export const RISKINESS_LABELS: Record<RiskinessLevel, string> = {
-  uncertain: "Uncertain",
-  risky: "Risky",
-  dire: "Dire",
-  desperate: "Desperate",
-};
-
 export type RollComposerDraft = {
   potentialKey: PotentialKey;
   skillName: string;
@@ -327,6 +252,8 @@ export type OriginFacetState = {
   skillName?: string;
   knackName?: string;
   equipmentNote?: string;
+  minorGoalLabel?: string;
+  majorGoalLabel?: string;
   domainId?: DomainId;
   potentialKey?: PotentialKey;
   abilitySummary?: string;
@@ -347,7 +274,7 @@ export type CharacterSheetState = {
   armor: ArmorPieceState[];
   potentials: PotentialState[];
   goals: GoalState[];
-  domains: DomainData[];
+  domains: DomainState[];
   knacks: KnackState[];
   attacks: AttackState[];
   inventory: InventoryState;

@@ -50,7 +50,7 @@ export type AbilityCardRulesModule = {
 
 export type AbilityCardTextModule = {
     id: string;
-    type: "header_meta" | "attack_notation" | "keyword_line" | "footer_note";
+    type: "header_title" | "header_meta" | "attack_notation" | "keyword_line" | "footer_note";
     text: string;
     runs?: AbilityCardTextRun[];
 };
