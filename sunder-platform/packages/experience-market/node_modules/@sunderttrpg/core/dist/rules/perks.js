@@ -232,4 +232,23 @@ export const BASE_PERKS = {
 export function getPerkById(id) {
     return BASE_PERKS[id];
 }
+export function hydratePerkDefinition(perk) {
+    if (!perk)
+        return undefined;
+    if (typeof perk.resolve === "function")
+        return perk;
+    return BASE_PERKS[perk.id];
+}
+export function hydrateAssignedPerks(perks) {
+    const hydrated = {};
+    for (const [face, perk] of Object.entries(perks ?? {})) {
+        const parsedFace = Number(face);
+        if (!Number.isInteger(parsedFace))
+            continue;
+        const definition = hydratePerkDefinition(perk);
+        if (definition)
+            hydrated[parsedFace] = definition;
+    }
+    return hydrated;
+}
 //# sourceMappingURL=perks.js.map

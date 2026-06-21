@@ -1,19 +1,19 @@
 import type {
-    PerkDefinition,
+    AssignedPerk,
     PerkResolution,
     PerkResolutionContext,
     VolatilityDieType
 } from "./types.js";
+import { hydratePerkDefinition } from "../rules/perks.js";
 
 export function resolvePerk(
     context: PerkResolutionContext,
-    perk?: PerkDefinition
+    perk?: AssignedPerk
 ): PerkResolution {
-    if (!perk) {
-        return {};
-    }
+    const definition = hydratePerkDefinition(perk);
+    if (!definition) return {};
 
-    return perk.resolve(context);
+    return definition.resolve(context);
 }
 
 function rollObservedDie(dieType: VolatilityDieType): number {

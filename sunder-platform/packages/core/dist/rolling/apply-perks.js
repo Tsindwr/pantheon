@@ -1,8 +1,9 @@
+import { hydratePerkDefinition } from "../rules/perks.js";
 export function resolvePerk(context, perk) {
-    if (!perk) {
+    const definition = hydratePerkDefinition(perk);
+    if (!definition)
         return {};
-    }
-    return perk.resolve(context);
+    return definition.resolve(context);
 }
 function rollObservedDie(dieType) {
     return Math.floor(Math.random() * dieType) + 1;

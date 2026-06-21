@@ -22,7 +22,6 @@ export function successLevelAppliesStress(
     successLevel: SuccessLevelKey
 ): boolean {
     return successLevel === "success"
-        || successLevel === "crit"
         || successLevel === "mixed";
 }
 

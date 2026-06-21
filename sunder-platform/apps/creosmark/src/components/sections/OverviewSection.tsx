@@ -5,6 +5,7 @@ import MarksTracker from "../trackers/MarksTracker.tsx";
 import ExperienceTracker from "../trackers/ExperienceTracker.tsx";
 import TokenTracker from "../trackers/TokenTracker.tsx";
 import ArmorProtectionTracker from "../trackers/ArmorProtectionTracker.tsx";
+import { experienceFacade } from "../../application/experience/experience-facade.ts";
 
 type OverviewSectionProps = {
   sheet: CharacterSheetState;
@@ -21,7 +22,9 @@ export default function OverviewSection({ sheet, onChange }: OverviewSectionProp
       <div className={styles.experience}>
         <ExperienceTracker
           value={sheet.experience}
-          onChange={(experience) => onChange({ ...sheet, experience })}
+          onAdjust={(denomination, amount) =>
+            onChange(experienceFacade.adjust(sheet, { [denomination]: amount }))
+          }
         />
       </div>
 

@@ -1,4 +1,5 @@
 export type {
+  AssignedPerk,
   AssignedPerkMap,
   BaseDieState,
   BaseRollResult,

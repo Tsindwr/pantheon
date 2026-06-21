@@ -1,6 +1,10 @@
 import React, {useEffect, useMemo, useRef, useState } from 'react';
 import DiceBox from '@3d-dice/dice-box';
-import type { CharacterSheetState, RollComposerDraft } from "../../types/sheet.ts";
+import type {
+    CharacterSheetState,
+    PotentialKey,
+    RollComposerDraft,
+} from "../../types/sheet.ts";
 import {
     buildVolatilityPoolState,
     resolveObservedSunderRoll,
@@ -17,12 +21,17 @@ import { parseDiceBoxResults } from "./diceBoxAdapter.ts";
 import SunderRollOverlay from "./SunderRollOverlay.tsx";
 import SunderDiceBoxOverlay from "./SunderDiceBoxOverlay.tsx";
 import { publicAssetPath } from "../../lib/public-assets.ts";
+import { getResistanceRecoveryPotentials } from "../../application/character-sheet/commands.ts";
 
 type DiceRollerProps = {
     sheet: CharacterSheetState;
     request: RollComposerDraft | null;
     onClose: () => void;
     onResolved?: (result: TestResult) => void;
+    onApplyResults?: (
+        roll: DisplayRoll,
+        resistanceRecoveryPotentialKey?: PotentialKey,
+    ) => void;
 };
 
 export type RollPhase = 'idle' | 'rolling' | 'resolved' | 'error';
@@ -32,6 +41,7 @@ export default function DiceRoller({
     request,
     onClose,
     onResolved,
+    onApplyResults,
 }: DiceRollerProps) {
     const hostRef = useRef<HTMLDivElement | null>(null);
     const diceBoxRef = useRef<DiceBox | null>(null);
@@ -45,6 +55,18 @@ export default function DiceRoller({
     const [displayRoll, setDisplayRoll] = useState<DisplayRoll | null>(null);
     const [errorText, setErrorText] = useState<string | null>(null);
     const [boxReady, setBoxReady] = useState(false);
+    const resistanceRecoveryOptions = useMemo(
+        () =>
+            displayRoll?.result.naturalCrit
+                ? getResistanceRecoveryPotentials(sheet)
+                    .map((potential) => ({
+                        value: potential.key,
+                        label: potential.title,
+                        resistance: potential.resistance,
+                    }))
+                : [],
+        [displayRoll?.result.naturalCrit, sheet.potentials],
+    );
 
     const prepared = useMemo(() => {
         if (!request) return null;
@@ -196,6 +218,18 @@ export default function DiceRoller({
             phase={phase}
             errorText={errorText}
             hostRef={hostRef}
+            resistanceRecoveryOptions={resistanceRecoveryOptions}
+            onApplyResults={(resistanceRecoveryPotentialKey) => {
+                if (!displayRoll) return;
+                onApplyResults?.(displayRoll, resistanceRecoveryPotentialKey);
+
+                setDisplayRoll(null);
+                setErrorText(null);
+                setPhase("idle");
+                diceBoxRef.current = null;
+                setBoxReady(false);
+                onClose();
+            }}
             onClose={() => {
                 setDisplayRoll(null);
                 setErrorText(null);

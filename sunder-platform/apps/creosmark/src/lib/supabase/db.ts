@@ -101,6 +101,9 @@ function normalizeCharacterSheetState(
     return {
         ...sheet,
         abilityIds: Array.from(abilityIds),
+        recollectSurges: Array.isArray(sheet.recollectSurges)
+            ? sheet.recollectSurges
+            : [],
     };
 }
 
@@ -678,6 +681,7 @@ export function createBlankSheet(): CharacterSheetState {
             },
         },
         abilityIds: [],
+        recollectSurges: [],
         archetypeLevels: [],
         firstArchetypeBoons: {
             domainId: "",

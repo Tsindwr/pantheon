@@ -14,7 +14,8 @@ export function resolveBaseSuccessLevel(input) {
     return "failure";
 }
 export function successLevelAppliesStress(successLevel) {
-    return successLevel === "success";
+    return successLevel === "success"
+        || successLevel === "mixed";
 }
 export function successLevelAppliesFallout(successLevel) {
     return (successLevel === "mixed" ||

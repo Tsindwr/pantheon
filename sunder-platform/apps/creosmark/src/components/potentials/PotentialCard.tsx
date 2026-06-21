@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import PotentialWidget from "./PotentialWidget.tsx";
 import styles from "./PotentialCard.module.css";
 import type { PotentialState, PotentialKey } from "../../types/sheet.ts";
+import { getPerkMarksFromAssignedPerks } from "../../lib/volatility.ts";
 
 type PotentialCardProps = {
   potential: PotentialState;
@@ -14,108 +15,178 @@ export default function PotentialCard({
   onChange,
   onStartRoll,
 }: PotentialCardProps) {
-  const [showWidget, setShowWidget] = useState(false);
+  const [selectedSkill, setSelectedSkill] =
+    useState<PotentialState["skills"][number] | null>(null);
 
   const { score, stress, resistance, charged } = potential;
-  const safeResist = Math.min(resistance, score);
-  const safeStress = Math.min(stress, score - safeResist);
-  const resistStart = score - safeResist;
+  const volatilityPerks = useMemo(
+    () => getPerkMarksFromAssignedPerks(potential.resolverPerks, potential.perks),
+    [potential.perks, potential.resolverPerks],
+  );
+  const widgetTrackSignature = [
+    potential.key,
+    score,
+    stress,
+    resistance,
+    potential.volatilityDieMax,
+    charged ? "charged" : "uncharged",
+  ].join(":");
+
+  useEffect(() => {
+    if (!selectedSkill) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setSelectedSkill(null);
+    };
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [selectedSkill]);
+
+  const startRoll = (skillName: string) => {
+    onStartRoll?.({ potentialKey: potential.key, skillName });
+  };
+
+  const drawerTitleId = selectedSkill
+    ? `${potential.key}-${selectedSkill.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-details`
+    : undefined;
 
   return (
-    <div className={styles.scene}>
-      <div className={[styles.card, showWidget ? styles.flipped : ""].filter(Boolean).join(" ")}>
-        {/* ── Front: Skills ── */}
-        <div className={[styles.face, styles.front].join(" ")}
-             aria-hidden={showWidget ? "true" : "false"}>
-          <div className={styles.cardHeader}>
-            <span className={[styles.cardTitle, charged ? styles.charged : ""].filter(Boolean).join(" ")}>
-              {potential.title}
-            </span>
-            <span className={styles.cardScore}>{score}</span>
-          </div>
-
-          <div className={styles.stressBar}>
-            {Array.from({ length: score }).map((_, i) => {
-              let cls = "empty";
-              if (i < safeStress) cls = "stress";
-              else if (i >= resistStart) cls = "resist";
-              return (
-                <span
-                  key={i}
-                  className={[styles.pip, cls !== "empty" ? styles[cls as "stress" | "resist"] : ""]
-                    .filter(Boolean)
-                    .join(" ")}
-                />
-              );
-            })}
-          </div>
-
-          <div className={styles.skills}>
-            {potential.skills.map((skill) => (
-              <button
-                key={skill.name}
-                type="button"
-                className={styles.skillRow}
-                onClick={() =>
-                  onStartRoll?.({ potentialKey: potential.key, skillName: skill.name })
-                }
-              >
-                <span className={styles.skillName}>
-                  {skill.name}
-                  {skill.proficient ? (
-                    <span className={styles.profBadge} title="Proficient">P</span>
-                  ) : null}
-                </span>
-                <span className={styles.skillSummary}>{skill.summary}</span>
-                <span className={styles.rollHint} aria-hidden="true">⚀</span>
-              </button>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            className={styles.flipBtn}
-            onClick={() => setShowWidget(true)}
-            aria-label={`Show ${potential.title} potential widget`}
-          >
-            ◐ Widget
-          </button>
-        </div>
-
-        {/* ── Back: Potential Widget ── */}
-        <div className={[styles.face, styles.back, charged ? styles.chargedBack : ""]
-                .filter(Boolean)
-                .join(" ")}
-             aria-hidden={!showWidget ? "true" : "false"}>
-          <div className={styles.widgetWrap}>
-            <PotentialWidget
-              title={potential.title}
-              potentialValue={score}
-              stress={stress}
-              resistance={resistance}
-              volatilityDieMax={potential.volatilityDieMax}
-              charged={charged}
-              volatilityPerks={potential.perks}
-              width="100%"
-              height="100%"
-              onChange={
-                onChange
-                  ? (next) => onChange({ ...potential, ...next })
-                  : undefined
-              }
-            />
-          </div>
-
-          <button
-            type="button"
-            className={styles.flipBtn}
-            onClick={() => setShowWidget(false)}
-            aria-label={`Show ${potential.title} skills`}
-          >
-            ☰ Skills
-          </button>
-        </div>
+    <article className={[styles.card, charged ? styles.charged : ""].filter(Boolean).join(" ")}>
+      <div className={styles.widgetWrap}>
+        <PotentialWidget
+          key={widgetTrackSignature}
+          title={potential.title}
+          potentialValue={score}
+          stress={stress}
+          resistance={resistance}
+          volatilityDieMax={potential.volatilityDieMax}
+          charged={charged}
+          volatilityPerks={volatilityPerks}
+          width="100%"
+          height="100%"
+          onChange={
+            onChange
+              ? (next) => onChange({ ...potential, ...next })
+              : undefined
+          }
+          onPerkColorChange={
+            onChange
+              ? (faceValue, color) =>
+                  onChange({
+                    ...potential,
+                    perks: {
+                      ...(potential.perks ?? {}),
+                      [faceValue]: {
+                        ...(potential.perks?.[faceValue] ?? {}),
+                        color,
+                      },
+                    },
+                  })
+              : undefined
+          }
+        />
       </div>
-    </div>
+
+      <div className={styles.skills} aria-label={`${potential.title} skills`}>
+        {potential.skills.map((skill) => (
+          <div key={skill.name} className={styles.skillRow}>
+            <button
+              type="button"
+              className={styles.skillNameButton}
+              onClick={() => setSelectedSkill(skill)}
+              aria-label={`Show ${skill.name} details`}
+            >
+              <span className={styles.skillName}>{skill.name}</span>
+            </button>
+
+            <button
+              type="button"
+              className={[
+                styles.rollButton,
+                skill.proficient ? styles.rollButtonProficient : "",
+              ].filter(Boolean).join(" ")}
+              onClick={() => startRoll(skill.name)}
+              aria-label={`Start ${potential.title} ${skill.name} roll${
+                skill.proficient ? " with proficiency" : ""
+              }`}
+              title={skill.proficient ? "Roll with proficiency" : "Roll"}
+            >
+              <span className={styles.rollIcon} aria-hidden="true">
+                {skill.proficient ? "⚄" : "⚂"}
+              </span>
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {selectedSkill ? (
+        <div className={styles.drawerLayer}>
+          <button
+            type="button"
+            className={styles.drawerScrim}
+            aria-label="Close skill details"
+            onClick={() => setSelectedSkill(null)}
+          />
+
+          <aside
+            className={styles.skillDrawer}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={drawerTitleId}
+          >
+            <header className={styles.drawerHeader}>
+              <div>
+                <div className={styles.drawerEyebrow}>{potential.title}</div>
+                <h3 id={drawerTitleId}>{selectedSkill.name}</h3>
+              </div>
+
+              <button
+                type="button"
+                className={styles.drawerClose}
+                aria-label="Close skill details"
+                onClick={() => setSelectedSkill(null)}
+              >
+                ×
+              </button>
+            </header>
+
+            <p className={styles.drawerSummary}>{selectedSkill.summary}</p>
+
+            <dl className={styles.drawerStats}>
+              <div>
+                <dt>Potential</dt>
+                <dd>{potential.title}</dd>
+              </div>
+              <div>
+                <dt>Score</dt>
+                <dd>{score}</dd>
+              </div>
+              <div>
+                <dt>Volatility</dt>
+                <dd>{`d${potential.volatilityDieMax}`}</dd>
+              </div>
+              <div>
+                <dt>Proficiency</dt>
+                <dd>{selectedSkill.proficient ? "Yes" : "No"}</dd>
+              </div>
+            </dl>
+
+            <button
+              type="button"
+              className={styles.drawerRollButton}
+              onClick={() => {
+                startRoll(selectedSkill.name);
+                setSelectedSkill(null);
+              }}
+            >
+              Start Roll
+            </button>
+          </aside>
+        </div>
+      ) : null}
+    </article>
   );
 }

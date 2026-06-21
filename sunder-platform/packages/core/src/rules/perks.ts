@@ -1,4 +1,6 @@
 import type {
+    AssignedPerk,
+    AssignedPerkMap,
     PerkDefinition,
     PerkId,
     PerkResolutionContext,
@@ -264,4 +266,28 @@ export const BASE_PERKS: Record<PerkId, PerkDefinition> = {
 
 export function getPerkById(id: PerkId): PerkDefinition {
     return BASE_PERKS[id];
+}
+
+export function hydratePerkDefinition(
+    perk?: AssignedPerk | null
+): PerkDefinition | undefined {
+    if (!perk) return undefined;
+    if (typeof perk.resolve === "function") return perk as PerkDefinition;
+    return BASE_PERKS[perk.id];
+}
+
+export function hydrateAssignedPerks(
+    perks?: AssignedPerkMap | null
+): Partial<Record<number, PerkDefinition>> {
+    const hydrated: Partial<Record<number, PerkDefinition>> = {};
+
+    for (const [face, perk] of Object.entries(perks ?? {})) {
+        const parsedFace = Number(face);
+        if (!Number.isInteger(parsedFace)) continue;
+
+        const definition = hydratePerkDefinition(perk);
+        if (definition) hydrated[parsedFace] = definition;
+    }
+
+    return hydrated;
 }

@@ -1,11 +1,12 @@
 import { calculateTotalVolatility, getVolatilityPlan, resolveVolatilityModifier, validateVolatilityFace } from "../rules/volatility.js";
+import { hydratePerkDefinition } from "../rules/perks.js";
 import { applyRerollInstruction, resolvePerk } from "./apply-perks.js";
 export function rollDV(dieType) {
     return Math.floor(Math.random() * dieType + 1);
 }
 export function resolveVolatilityRoll(volatilityState) {
     const result = rollDV(volatilityState.max);
-    const perk = volatilityState.perks[result];
+    const perk = hydratePerkDefinition(volatilityState.perks[result]);
     return { result, perk };
 }
 function buildPoolResult(input) {
@@ -25,7 +26,7 @@ function buildPoolResult(input) {
     }
     const sorted = [...dieResults].sort((a, b) => plan.keepLowest ? a - b : b - a);
     let keptFace = sorted[0];
-    const perk = volatilityPoolState.perks?.[keptFace];
+    const perk = hydratePerkDefinition(volatilityPoolState.perks?.[keptFace]);
     let perkResolution = resolvePerk({
         dieType: volatilityPoolState.dieType,
         keptFace,

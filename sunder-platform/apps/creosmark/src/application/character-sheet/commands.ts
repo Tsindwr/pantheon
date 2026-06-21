@@ -6,7 +6,8 @@ import {
   type DomainId,
 } from "../../lib/sheet-data";
 import { BASE_PERKS } from "../../lib/rolling/perkData";
-import type { PerkDefinition, PerkId } from "../../lib/rolling/types";
+import type { PerkDefinition, PerkId, TestResult } from "../../lib/rolling/types";
+import type { AssignedPerk, AssignedPerkMap, VolatilityDieType } from "../../lib/rolling/types";
 import {
   ARCHETYPE_MARKS,
   createEmptyArchetypeLevel,
@@ -15,6 +16,8 @@ import {
   type GoalState,
   type PotentialKey,
   type PurchasedArchetypeLevel,
+  type RecollectRecordedPerk,
+  type RecollectSurgeState,
   type SheetSourceTag,
 } from "../../types/sheet";
 import {
@@ -24,6 +27,7 @@ import {
   normalizePotentialState,
   normalizeSkillFromSources,
 } from "../../domain/character-sheet/invariants";
+import { experienceFacade } from "../experience/experience-facade.ts";
 
 function toResolverPerks(
   input: Record<number, PerkDefinition>,
@@ -35,6 +39,296 @@ function toResolverPerks(
 
 function getPotential(sheet: CharacterSheetState, potentialKey: PotentialKey) {
   return sheet.potentials.find((entry) => entry.key === potentialKey);
+}
+
+function getNextVolatilityDie(die: VolatilityDieType): VolatilityDieType {
+  switch (die) {
+    case 4:
+      return 6;
+    case 6:
+      return 8;
+    case 8:
+      return 10;
+    case 10:
+      return 12;
+    case 12:
+    default:
+      return 12;
+  }
+}
+
+function getPerkSlotCount(die: VolatilityDieType): number {
+  return Math.max(0, die - 2);
+}
+
+function createRecollectId(potentialKey: PotentialKey): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `recollect:${potentialKey}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+}
+
+function toSerializableAssignedPerks(
+  resolverPerks: CharacterSheetState["potentials"][number]["resolverPerks"],
+  options: { includeCharge?: boolean } = {},
+): AssignedPerkMap {
+  const result: AssignedPerkMap = {};
+  const includeCharge = options.includeCharge ?? true;
+
+  for (const [face, perk] of Object.entries(resolverPerks ?? {})) {
+    const parsedFace = Number(face);
+    const perkDef = perk as PerkDefinition | undefined;
+    if (!Number.isInteger(parsedFace) || !perkDef?.id) continue;
+    if (!includeCharge && perkDef.id === "charge") continue;
+
+    const serializablePerk = { ...perkDef } as AssignedPerk;
+    delete serializablePerk.resolve;
+    result[parsedFace] = serializablePerk;
+  }
+
+  return result;
+}
+
+function toRecollectRecordedPerks(
+  resolverPerks: CharacterSheetState["potentials"][number]["resolverPerks"],
+): RecollectRecordedPerk[] {
+  return Object.entries(
+    toSerializableAssignedPerks(resolverPerks, { includeCharge: false }),
+  )
+    .map(([face, perk]) => [Number(face), perk] as const)
+    .filter((entry): entry is readonly [number, AssignedPerk] =>
+      Number.isInteger(entry[0]) && Boolean(entry[1]?.id),
+    )
+    .sort(([leftFace], [rightFace]) => leftFace - rightFace)
+    .map(([previousFace, perk]) => ({
+      previousFace,
+      perk,
+    }));
+}
+
+function createRecollectSurge(
+  sheet: CharacterSheetState,
+  potentialKey: PotentialKey,
+): RecollectSurgeState | null {
+  const potential = getPotential(sheet, potentialKey);
+  if (!potential) return null;
+
+  const previousDieMax = potential.volatilityDieMax;
+  const newDieMax = getNextVolatilityDie(previousDieMax);
+
+  return {
+    id: createRecollectId(potentialKey),
+    kind: "recollect",
+    potentialKey,
+    potentialTitle: potential.title,
+    previousDieMax,
+    newDieMax,
+    previousPerks: toSerializableAssignedPerks(potential.resolverPerks, {
+      includeCharge: false,
+    }),
+    recordedPerks: toRecollectRecordedPerks(potential.resolverPerks),
+    perkSlots: getPerkSlotCount(previousDieMax),
+    usesRemaining: 1,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function getRecollectRecordedPerks(surge: RecollectSurgeState): RecollectRecordedPerk[] {
+  const recordedPerks = (surge.recordedPerks ?? [])
+    .filter((entry): entry is RecollectRecordedPerk =>
+      Number.isInteger(entry.previousFace) &&
+      Boolean(entry.perk?.id) &&
+      entry.perk.id !== "charge",
+    )
+    .sort((left, right) => left.previousFace - right.previousFace);
+
+  if (recordedPerks.length > 0) return recordedPerks;
+
+  return Object.entries(surge.previousPerks ?? {})
+    .map(([face, perk]) => [Number(face), perk] as const)
+    .filter((entry): entry is readonly [number, AssignedPerk] =>
+      Number.isInteger(entry[0]) &&
+      Boolean(entry[1]?.id) &&
+      entry[1]?.id !== "charge",
+    )
+    .sort(([leftFace], [rightFace]) => leftFace - rightFace)
+    .map(([previousFace, perk]) => ({
+      previousFace,
+      perk,
+    }));
+}
+
+function normalizeOptionalFace(face: number | null | undefined): number | null {
+  if (face === null || face === undefined) return null;
+  if (!Number.isFinite(face)) return null;
+  return Math.floor(face);
+}
+
+export type RecollectSurgeAssignment = {
+  perkId: PerkId;
+  face: number | null;
+};
+
+export type ApplyRecollectSurgeInput = {
+  surgeId: string;
+  assignments: RecollectSurgeAssignment[];
+};
+
+export function applyRecollectSurge(
+  sheet: CharacterSheetState,
+  input: ApplyRecollectSurgeInput,
+): CharacterSheetState {
+  const surge = (sheet.recollectSurges ?? []).find(
+    (entry) => entry.id === input.surgeId && entry.usesRemaining > 0,
+  );
+  if (!surge) return sheet;
+
+  const potential = getPotential(sheet, surge.potentialKey);
+  if (!potential) return sheet;
+
+  const recordedPerks = getRecollectRecordedPerks(surge);
+  const recordedPerkIds = new Set<PerkId>();
+  for (const entry of recordedPerks) {
+    if (!entry.perk?.id || entry.perk.id === "charge") continue;
+    recordedPerkIds.add(entry.perk.id as PerkId);
+  }
+
+  const assignmentsByPerk = new Map<PerkId, number | null>();
+  for (const assignment of input.assignments) {
+    if (assignment.perkId === "charge") return sheet;
+    if (!recordedPerkIds.has(assignment.perkId)) return sheet;
+    if (assignmentsByPerk.has(assignment.perkId)) return sheet;
+    assignmentsByPerk.set(assignment.perkId, normalizeOptionalFace(assignment.face));
+  }
+
+  const obtainedPerkIds = getObtainedPerkIds(sheet);
+  const nextResolverPerks = getResolverPerkRecord(potential.resolverPerks);
+  const assignedFaces = new Set<number>(
+    Object.keys(nextResolverPerks).map((face) => Number(face)),
+  );
+
+  for (const entry of recordedPerks) {
+    const perkId = entry.perk.id as PerkId;
+    const assignedFace = assignmentsByPerk.get(perkId);
+    if (assignedFace === undefined || assignedFace === null) continue;
+
+    if (!Number.isInteger(assignedFace) || assignedFace < 2) return sheet;
+    if (!obtainedPerkIds.has(perkId)) return sheet;
+    if (isPerkAssigned(sheet, perkId)) return sheet;
+    if (assignedFaces.has(assignedFace)) return sheet;
+
+    const allowedFaces = getAllowedPerkFaces(potential, perkId, assignedFaces);
+    if (!allowedFaces.includes(assignedFace)) return sheet;
+
+    const perkDef = BASE_PERKS[perkId];
+    if (!perkDef) return sheet;
+
+    nextResolverPerks[assignedFace] = perkDef;
+    assignedFaces.add(assignedFace);
+  }
+
+  const sheetWithAssignedPerks = mapPotential(sheet, surge.potentialKey, (current) => ({
+    ...current,
+    resolverPerks: toResolverPerks(nextResolverPerks),
+  }));
+
+  return {
+    ...sheetWithAssignedPerks,
+    recollectSurges: (sheetWithAssignedPerks.recollectSurges ?? []).filter(
+      (entry) => entry.id !== surge.id,
+    ),
+  };
+}
+
+export type ApplyRollResultInput = {
+  potentialKey: PotentialKey;
+  result: TestResult;
+  resistanceRecoveryPotentialKey?: PotentialKey | null;
+};
+
+export function getResistanceRecoveryPotentials(
+  sheet: CharacterSheetState,
+): CharacterSheetState["potentials"] {
+  return sheet.potentials.filter((potential) => potential.resistance > 0);
+}
+
+export function applyRollResult(
+  sheet: CharacterSheetState,
+  input: ApplyRollResultInput,
+): CharacterSheetState {
+  const { potentialKey, result, resistanceRecoveryPotentialKey } = input;
+  const chargeExploded = Boolean(result.exploded);
+  const sheetWithExperience = experienceFacade.adjust(sheet, {
+    beats: Math.max(0, result.beatsAwarded),
+    strings: chargeExploded ? 1 : 0,
+  });
+  const recollectSurge = chargeExploded
+    ? createRecollectSurge(sheetWithExperience, potentialKey)
+    : null;
+  const naturalCritRecoveryTarget =
+    result.naturalCrit && resistanceRecoveryPotentialKey
+      ? resistanceRecoveryPotentialKey
+      : null;
+  const automaticRecovery = Math.max(
+    0,
+    Math.floor(result.resistancesRecovered ?? 0) - (result.naturalCrit ? 1 : 0),
+  );
+
+  return {
+    ...sheetWithExperience,
+    recollectSurges: recollectSurge
+      ? [...(sheetWithExperience.recollectSurges ?? []), recollectSurge]
+      : sheetWithExperience.recollectSurges,
+    potentials: sheetWithExperience.potentials.map((potential) => {
+      let stress = Math.max(0, Math.min(potential.stress, potential.score));
+      let resistance = Math.max(
+        0,
+        Math.min(potential.resistance, potential.score - stress),
+      );
+
+      if (potential.key === potentialKey) {
+        stress = Math.max(0, stress - Math.max(0, result.stressReduced ?? 0));
+        resistance = Math.max(0, resistance - automaticRecovery);
+
+        if (chargeExploded) {
+          resistance = Math.max(0, resistance - 1);
+        }
+
+        if (!chargeExploded && result.resistanceSpent) {
+          resistance = Math.min(potential.score - stress, resistance + 1);
+        }
+
+        if (!chargeExploded && result.stressApplied) {
+          stress = Math.min(potential.score - resistance, stress + 1);
+        }
+      }
+
+      if (potential.key === naturalCritRecoveryTarget) {
+        resistance = Math.max(0, resistance - 1);
+      }
+
+      const normalizedPotential = normalizePotentialState({
+        ...potential,
+        stress,
+        resistance,
+        ...(chargeExploded && potential.key === potentialKey
+          ? {
+              charged: false,
+              volatilityDieMax: getNextVolatilityDie(potential.volatilityDieMax),
+              perks: undefined,
+              resolverPerks: undefined,
+            }
+          : {}),
+      });
+
+      return {
+        ...normalizedPotential,
+        stress,
+        resistance,
+      };
+    }),
+  };
 }
 
 function getResolverPerkRecord(
@@ -51,6 +345,65 @@ function getResolverPerkRecord(
   }
 
   return result;
+}
+
+function getObtainedPerkIds(sheet: CharacterSheetState): Set<PerkId> {
+  return new Set(
+    sheet.archetypeLevels
+      .filter((level) => level.rewardChoice === "perk")
+      .map((level) => level.perkId)
+      .filter((perkId): perkId is PerkId => Boolean(perkId)),
+  );
+}
+
+function isPerkAssigned(
+  sheet: CharacterSheetState,
+  perkId: PerkId,
+  ignore?: { potentialKey: PotentialKey; face: number },
+): boolean {
+  return sheet.potentials.some((potential) =>
+    Object.entries(potential.resolverPerks ?? {}).some(([face, perk]) => {
+      if (
+        ignore &&
+        potential.key === ignore.potentialKey &&
+        Number(face) === ignore.face
+      ) {
+        return false;
+      }
+
+      return (perk as PerkDefinition | undefined)?.id === perkId;
+    }),
+  );
+}
+
+function syncObtainedPotentialPerks(sheet: CharacterSheetState): CharacterSheetState {
+  const obtainedPerkIds = getObtainedPerkIds(sheet);
+  const usedPerkIds = new Set<PerkId>();
+
+  return {
+    ...sheet,
+    potentials: sheet.potentials.map((potential) => {
+      const nextResolverPerks: Record<number, PerkDefinition> = {};
+      const entries = Object.entries(potential.resolverPerks ?? {})
+        .map(([face, perk]) => [Number(face), perk as PerkDefinition | undefined] as const)
+        .filter(([face, perk]) => Number.isInteger(face) && Boolean(perk?.id))
+        .sort((a, b) => a[0] - b[0]);
+
+      for (const [face, perk] of entries) {
+        if (!perk?.id) continue;
+        const perkId = perk.id as PerkId;
+        if (!obtainedPerkIds.has(perkId) || usedPerkIds.has(perkId)) continue;
+
+        nextResolverPerks[face] = perk;
+        usedPerkIds.add(perkId);
+      }
+
+      return normalizePotentialState({
+        ...potential,
+        resolverPerks: toResolverPerks(nextResolverPerks),
+      });
+    }),
+  };
 }
 
 const FEATURE_SKILL_SOURCE_IDS = new Set([
@@ -503,14 +856,16 @@ function syncFeatureDrivenGoals(sheet: CharacterSheetState): CharacterSheetState
 }
 
 function syncFeatureDrivenSheetState(sheet: CharacterSheetState): CharacterSheetState {
-  return syncFeatureDrivenGoals(
-    syncFeatureDrivenKnacks(
-      syncFeatureDrivenDomains(
-        syncFeatureDrivenSkills(
-          syncFeatureDrivenPotentialBonuses(syncArchetypeProgression(sheet)),
+  return experienceFacade.normalizeSheet(
+    syncObtainedPotentialPerks(syncFeatureDrivenGoals(
+      syncFeatureDrivenKnacks(
+        syncFeatureDrivenDomains(
+          syncFeatureDrivenSkills(
+            syncFeatureDrivenPotentialBonuses(syncArchetypeProgression(sheet)),
+          ),
         ),
       ),
-    ),
+    )),
   );
 }
 
@@ -588,10 +943,15 @@ export function setPotentialCharged(
   potentialKey: PotentialKey,
   charged: boolean,
 ): CharacterSheetState {
-  return mapPotential(sheet, potentialKey, (potential) => ({
-    ...potential,
-    charged,
-  }));
+  const potential = getPotential(sheet, potentialKey);
+  if (!potential) return sheet;
+
+  return setPotentialPerkFace(
+    sheet,
+    potentialKey,
+    potential.volatilityDieMax,
+    charged ? "charge" : null,
+  );
 }
 
 export function addPotentialPerk(
@@ -601,6 +961,8 @@ export function addPotentialPerk(
 ): CharacterSheetState {
   const potential = getPotential(sheet, potentialKey);
   if (!potential) return sheet;
+  if (!getObtainedPerkIds(sheet).has(perkId)) return sheet;
+  if (isPerkAssigned(sheet, perkId)) return sheet;
 
   const occupiedFaces = new Set<number>(
     Object.keys(potential.resolverPerks ?? {}).map((face) => Number(face)),
@@ -621,6 +983,42 @@ export function addPotentialPerk(
   });
 }
 
+export function setPotentialPerkFace(
+  sheet: CharacterSheetState,
+  potentialKey: PotentialKey,
+  face: number,
+  perkId: PerkId | null,
+): CharacterSheetState {
+  const potential = getPotential(sheet, potentialKey);
+  if (!potential || !Number.isInteger(face)) return sheet;
+
+  const nextResolverPerks = getResolverPerkRecord(potential.resolverPerks);
+  delete nextResolverPerks[face];
+
+  if (!perkId) {
+    return mapPotential(sheet, potentialKey, (current) => ({
+      ...current,
+      resolverPerks: toResolverPerks(nextResolverPerks),
+    }));
+  }
+
+  const perkDef = BASE_PERKS[perkId];
+  if (!perkDef) return sheet;
+  if (!getObtainedPerkIds(sheet).has(perkId)) return sheet;
+  if (isPerkAssigned(sheet, perkId, { potentialKey, face })) return sheet;
+
+  const occupiedFaces = new Set(Object.keys(nextResolverPerks).map((entry) => Number(entry)));
+  const allowedFaces = getAllowedPerkFaces(potential, perkId, occupiedFaces);
+  if (!allowedFaces.includes(face)) return sheet;
+
+  nextResolverPerks[face] = perkDef;
+
+  return mapPotential(sheet, potentialKey, (current) => ({
+    ...current,
+    resolverPerks: toResolverPerks(nextResolverPerks),
+  }));
+}
+
 export function movePotentialPerk(
   sheet: CharacterSheetState,
   potentialKey: PotentialKey,
@@ -629,6 +1027,7 @@ export function movePotentialPerk(
 ): CharacterSheetState {
   const potential = getPotential(sheet, potentialKey);
   if (!potential) return sheet;
+  if (!getObtainedPerkIds(sheet).has(perkId)) return sheet;
 
   const nextResolverPerks: Record<number, PerkDefinition> = {};
   let currentFace: number | undefined;

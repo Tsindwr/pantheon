@@ -1,3 +1,4 @@
+import { hydrateAssignedPerks } from "@sunderttrpg/core";
 import type {TestResult, SuccessLevelKey, VolatilityDieType, TestState} from "../../lib/rolling/types";
 import type {
     CharacterSheetState,
@@ -115,9 +116,7 @@ export function buildTestStateFromDraft(
         riskinessLevel: draft.riskiness,
         rollMode: draft.mode,
         extraVolatility: draft.extraVolatility,
-        perks:
-            potential.resolverPerks ??
-            {},
+        perks: hydrateAssignedPerks(potential.resolverPerks),
         charged: Boolean(potential.charged),
         dV: potential.volatilityDieMax,
     } as TestState;

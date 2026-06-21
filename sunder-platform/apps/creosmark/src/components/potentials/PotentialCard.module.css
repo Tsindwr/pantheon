@@ -1,232 +1,296 @@
-/* ── Scene (sets the perspective container) ── */
-.scene {
-  perspective: 1000px;
-  height: 230px;
-  min-width: 0;
-}
-
-/* ── Card wrapper (flips in 3D) ── */
 .card {
   position: relative;
-  width: 100%;
-  height: 100%;
-  transform-style: preserve-3d;
-  -webkit-transform-style: preserve-3d;
-  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: transform;
-}
-
-.card.flipped {
-  transform: rotateY(180deg);
-}
-
-.card.flipped .front {
-  z-index: 1;
-}
-
-.card.flipped .back {
-  z-index: 2;
-}
-
-/* ── Shared face styles ── */
-.face {
-  position: absolute;
-  inset: 0;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  transform-style: preserve-3d;
-  -webkit-transform-style: preserve-3d;
-  isolation: isolate;
+  min-width: 0;
+  height: 360px;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   border-radius: 1rem;
   border: 1px solid rgba(210, 178, 76, 0.18);
-  /*background: rgba(255, 255, 255, 0.04);*/
-  background: linear-gradient(180deg, rgba(18, 22, 31, 0.96), rgba(12, 15, 22, 0.94));
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(139, 124, 243, 0.08), transparent 42%),
+    linear-gradient(180deg, rgba(18, 22, 31, 0.96), rgba(10, 13, 20, 0.96));
+  overflow: visible;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
 }
 
-.face[aria-hidden='true'] {
-  pointer-events: none;
+.card.charged {
+  border-color: rgba(210, 178, 76, 0.35);
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.22),
+    0 0 18px rgba(210, 178, 76, 0.12);
 }
 
-.front {
-  transform: rotateY(0deg) translateZ(1px);
+.widgetWrap {
+  position: relative;
   z-index: 2;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 0.5rem 0.42rem 0;
+  overflow: visible;
 }
 
-.back {
-  transform: rotateY(180deg);
-  z-index: 1;
-}
-
-/* ── Front face ── */
-.cardHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem 0.7rem 0.3rem;
-  gap: 0.4rem;
-}
-
-.cardTitle {
-  font-weight: 900;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--sunder-purple, #8b7cf3);
-  flex: 1;
-  min-width: 0;
-}
-
-.cardTitle.charged {
-  color: var(--sunder-gold, #d2b24c);
-}
-
-.cardScore {
-  font-size: 1.5rem;
-  font-weight: 900;
-  color: var(--sunder-gold, #d2b24c);
-  line-height: 1;
-  flex-shrink: 0;
-}
-
-/* ── Stress / Resistance pip track ── */
-.stressBar {
-  display: flex;
-  gap: 3px;
-  padding: 0 0.7rem 0.4rem;
-  flex-wrap: wrap;
-  min-height: 14px;
-}
-
-.pip {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.07);
-  flex-shrink: 0;
-}
-
-.pip.stress {
-  background: var(--sunder-purple, #8b7cf3);
-  border-color: var(--sunder-purple, #8b7cf3);
-}
-
-.pip.resist {
-  background: var(--sunder-gold, #d2b24c);
-  border-color: var(--sunder-gold, #d2b24c);
-}
-
-/* ── Skills list ── */
 .skills {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  padding: 0 0.45rem;
-  overflow: hidden;
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-rows: repeat(3, 1fr);
+  padding: 0 0.78rem 0.78rem;
 }
 
 .skillRow {
-  display: flex;
+  min-height: 2.45rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2.35rem;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.28rem 0.45rem;
-  border-radius: 0.55rem;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.03);
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  width: 100%;
-  min-width: 0;
-  transition: background 0.15s, border-color 0.15s;
+  gap: 0.55rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.skillRow:hover,
-.skillRow:focus-visible {
-  background: rgba(139, 124, 243, 0.14);
-  border-color: rgba(139, 124, 243, 0.28);
+.skillNameButton {
+  min-width: 0;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.46rem;
+  border: none;
+  background: transparent;
+  color: rgba(245, 247, 251, 0.88);
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.skillNameButton:hover,
+.skillNameButton:focus-visible {
+  color: #f5dda0;
   outline: none;
 }
 
+.skillNameButton:focus-visible .skillName {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
 .skillName {
-  flex: 0 0 auto;
-  font-weight: 700;
-  font-size: 0.77rem;
-  display: flex;
-  align-items: center;
-  gap: 0.28rem;
-  white-space: nowrap;
-}
-
-.profBadge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: rgba(210, 178, 76, 0.88);
-  color: #0d1017;
-  font-size: 0.55rem;
-  font-weight: 900;
-  flex-shrink: 0;
-}
-
-.skillSummary {
-  flex: 1;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.68rem;
-  white-space: nowrap;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
+  white-space: nowrap;
+  font-size: 0.86rem;
+  font-weight: 850;
+  letter-spacing: 0.01em;
 }
 
-.rollHint {
-  flex-shrink: 0;
-  font-size: 0.75rem;
-  opacity: 0.55;
+.rollButton {
+  width: 2.1rem;
+  height: 2.1rem;
+  display: inline-grid;
+  place-items: center;
+  justify-self: end;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(245, 247, 251, 0.72);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.rollButton:hover,
+.rollButton:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(139, 124, 243, 0.58);
+  background: rgba(139, 124, 243, 0.15);
+  color: rgba(255, 255, 255, 0.92);
+  outline: none;
+}
+
+.rollButtonProficient {
+  border-color: rgba(210, 178, 76, 0.52);
+  background:
+    linear-gradient(135deg, rgba(92, 64, 176, 0.58), rgba(210, 178, 76, 0.16)),
+    rgba(255, 255, 255, 0.05);
+  color: #f6dfa2;
+  box-shadow: 0 0 14px rgba(210, 178, 76, 0.12);
+}
+
+.rollButtonProficient:hover,
+.rollButtonProficient:focus-visible {
+  border-color: rgba(244, 216, 128, 0.86);
+  background:
+    linear-gradient(135deg, rgba(104, 70, 190, 0.76), rgba(210, 178, 76, 0.22)),
+    rgba(255, 255, 255, 0.06);
+  color: #ffe8a8;
+}
+
+.rollIcon {
+  transform: translateY(-0.02rem);
+  font-size: 1.08rem;
   line-height: 1;
 }
 
-/* ── Flip button ── */
-.flipBtn {
-  margin: 0.3rem 0.7rem 0.45rem;
-  padding: 0.22rem 0.5rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.6);
-  font: inherit;
-  font-size: 0.68rem;
-  font-weight: 700;
-  cursor: pointer;
-  align-self: flex-start;
-  letter-spacing: 0.04em;
-  transition: background 0.15s;
+.drawerLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  pointer-events: auto;
 }
 
-.flipBtn:hover {
-  background: rgba(255, 255, 255, 0.1);
+.drawerScrim {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: rgba(2, 4, 8, 0.5);
+  backdrop-filter: blur(2px);
 }
 
-/* ── Back face (widget) ── */
-.widgetWrap {
-  flex: 1;
+.skillDrawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: min(24rem, calc(100vw - 2rem));
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto auto auto auto 1fr;
+  gap: 0.9rem;
+  border-left: 1px solid rgba(210, 178, 76, 0.26);
+  background:
+    radial-gradient(circle at 78% 10%, rgba(139, 124, 243, 0.16), transparent 35%),
+    linear-gradient(180deg, rgba(16, 20, 34, 0.98), rgba(7, 9, 15, 0.99));
+  color: rgba(245, 247, 251, 0.92);
+  padding: 1rem;
+  box-shadow: -20px 0 46px rgba(0, 0, 0, 0.45);
+}
+
+.drawerHeader {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.25rem;
-  min-height: 0;
-  overflow: hidden;
+  justify-content: space-between;
+  align-items: start;
+  gap: 0.8rem;
 }
 
-/* ── Charged glow on back face ── */
-.face.chargedBack {
-  border-color: rgba(210, 178, 76, 0.35);
-  box-shadow: 0 0 12px rgba(210, 178, 76, 0.12);
+.drawerEyebrow {
+  color: var(--sunder-purple, #8b7cf3);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.drawerHeader h3 {
+  margin: 0.16rem 0 0;
+  color: #f5dda0;
+  font-size: 1.35rem;
+  line-height: 1.05;
+}
+
+.drawerClose {
+  width: 2rem;
+  height: 2rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(231, 220, 186, 0.22);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(245, 247, 251, 0.9);
+  font: inherit;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.drawerClose:hover,
+.drawerClose:focus-visible {
+  border-color: rgba(210, 178, 76, 0.66);
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+
+.drawerSummary {
+  margin: 0;
+  color: rgba(245, 247, 251, 0.76);
+  font-size: 0.96rem;
+  line-height: 1.45;
+}
+
+.drawerStats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.48rem;
+  margin: 0;
+}
+
+.drawerStats div {
+  min-width: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 0.48rem;
+}
+
+.drawerStats dt {
+  color: rgba(245, 247, 251, 0.52);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.drawerStats dd {
+  margin: 0.18rem 0 0;
+  color: rgba(245, 247, 251, 0.9);
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.drawerRollButton {
+  justify-self: start;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(210, 178, 76, 0.58);
+  background:
+    linear-gradient(135deg, rgba(92, 64, 176, 0.78), rgba(34, 38, 58, 0.98)),
+    rgba(14, 18, 30, 0.98);
+  color: #f6dfa2;
+  font: inherit;
+  font-weight: 850;
+  padding: 0.68rem 0.92rem;
+  cursor: pointer;
+  box-shadow: 0 0 18px rgba(210, 178, 76, 0.13);
+}
+
+.drawerRollButton:hover,
+.drawerRollButton:focus-visible {
+  border-color: rgba(244, 216, 128, 0.9);
+  filter: brightness(1.07);
+  outline: none;
+}
+
+@media (max-width: 1200px) {
+  .card {
+    height: 350px;
+  }
+}
+
+@media (max-width: 620px) {
+  .card {
+    height: 340px;
+  }
+
+  .widgetWrap {
+    padding-inline: 0.2rem;
+  }
+
+  .skills {
+    padding-inline: 0.68rem;
+  }
+
+  .skillDrawer {
+    width: min(100vw, 23rem);
+  }
 }

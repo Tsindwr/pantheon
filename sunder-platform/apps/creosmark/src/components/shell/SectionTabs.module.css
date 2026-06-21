@@ -24,9 +24,13 @@
   cursor: pointer;
 }
 
-.tab:hover,
 .tab:focus-visible {
-  outline: none;
+  outline: 2px solid rgba(210, 178, 76, 0.45);
+  outline-offset: 2px;
+}
+
+.tab:not(.active):hover,
+.tab:not(.active):focus-visible {
   background: rgba(210, 178, 76, 0.12);
 }
 

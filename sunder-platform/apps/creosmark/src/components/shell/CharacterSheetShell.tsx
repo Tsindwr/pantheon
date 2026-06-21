@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useMemo} from "react";
+import React, {useEffect, useMemo, useRef, useState} from "react";
 import type {
     CharacterSheetState,
     PotentialKey,
@@ -19,7 +19,6 @@ import SheetCard from "../common/SheetCard.tsx";
 import AttacksPanel from "../attacks/AttacksPanel.tsx";
 import GoalsPanel from "../story/GoalsPanel.tsx";
 import KnacksDomainsPanel from "../story/KnacksDomainsPanel.tsx";
-import ArchetypeProgressionPanel from "../story/ArchetypeProgressionPanel.tsx";
 import InventoryPanel from "../inventory/InventoryPanel.tsx";
 import DiceRoller from "../roll/DiceRoller.tsx";
 import EditorWorkspace from "../manage/EditorWorkspace.tsx";
@@ -28,11 +27,14 @@ import CampaignRollWidget from "../roll/CampaignRollWidget.tsx";
 import RollHistoryDrawer from "../roll/RollHistoryDrawer.tsx";
 import CharacterAbilitiesPanel from "../abilities/CharacterAbilitiesPanel.tsx";
 import type { CampaignAssignment, RollBroadcastMode } from "../../types/roll-feed.ts";
-import type { TestResult } from "../../lib/rolling/types.ts";
 import styles from "./CharacterSheetShell.module.css";
 import {routes} from "../../lib/routing.ts";
 import { supabaseLibraryCampaignService } from "../../infrastructure";
-import { normalizeFeatureDrivenSheetState } from "../../application/character-sheet/commands.ts";
+import {
+    applyRecollectSurge,
+    applyRollResult,
+    normalizeFeatureDrivenSheetState,
+} from "../../application/character-sheet/commands.ts";
 
 type CharacterSheetShellProps = {
     initialSheet: CharacterSheetState;
@@ -51,6 +53,10 @@ function Placeholder({title, copy}: { title: string; copy: string }) {
     );
 }
 
+function serializeSheet(sheet: CharacterSheetState): string {
+    return JSON.stringify(sheet);
+}
+
 export default function CharacterSheetShell({
     initialSheet,
     initialMode = "play",
@@ -65,13 +71,13 @@ export default function CharacterSheetShell({
         useState<Partial<RollComposerDraft> | null>(null);
     const [activeRollRequest, setActiveRollRequest] =
         useState<RollComposerDraft | null>(null);
-    const [pendingResolvedRoll, setPendingResolvedRoll] =
-        useState<TestResult | null>(null);
     const [manageOpen, setManageOpen] = useState(false);
     const [mode, setMode] = useState<'play' | 'edit'>(initialMode);
     const [rollBroadcastMode, setRollBroadcastMode] =
         useState<RollBroadcastMode>('everyone');
     const [rollHistoryOpen, setRollHistoryOpen] = useState(false);
+    const incomingSheetJsonRef = useRef<string | null>(null);
+    const notifiedSheetJsonRef = useRef<string | null>(null);
 
     const activeRollLabel = useMemo(() => {
         if (!activeRollRequest) return null;
@@ -112,11 +118,28 @@ export default function CharacterSheetShell({
     }
 
     useEffect(() => {
-        setSheet(normalizeFeatureDrivenSheetState(initialSheet));
+        const normalizedSheet = normalizeFeatureDrivenSheetState(initialSheet);
+        const incomingJson = serializeSheet(normalizedSheet);
+
+        incomingSheetJsonRef.current = incomingJson;
+        setSheet((current) =>
+            serializeSheet(current) === incomingJson ? current : normalizedSheet,
+        );
     }, [initialSheet]);
 
     useEffect(() => {
-        onSheetChange?.(sheet)
+        if (!onSheetChange) return;
+
+        const sheetJson = serializeSheet(sheet);
+        if (
+            sheetJson === incomingSheetJsonRef.current ||
+            sheetJson === notifiedSheetJsonRef.current
+        ) {
+            return;
+        }
+
+        notifiedSheetJsonRef.current = sheetJson;
+        onSheetChange(sheet);
     }, [sheet, onSheetChange]);
 
     return (
@@ -206,6 +229,13 @@ export default function CharacterSheetShell({
                         {activeTab === "abilities" ? (
                             <CharacterAbilitiesPanel
                                 abilityIds={sheet.abilityIds}
+                                potentials={sheet.potentials}
+                                recollectSurges={sheet.recollectSurges}
+                                onActivateRecollect={(surgeId, assignments) => {
+                                    setSheet((current) =>
+                                        applyRecollectSurge(current, { surgeId, assignments }),
+                                    );
+                                }}
                             />
                         ) : null}
 
@@ -218,7 +248,6 @@ export default function CharacterSheetShell({
 
                         {activeTab === "background" ? (
                             <div className={styles.storyLayout}>
-                                <ArchetypeProgressionPanel sheet={sheet} />
                                 <GoalsPanel goals={sheet.goals}
                                             onChange={(goals) => setSheetField("goals", goals)}
                                 />
@@ -257,8 +286,16 @@ export default function CharacterSheetShell({
                 sheet={sheet}
                 request={activeRollRequest}
                 onClose={() => setActiveRollRequest(null)}
+                onApplyResults={(roll, resistanceRecoveryPotentialKey) => {
+                    setSheet((current) =>
+                        applyRollResult(current, {
+                            potentialKey: roll.meta.potentialKey,
+                            result: roll.result,
+                            resistanceRecoveryPotentialKey,
+                        }),
+                    );
+                }}
                 onResolved={async (result) => {
-                    setPendingResolvedRoll(result);
                     console.log("SUNDER ROLL RESULT", result);
 
                     if (

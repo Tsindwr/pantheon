@@ -280,21 +280,14 @@ textarea {
     color: rgba(255, 255, 255, 0.58);
 }
 
-.perkAdderRow {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.55rem;
-    align-items: center;
-}
-
-.perkList {
+.perkSlotList {
     display: grid;
     gap: 0.45rem;
 }
 
-.perkRow {
+.perkSlotRow {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 118px auto;
+    grid-template-columns: 84px minmax(0, 1fr) minmax(120px, auto);
     gap: 0.55rem;
     align-items: center;
     padding: 0.52rem 0.66rem;
@@ -303,24 +296,11 @@ textarea {
     background: rgba(255, 255, 255, 0.02);
 }
 
-.perkName {
-    display: grid;
-    gap: 0.1rem;
-    min-width: 0;
-}
-
-.perkName strong {
-    font-size: 0.94rem;
-}
-
-.perkName span {
-    font-size: 0.74rem;
-    color: rgba(255, 255, 255, 0.62);
-    line-height: 1.2;
-}
-
-.faceSelect {
-    min-width: 0;
+.perkSlotFace {
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.78rem;
+    font-weight: 800;
+    white-space: nowrap;
 }
 
 .skillList {
@@ -425,10 +405,19 @@ textarea {
     width: 100%;
 }
 
+.levelToolbar {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.8rem;
+    align-items: start;
+    flex-wrap: wrap;
+}
+
 .levelSummaryRow {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(120px, 1fr));
     gap: 0.55rem;
+    width: min(100%, 520px);
 }
 
 .summaryChip {
@@ -440,7 +429,8 @@ textarea {
     background: rgba(255, 255, 255, 0.04);
 }
 
-.summaryChip span {
+.summaryChip span,
+.levelCountValue span {
     font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -452,36 +442,80 @@ textarea {
     font-size: 1.05rem;
 }
 
-.levelActionsRow {
-    display: flex;
-    justify-content: flex-start;
-}
-
-.levelControlRow {
+.levelCardsGrid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.6rem;
-    align-items: end;
-}
-
-.stepperRow {
-    display: flex;
-    gap: 0.45rem;
-    align-items: center;
-}
-
-.levelList {
-    display: grid;
-    gap: 0.7rem;
+    grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+    gap: 0.75rem;
 }
 
 .levelCard {
     align-content: start;
 }
 
+.levelCardTop {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: start;
+}
+
+.levelCountControl {
+    display: grid;
+    gap: 0.25rem;
+    justify-items: center;
+    width: 4.4rem;
+}
+
+.countButton {
+    width: 2.15rem;
+    height: 1.7rem;
+    border-radius: 0.55rem;
+    border: 1px solid rgba(210, 178, 76, 0.24);
+    background: rgba(210, 178, 76, 0.1);
+    color: white;
+    font: inherit;
+    font-weight: 900;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.countButton:disabled,
+.smallButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+}
+
+.levelCountValue {
+    display: grid;
+    gap: 0.05rem;
+    justify-items: center;
+    min-width: 4.1rem;
+    padding: 0.38rem 0.48rem;
+    border-radius: 0.7rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.levelCountValue strong {
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
+.expandButton {
+    width: 100%;
+    padding: 0.54rem 0.72rem;
+    border-radius: 0.72rem;
+    border: 1px solid rgba(210, 178, 76, 0.2);
+    background: rgba(255, 255, 255, 0.035);
+    color: white;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
 .levelGrid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 0.55rem;
 }
 
@@ -490,6 +524,7 @@ textarea {
     gap: 0.6rem;
 }
 
+.firstBoonPanel,
 .levelBoonRow {
     display: grid;
     gap: 0.55rem;
@@ -497,6 +532,10 @@ textarea {
     border-radius: 0.8rem;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.025);
+}
+
+.firstBoonPanel {
+    border-color: rgba(210, 178, 76, 0.2);
 }
 
 .levelBoonHeader {
@@ -512,11 +551,43 @@ textarea {
     color: rgba(255, 255, 255, 0.58);
 }
 
+.modalBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(3, 5, 10, 0.72);
+}
+
+.modal {
+    display: grid;
+    gap: 0.8rem;
+    width: min(100%, 420px);
+    padding: 0.9rem;
+    border-radius: 0.95rem;
+    border: 1px solid rgba(210, 178, 76, 0.22);
+    background: rgb(14, 17, 25);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+}
+
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+}
+
 @media (max-width: 1100px) {
     .levelSummaryRow,
-    .levelGrid,
-    .levelControlRow {
+    .levelCardTop,
+    .levelGrid {
         grid-template-columns: 1fr;
+    }
+
+    .levelCountControl {
+        justify-self: start;
     }
 }
 
@@ -533,8 +604,7 @@ textarea {
     .grid4,
     .skillEditor,
     .potentialTopRow,
-    .perkAdderRow,
-    .perkRow,
+    .perkSlotRow,
     .knackRow {
         grid-template-columns: 1fr;
     }

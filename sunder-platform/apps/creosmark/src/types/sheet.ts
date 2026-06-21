@@ -9,7 +9,7 @@ import {
   type RollMode,
   type SkillKey,
 } from "@sunderttrpg/core";
-import type { AssignedPerkMap, PerkId } from "../lib/rolling/types";
+import type { AssignedPerkMap, PerkId, VolatilityDieType } from "../lib/rolling/types";
 import type {ArchetypeData, DomainData, DomainId} from "../lib/sheet-data";
 
 export {
@@ -139,6 +139,25 @@ export type PotentialState = {
   skills: SkillDef[];
   perks?: Record<number, { label?: string; color?: string }>;
   resolverPerks?: AssignedPerkMap;
+};
+
+export type RecollectRecordedPerk = {
+  previousFace: number;
+  perk: NonNullable<AssignedPerkMap[number]>;
+};
+
+export type RecollectSurgeState = {
+  id: string;
+  kind: "recollect";
+  potentialKey: PotentialKey;
+  potentialTitle: string;
+  previousDieMax: VolatilityDieType;
+  newDieMax: VolatilityDieType;
+  previousPerks: AssignedPerkMap;
+  recordedPerks?: RecollectRecordedPerk[];
+  perkSlots: number;
+  usesRemaining: number;
+  createdAt: string;
 };
 
 export type MarksState = {
@@ -283,4 +302,5 @@ export type CharacterSheetState = {
   firstArchetypeBoons: FirstArchetypeBoons;
   abilityIds: string[];
   abilities?: string[];
+  recollectSurges?: RecollectSurgeState[];
 };

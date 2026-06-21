@@ -12,6 +12,7 @@ export default defineConfig({
     vite: {
         optimizeDeps: {
             include: ['@xyflow/react'],
+            exclude: ['@3d-dice/dice-box'],
         },
     },
 });

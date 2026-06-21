@@ -70,15 +70,19 @@ export function getAllowedPerkFaces(
 
   if (perkId === "charge") {
     const chargeFace = dieMax;
+    const lowerFacesFilled = Array.from(
+      { length: Math.max(0, dieMax - 2) },
+      (_, index) => index + 2,
+    ).every((face) => occupiedFaces.has(face));
+
     if (
-      Boolean(potential.charged) &&
       chargeFace <= total &&
+      lowerFacesFilled &&
       !occupiedFaces.has(chargeFace)
     ) {
       return [chargeFace];
     }
 
-    if (typeof currentFace === "number") return [currentFace];
     return [];
   }
 
@@ -91,7 +95,13 @@ export function getAllowedPerkFaces(
     faces.push(face);
   }
 
-  if (typeof currentFace === "number" && !faces.includes(currentFace)) {
+  if (
+    typeof currentFace === "number" &&
+    currentFace >= 2 &&
+    currentFace < dieMax &&
+    currentFace <= upperBound &&
+    !faces.includes(currentFace)
+  ) {
     faces.unshift(currentFace);
   }
 
@@ -102,14 +112,12 @@ export function normalizePotentialState(potential: PotentialState): PotentialSta
   const volatilityDieMax = normalizeDieFace(potential.volatilityDieMax);
   const baseScore = getPotentialBaseScore(potential);
   const score = baseScore + getPotentialBonusTotal(potential);
-  const charged = Boolean(potential.charged);
-
   const nextPotential: PotentialState = {
     ...potential,
     baseScore,
     score,
     volatilityDieMax,
-    charged,
+    charged: false,
   };
 
   const sourceEntries = Object.entries(potential.resolverPerks ?? {})
@@ -137,8 +145,11 @@ export function normalizePotentialState(potential: PotentialState): PotentialSta
     usedPerkIds.add(perkId);
   }
 
+  const charged = nextResolverPerks[volatilityDieMax]?.id === "charge";
+
   return {
     ...nextPotential,
+    charged,
     resolverPerks:
       Object.keys(nextResolverPerks).length > 0
         ? (nextResolverPerks as PotentialState["resolverPerks"])

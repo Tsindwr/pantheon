@@ -1,6 +1,7 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import {
+  getChargeFace,
   getDisplayedPerkMark,
   getVisibleVolatilityFaces,
   isExplosiveReady,
@@ -17,6 +18,7 @@ export type PotentialWidgetProps = {
   volatilityPerks?: Record<number, PerkMark>;
   charged?: boolean;
   onChange?: (next: { stress: number; resistance: number }) => void;
+  onPerkColorChange?: (faceValue: number, color: string) => void;
   width?: number | string;
   height?: number | string;
   minWidth?: number;
@@ -50,6 +52,7 @@ type Point = { x: number; y: number };
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 const degToRad = (deg: number) => (deg * Math.PI) / 180;
+const cssLength = (value?: number | string) => (typeof value === "number" ? `${value}px` : value);
 
 function polar(cx: number, cy: number, r: number, deg: number): Point {
   const a = degToRad(deg);
@@ -107,6 +110,14 @@ function useLongPress(thresholdMs = 450) {
   }, []);
 
   return { start, cancel, fired };
+}
+
+function getColorInputValue(color?: string): string {
+  return color && /^#[0-9a-f]{6}$/i.test(color) ? color : "#111111";
+}
+
+function getPerkDisplayName(perk?: PerkMark): string {
+  return perk?.name ?? perk?.label ?? "Perk";
 }
 
 function FaIconGlyph({
@@ -191,8 +202,27 @@ function VolatilityPerkNode(props: {
   perk?: PerkMark;
   charged?: boolean;
   explosiveReady?: boolean;
+  highlighted?: boolean;
+  interactive?: boolean;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+  onClick?: (event: React.MouseEvent<SVGGElement>) => void;
 }) {
-  const { cx, cy, r, active, jinxed, perk, charged, explosiveReady } = props;
+  const {
+    cx,
+    cy,
+    r,
+    active,
+    jinxed,
+    perk,
+    charged,
+    explosiveReady,
+    highlighted,
+    interactive,
+    onMouseEnter,
+    onMouseLeave,
+    onClick,
+  } = props;
   const stroke = active
     ? explosiveReady && charged
       ? TOKENS.gold
@@ -202,16 +232,38 @@ function VolatilityPerkNode(props: {
   const fill = jinxed ? TOKENS.jinxFill : TOKENS.paper;
   const opacity = active ? 1 : 0.55;
   const glyphColor = perk?.color ?? TOKENS.ink;
+  const isHighlighted = Boolean(active && highlighted);
 
   return (
-    <g opacity={opacity}>
+    <g
+      opacity={opacity}
+      onMouseEnter={interactive ? onMouseEnter : undefined}
+      onMouseLeave={interactive ? onMouseLeave : undefined}
+      onClick={interactive ? onClick : undefined}
+      style={{
+        cursor: interactive ? "pointer" : "default",
+        touchAction: interactive ? "manipulation" : "auto",
+      }}
+    >
+      {isHighlighted ? (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={r + 5}
+          fill="none"
+          stroke={perk?.color ?? TOKENS.purple}
+          strokeWidth={2.5}
+          opacity={0.8}
+        />
+      ) : null}
+
       <circle
         cx={cx}
         cy={cy}
         r={r}
         fill={fill}
         stroke={stroke}
-        strokeWidth={explosiveReady && charged ? 5 : 4}
+        strokeWidth={isHighlighted ? 5 : explosiveReady && charged ? 5 : 4}
         style={
           explosiveReady && charged
             ? { filter: "drop-shadow(0 0 8px rgba(210, 178, 76, 0.4))" }
@@ -242,6 +294,228 @@ function VolatilityPerkNode(props: {
         </text>
       ) : null}
     </g>
+  );
+}
+
+function PerkInfoPopup({
+  xPercent,
+  yPercent,
+  placement,
+  perk,
+  onOpenColor,
+}: {
+  xPercent: number;
+  yPercent: number;
+  placement: "above" | "below";
+  perk: PerkMark;
+  onOpenColor: () => void;
+}) {
+  const width = 190;
+  const height = 120;
+  const gap = 10;
+  const top =
+    placement === "above"
+      ? `calc(${yPercent}% - ${height + gap}px)`
+      : `calc(${yPercent}% + ${gap}px)`;
+  const name = getPerkDisplayName(perk);
+  const description = perk.description ?? "No description available.";
+
+  return (
+    <div
+      onClick={(event) => event.stopPropagation()}
+      onPointerDown={(event) => event.stopPropagation()}
+      style={{
+        position: "absolute",
+        zIndex: 30,
+        left: `clamp(8px, calc(${xPercent}% - ${width / 2}px), calc(100% - ${width + 8}px))`,
+        top: `clamp(8px, ${top}, calc(100% - ${height + 8}px))`,
+        width: `min(${width}px, calc(100vw - 24px))`,
+        minHeight: height,
+        maxHeight: "min(150px, calc(100vh - 40px))",
+        boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+        padding: 10,
+        border: "1px solid rgba(210, 178, 76, 0.45)",
+        borderRadius: 6,
+        background: "linear-gradient(180deg, rgba(18, 22, 31, 0.98), rgba(9, 12, 18, 0.98))",
+        boxShadow: "0 14px 32px rgba(0, 0, 0, 0.45), 0 0 18px rgba(107, 76, 230, 0.18)",
+        color: "rgba(255, 255, 255, 0.9)",
+        fontFamily: "var(--md-text-font, system-ui)",
+        lineHeight: 1.25,
+        backdropFilter: "blur(8px)",
+      }}
+    >
+      <strong
+        style={{
+          minHeight: 17,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          fontSize: 13.5,
+          color: "var(--sunder-gold, #d2b24c)",
+          letterSpacing: "0.02em",
+        }}
+      >
+        {name}
+      </strong>
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          paddingRight: 4,
+          fontSize: 11.5,
+          color: "rgba(255, 255, 255, 0.78)",
+        }}
+      >
+        {description}
+      </div>
+      <button
+        type="button"
+        aria-label={`Choose icon color for ${name}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpenColor();
+        }}
+        style={{
+          alignSelf: "flex-start",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 5,
+          minHeight: 24,
+          padding: "3px 7px",
+          border: "1px solid rgba(210, 178, 76, 0.45)",
+          borderRadius: 5,
+          background: "rgba(255, 255, 255, 0.06)",
+          color: "rgba(255, 255, 255, 0.86)",
+          cursor: "pointer",
+          font: "inherit",
+          fontSize: 11.5,
+          fontWeight: 800,
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            width: 12,
+            height: 12,
+            borderRadius: 999,
+            border: "1px solid rgba(255, 255, 255, 0.38)",
+            background: "conic-gradient(#e04646, #d2b24c, #48a868, #3f88c5, #6b4ce6, #e04646)",
+          }}
+        />
+        Color
+      </button>
+    </div>
+  );
+}
+
+function PerkColorModal({
+  perkName,
+  color,
+  onColorChange,
+  onApply,
+  onClose,
+}: {
+  perkName: string;
+  color: string;
+  onColorChange: (color: string) => void;
+  onApply: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      role="presentation"
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000,
+        display: "grid",
+        placeItems: "center",
+        padding: 18,
+        background: "rgba(17, 17, 17, 0.35)",
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Choose icon color for ${perkName}`}
+        onClick={(event) => event.stopPropagation()}
+        style={{
+          width: "min(320px, 100%)",
+          display: "grid",
+          gap: 14,
+          padding: 18,
+          border: "2px solid var(--sunder-ink, #111111)",
+          borderRadius: 8,
+          background: "var(--sunder-paper, #ffffff)",
+          color: "var(--sunder-ink, #111111)",
+          boxShadow: "0 18px 44px rgba(17, 17, 17, 0.28)",
+          fontFamily: "var(--md-text-font, system-ui)",
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 900, textTransform: "uppercase" }}>
+            Icon Color
+          </div>
+          <div style={{ marginTop: 4, fontSize: 14 }}>{perkName}</div>
+        </div>
+
+        <label style={{ display: "grid", gap: 7, fontSize: 13, fontWeight: 800 }}>
+          Color
+          <input
+            type="color"
+            value={color}
+            onChange={(event) => onColorChange(event.target.value)}
+            style={{
+              width: "100%",
+              height: 44,
+              border: "1px solid rgba(17, 17, 17, 0.35)",
+              borderRadius: 6,
+              background: "transparent",
+              cursor: "pointer",
+            }}
+          />
+        </label>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              padding: "7px 11px",
+              border: "1px solid rgba(17, 17, 17, 0.35)",
+              borderRadius: 6,
+              background: "transparent",
+              color: "inherit",
+              cursor: "pointer",
+              font: "inherit",
+              fontWeight: 800,
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onApply}
+            style={{
+              padding: "7px 11px",
+              border: "1px solid var(--sunder-ink, #111111)",
+              borderRadius: 6,
+              background: "var(--sunder-ink, #111111)",
+              color: "var(--sunder-paper, #ffffff)",
+              cursor: "pointer",
+              font: "inherit",
+              fontWeight: 900,
+            }}
+          >
+            Apply
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -317,6 +591,7 @@ export default function PotentialWidget({
   volatilityPerks = {},
   charged,
   onChange,
+  onPerkColorChange,
   potentialCap = 12,
   volatilityCap = 12,
   startDeg = 150,
@@ -340,17 +615,36 @@ export default function PotentialWidget({
   const innerR = size * 0.28;
   const outerR = innerR + innerNodeR + outerNodeR + size * 0.06;
 
+  const [hoveredOuterFace, setHoveredOuterFace] = useState<number | null>(null);
+  const [selectedPerkFace, setSelectedPerkFace] = useState<number | null>(null);
+  const [localPerkColors, setLocalPerkColors] = useState<Record<number, string>>({});
+  const [colorModal, setColorModal] = useState<{ faceValue: number; color: string } | null>(null);
+  const widgetRootRef = useRef<HTMLDivElement | null>(null);
+
   const activeSlots = clamp(potentialValue, 0, potentialCap);
   const safeResist = clamp(resistance, 0, activeSlots);
   const safeStress = clamp(stress, 0, activeSlots - safeResist);
   const resistStartIndex = activeSlots - safeResist;
 
   const visibleFaces = getVisibleVolatilityFaces(volatilityDieMax);
+  const chargeFace = getChargeFace(volatilityDieMax);
+  const displayVolatilityPerks = useMemo(() => {
+    const next: Record<number, PerkMark> = { ...volatilityPerks };
+
+    Object.entries(localPerkColors).forEach(([face, color]) => {
+      const parsedFace = Number(face);
+      if (!Number.isInteger(parsedFace)) return;
+      next[parsedFace] = { ...next[parsedFace], color };
+    });
+
+    return next;
+  }, [localPerkColors, volatilityPerks]);
   // Reserve the first outer node as an intentionally empty slot (perks are not allowed there).
   // To present visible faces starting at the second node, add 1 here so the ring shows
   // a reserved empty node followed by the actual visible faces.
   const outerActiveSlots = clamp(visibleFaces.length, 0, volatilityCap);
   const explosiveReady = isExplosiveReady({ charged, stress: safeStress, volatilityDieMax });
+  const chargeColor = displayVolatilityPerks[chargeFace]?.color ?? localPerkColors[chargeFace];
 
   const commit = useCallback(
     (next: { stress: number; resistance: number }) => {
@@ -393,28 +687,103 @@ export default function PotentialWidget({
 
   const { start: startLongPress, cancel: cancelLongPress, fired } = useLongPress(450);
 
-  const titleY = size - 44;
+  const titleY = cy + size * 0.295;
   const scoreY = cy + 6;
   const readyArcPath = describeArc(cx, cy, outerR, startDeg, endDeg);
+  const outerAngles = useMemo(
+    () => anglesForArc(volatilityCap, startDeg, endDeg),
+    [endDeg, startDeg, volatilityCap],
+  );
+  const selectedOuterIndex =
+    selectedPerkFace === null ? -1 : visibleFaces.indexOf(selectedPerkFace) + 1;
+  const selectedPerkPoint =
+    selectedOuterIndex > 0 && selectedOuterIndex < outerAngles.length
+      ? polar(cx, cy, outerR, outerAngles[selectedOuterIndex])
+      : null;
+  const selectedPerk = selectedPerkFace
+    ? getDisplayedPerkMark({
+        faceValue: selectedPerkFace,
+        volatilityDieMax,
+        charged,
+        volatilityPerks: displayVolatilityPerks,
+        chargeColor,
+      })
+    : undefined;
+  const colorModalPerk = colorModal
+    ? getDisplayedPerkMark({
+        faceValue: colorModal.faceValue,
+        volatilityDieMax,
+        charged,
+        volatilityPerks: displayVolatilityPerks,
+        chargeColor,
+      })
+    : undefined;
+
+  const applyPerkColor = useCallback(
+    (faceValue: number, color: string) => {
+      setLocalPerkColors((prev) => ({ ...prev, [faceValue]: color }));
+      onPerkColorChange?.(faceValue, color);
+    },
+    [onPerkColorChange],
+  );
+
+  useEffect(() => {
+    if (selectedPerkFace === null) return;
+
+    const closeOnOutsidePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && widgetRootRef.current?.contains(target)) return;
+      setSelectedPerkFace(null);
+    };
+
+    window.addEventListener("pointerdown", closeOnOutsidePointerDown);
+    return () => window.removeEventListener("pointerdown", closeOnOutsidePointerDown);
+  }, [selectedPerkFace]);
+
+  const resolvedWidth = cssLength(width);
+  const resolvedHeight = height === "auto" ? undefined : cssLength(height);
+  const viewPadding = size * 0.045;
+  const viewBoxSize = size + viewPadding * 2;
+  const toViewPercent = (coordinate: number) =>
+    ((coordinate + viewPadding) / viewBoxSize) * 100;
+  const selectedPerkPopupPosition = selectedPerkPoint
+    ? {
+        xPercent: toViewPercent(selectedPerkPoint.x),
+        yPercent: toViewPercent(selectedPerkPoint.y),
+        placement: selectedPerkPoint.y > size * 0.48 ? ("above" as const) : ("below" as const),
+      }
+    : null;
 
   return (
-    <svg
-      viewBox={`0 0 ${size} ${size}`}
-      width={typeof width === "number" ? `${width}px` : width}
-      height={height === "auto" ? undefined : typeof height === "number" ? `${height}px` : height}
-      preserveAspectRatio={preserveAspect}
-      aria-label={`${title} potential widget`}
+    <div
+      ref={widgetRootRef}
+      onClick={() => setSelectedPerkFace(null)}
       style={{
+        position: "relative",
         display: "block",
-        background: "transparent",
-        width: typeof width === "number" ? `${width}px` : width,
-        height: height === "auto" ? "auto" : typeof height === "number" ? `${height}px` : height,
-        maxWidth: maxWidth ? (typeof maxWidth === "number" ? `${maxWidth}px` : maxWidth) : undefined,
-        maxHeight: maxHeight ? (typeof maxHeight === "number" ? `${maxHeight}px` : maxHeight) : undefined,
-        minWidth: minWidth ? (typeof minWidth === "number" ? `${minWidth}px` : minWidth) : undefined,
-        minHeight: minHeight ? (typeof minHeight === "number" ? `${minHeight}px` : minHeight) : undefined,
+        overflow: "visible",
+        width: resolvedWidth,
+        height: resolvedHeight,
+        maxWidth: cssLength(maxWidth),
+        maxHeight: cssLength(maxHeight),
+        minWidth: cssLength(minWidth),
+        minHeight: cssLength(minHeight),
       }}
     >
+      <svg
+        viewBox={`${-viewPadding} ${-viewPadding} ${viewBoxSize} ${viewBoxSize}`}
+        width="100%"
+        height={height === "auto" ? undefined : "100%"}
+        preserveAspectRatio={preserveAspect}
+        aria-label={`${title} potential widget`}
+        onClick={() => setSelectedPerkFace(null)}
+        style={{
+          display: "block",
+          background: "transparent",
+          width: "100%",
+          height: height === "auto" ? "auto" : "100%",
+        }}
+      >
       {explosiveReady ? (
         <path
           d={readyArcPath}
@@ -439,16 +808,18 @@ export default function PotentialWidget({
           // The first outer node (index 0) is reserved and must remain empty. Map visibleFaces
           // to nodes starting at index 1 by looking up visibleFaces[index - 1] when index > 0.
           const faceValue = active && index > 0 ? visibleFaces[index - 1] : undefined;
-           const perk = faceValue
+          const perk = faceValue
              ? getDisplayedPerkMark({
                  faceValue,
                  volatilityDieMax,
                  charged,
-                 volatilityPerks,
+                 volatilityPerks: displayVolatilityPerks,
+                 chargeColor,
                })
              : undefined;
            const jinxed = faceValue ? isVisibleFaceJinxed(faceValue, safeStress, volatilityDieMax) : false;
            const isChargeFace = faceValue === volatilityDieMax;
+           const interactive = Boolean(active && faceValue && perk);
 
            return (
              <VolatilityPerkNode
@@ -460,6 +831,21 @@ export default function PotentialWidget({
                perk={perk}
                charged={isChargeFace && Boolean(charged)}
                explosiveReady={explosiveReady}
+               interactive={interactive}
+               highlighted={Boolean(faceValue && (hoveredOuterFace === faceValue || selectedPerkFace === faceValue))}
+               onMouseEnter={() => {
+                 if (faceValue) setHoveredOuterFace(faceValue);
+               }}
+               onMouseLeave={() => {
+                 if (faceValue) {
+                   setHoveredOuterFace((current) => (current === faceValue ? null : current));
+                 }
+               }}
+               onClick={(event) => {
+                 event.stopPropagation();
+                 if (!faceValue || !perk) return;
+                 setSelectedPerkFace((current) => (current === faceValue ? null : faceValue));
+               }}
              />
            );
          }}
@@ -575,6 +961,39 @@ export default function PotentialWidget({
       >
         {title.toUpperCase()}
       </text>
-    </svg>
+
+      </svg>
+
+      {selectedPerkPopupPosition && selectedPerk ? (
+        <PerkInfoPopup
+          xPercent={selectedPerkPopupPosition.xPercent}
+          yPercent={selectedPerkPopupPosition.yPercent}
+          placement={selectedPerkPopupPosition.placement}
+          perk={selectedPerk}
+          onOpenColor={() => {
+            if (!selectedPerkFace) return;
+            setColorModal({
+              faceValue: selectedPerkFace,
+              color: getColorInputValue(selectedPerk.color),
+            });
+          }}
+        />
+      ) : null}
+
+      {colorModal ? (
+        <PerkColorModal
+          perkName={getPerkDisplayName(colorModalPerk)}
+          color={colorModal.color}
+          onColorChange={(color) =>
+            setColorModal((current) => (current ? { ...current, color } : current))
+          }
+          onClose={() => setColorModal(null)}
+          onApply={() => {
+            applyPerkColor(colorModal.faceValue, colorModal.color);
+            setColorModal(null);
+          }}
+        />
+      ) : null}
+    </div>
   );
 }

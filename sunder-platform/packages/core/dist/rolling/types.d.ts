@@ -64,7 +64,10 @@ export type PerkDefinition = {
     passive?: boolean;
     resolve: (context: PerkResolutionContext) => PerkResolution;
 };
-export type AssignedPerkMap = Partial<Record<number, PerkDefinition>>;
+export type AssignedPerk = Omit<PerkDefinition, "resolve"> & {
+    resolve?: PerkDefinition["resolve"];
+};
+export type AssignedPerkMap = Partial<Record<number, AssignedPerk>>;
 export type VolatilityDieState = {
     stress: number;
     perks: AssignedPerkMap;

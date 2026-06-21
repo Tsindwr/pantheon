@@ -516,6 +516,7 @@ export const DEMO_SHEET: CharacterSheetState = {
     },
   },
   abilityIds: [],
+  recollectSurges: [],
   archetypeLevels: [],
   firstArchetypeBoons: {
     domainId: "",

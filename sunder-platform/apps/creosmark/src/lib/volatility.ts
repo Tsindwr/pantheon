@@ -1,11 +1,54 @@
-import { faBolt } from "@fortawesome/free-solid-svg-icons";
+import {
+  faAnchor,
+  faArrowTrendUp,
+  faBolt,
+  faBoltLightning,
+  faBurst,
+  faDiceD6,
+  faDroplet,
+  faFire,
+  faHandFist,
+  faMagnet,
+  faRepeat,
+  faRotateRight,
+  faShieldHalved,
+  faUpRightAndDownLeftFromCenter,
+} from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
+import type { AssignedPerkMap } from "./rolling/types.ts";
 
 export type PerkMark = {
+  id?: string;
+  name?: string;
+  description?: string;
   label?: string;
   icon?: IconDefinition;
   color?: string;
 };
+
+export type PerkMarkOverrides = Record<number, { label?: string; color?: string }>;
+
+const BASE_PERK_ICONS: Record<string, IconDefinition> = {
+  "anchor-point": faAnchor,
+  implode: faUpRightAndDownLeftFromCenter,
+  refresh: faDroplet,
+  spark: faBoltLightning,
+  cleave: faBurst,
+  drive: faRotateRight,
+  momentum: faArrowTrendUp,
+  stabilize: faShieldHalved,
+  reversal: faRepeat,
+  spite: faHandFist,
+  burn: faFire,
+  fracture: faDiceD6,
+  tempt: faMagnet,
+  charge: faBolt,
+};
+
+function getCustomPerkSymbol(name?: string, fallback?: string): string {
+  const source = (name ?? fallback ?? "").trim();
+  return source ? source.charAt(0).toUpperCase() : "?";
+}
 
 /**
  * Displayed volatility nodes map to die faces 2..max.
@@ -60,12 +103,44 @@ export function getDisplayedPerkMark(input: {
   } = input;
 
   if (charged && faceValue === getChargeFace(volatilityDieMax)) {
+    const assignedChargeMark = volatilityPerks[faceValue];
+
     return {
-      icon: faBolt,
-      color: chargeColor,
-      label: "Charge",
+      id: assignedChargeMark?.id ?? "charge",
+      name: assignedChargeMark?.name ?? "Charge",
+      description:
+        assignedChargeMark?.description ??
+        "Special max-face perk unlocked when all other perk slots are filled.",
+      icon: assignedChargeMark?.icon ?? faBolt,
+      color: assignedChargeMark?.color ?? chargeColor,
+      label: assignedChargeMark?.label ?? "Charge",
     };
   }
 
   return volatilityPerks[faceValue];
+}
+
+export function getPerkMarksFromAssignedPerks(
+  assignedPerks?: AssignedPerkMap,
+  overrides?: PerkMarkOverrides,
+): Record<number, PerkMark> {
+  const marks: Record<number, PerkMark> = {};
+
+  Object.entries(assignedPerks ?? {}).forEach(([face, perk]) => {
+    const parsedFace = Number(face);
+    if (!Number.isInteger(parsedFace) || !perk?.id) return;
+
+    const override = overrides?.[parsedFace];
+    const icon = BASE_PERK_ICONS[perk.id];
+    marks[parsedFace] = {
+      id: perk.id,
+      name: perk.name,
+      description: perk.description,
+      icon,
+      label: icon ? undefined : getCustomPerkSymbol(perk.name, override?.label ?? perk.shortLabel ?? perk.id),
+      color: override?.color,
+    };
+  });
+
+  return marks;
 }
