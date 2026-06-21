@@ -1,0 +1,49 @@
+name: Publish Public GitHub Pages
+description: Publish a built app artifact to a public repository's gh-pages branch.
+
+inputs:
+  app-name:
+    description: Stable app name used in logs and commit messages.
+    required: true
+  publish-dir:
+    description: Directory containing the already-built static site.
+    required: true
+  external-repository:
+    description: Public repository to receive the gh-pages branch, such as Tsindwr/site.
+    required: true
+  deploy-key:
+    description: Private SSH deploy key with write access to the public repository.
+    required: true
+  publish-branch:
+    description: Branch used as the GitHub Pages source in the public repository.
+    required: false
+    default: gh-pages
+
+runs:
+  using: composite
+  steps:
+    - name: Validate Pages artifact
+      shell: bash
+      env:
+        APP_NAME: ${{ inputs.app-name }}
+        PUBLISH_DIR: ${{ inputs.publish-dir }}
+      run: |
+        set -euo pipefail
+
+        if [ ! -d "$PUBLISH_DIR" ]; then
+          echo "::error title=Missing Pages artifact::${APP_NAME} publish directory does not exist: ${PUBLISH_DIR}"
+          exit 1
+        fi
+
+        touch "$PUBLISH_DIR/.nojekyll"
+        echo "Publishing ${APP_NAME} from ${PUBLISH_DIR}."
+
+    - name: Publish to public repository
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        deploy_key: ${{ inputs.deploy-key }}
+        external_repository: ${{ inputs.external-repository }}
+        publish_branch: ${{ inputs.publish-branch }}
+        publish_dir: ${{ inputs.publish-dir }}
+        force_orphan: true
+        commit_message: "${{ inputs.app-name }} pages deploy from ${{ github.sha }}"
