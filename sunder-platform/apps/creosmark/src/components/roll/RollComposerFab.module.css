@@ -18,10 +18,10 @@
 .drawer {
   position: fixed;
   right: 1.25rem;
-  bottom: 6.25rem;
+  bottom: 1.25rem;
   z-index: 29;
   width: min(430px, calc(100vw - 2rem));
-  max-height: min(82vh, 900px);
+  max-height: min(88vh, 900px);
   overflow: auto;
   display: grid;
   gap: 0.8rem;
@@ -387,7 +387,7 @@
 @media (max-width: 759px) {
   .drawer {
     right: 0.5rem;
-    bottom: 5.5rem;
+    bottom: 0.75rem;
   }
 
   .skillGrid {

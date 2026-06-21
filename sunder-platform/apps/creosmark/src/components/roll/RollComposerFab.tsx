@@ -20,6 +20,10 @@ type RollComposerFabProps = {
   initialDraft?: Partial<RollComposerDraft> | null;
   onDraftConsumed?: () => void;
   onRoll?: (request: RollComposerDraft) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  triggerRef?: React.RefObject<HTMLElement | null>;
+  hideTrigger?: boolean;
 };
 
 function mergeDraft(
@@ -68,13 +72,26 @@ export default function RollComposerFab({
   initialDraft,
   onDraftConsumed,
   onRoll,
+  open: controlledOpen,
+  onOpenChange,
+  triggerRef,
+  hideTrigger = false,
 }: RollComposerFabProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const drawerRef = useRef<HTMLElement | null>(null);
   const fabRef = useRef<HTMLButtonElement | null>(null);
   const [draft, setDraft] = useState<RollComposerDraft>(() =>
     mergeDraft(potentials, initialDraft),
   );
+  const open = controlledOpen ?? internalOpen;
+
+  function setOpen(next: boolean | ((current: boolean) => boolean)) {
+    const resolved = typeof next === "function" ? next(open) : next;
+    if (controlledOpen === undefined) {
+      setInternalOpen(resolved);
+    }
+    onOpenChange?.(resolved);
+  }
 
   useEffect(() => {
     if (!initialDraft) return;
@@ -122,7 +139,8 @@ export default function RollComposerFab({
       const path = event.composedPath();
       if (
           (drawerRef.current && path.includes(drawerRef.current)) ||
-          (fabRef.current && path.includes(fabRef.current))
+          (fabRef.current && path.includes(fabRef.current)) ||
+          (triggerRef?.current && path.includes(triggerRef.current))
       ) {
         return;
       }
@@ -143,7 +161,7 @@ export default function RollComposerFab({
       document.removeEventListener("pointerdown", handlePointerDown, true);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open]);
+  }, [open, triggerRef]);
 
   const compatibleKnacks = useMemo(() => {
     const compatible = knacks.filter((knack) => {
@@ -196,16 +214,19 @@ export default function RollComposerFab({
 
   return (
     <>
-      <button
-          type="button"
-          ref={fabRef}
-          className={styles.fab}
-          onClick={() => setOpen((value) => !value)}>
-        Roll
-      </button>
+      {!hideTrigger ? (
+        <button
+            type="button"
+            ref={fabRef}
+            className={styles.fab}
+            onClick={() => setOpen((value) => !value)}>
+          Roll
+        </button>
+      ) : null}
 
       {open ? (
         <aside
+            id="roll-composer"
             ref={drawerRef}
             className={styles.drawer}
             aria-label="Roll composer"

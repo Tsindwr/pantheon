@@ -76,6 +76,8 @@ export default function CharacterSheetShell({
     const [rollBroadcastMode, setRollBroadcastMode] =
         useState<RollBroadcastMode>('everyone');
     const [rollHistoryOpen, setRollHistoryOpen] = useState(false);
+    const [rollComposerOpen, setRollComposerOpen] = useState(false);
+    const rollComposerTriggerRef = useRef<HTMLButtonElement | null>(null);
     const incomingSheetJsonRef = useRef<string | null>(null);
     const notifiedSheetJsonRef = useRef<string | null>(null);
 
@@ -197,7 +199,24 @@ export default function CharacterSheetShell({
                 </div>
             </header>
 
-            <SectionTabs tabs={SHEET_TABS} activeTab={activeTab} onChange={(id) => setActiveTab(id as SheetTabId)}/>
+            <SectionTabs
+                tabs={SHEET_TABS}
+                activeTab={activeTab}
+                onChange={(id) => setActiveTab(id as SheetTabId)}
+                action={
+                    <button
+                        type="button"
+                        ref={rollComposerTriggerRef}
+                        className={styles.rollComposerButton}
+                        onClick={() => setRollComposerOpen((current) => !current)}
+                        aria-expanded={rollComposerOpen}
+                        aria-controls="roll-composer"
+                    >
+                        <i className="fa-solid fa-dice" aria-hidden="true" />
+                        <span>Roll</span>
+                    </button>
+                }
+            />
 
             {mode === 'play' && assignedCampaign ? (
                 <CampaignRollWidget campaign={assignedCampaign}
@@ -277,6 +296,10 @@ export default function CharacterSheetShell({
                 knacks={sheet.knacks}
                 initialDraft={rollBuilderSeed}
                 onDraftConsumed={() => setRollBuilderSeed(null)}
+                open={rollComposerOpen}
+                onOpenChange={setRollComposerOpen}
+                triggerRef={rollComposerTriggerRef}
+                hideTrigger
                 onRoll={(request) => {
                     setActiveRollRequest(request);
                 }}
