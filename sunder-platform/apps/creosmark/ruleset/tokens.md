@@ -85,11 +85,10 @@ When a party levels up, each character gains a [[experience|String]]. In additio
 
 ### Story Checkpoints
 
-There are checkpoints in each leveling track at indices that satisfy the condition:
+There are checkpoints every 4 pips in each leveling track, at indices that satisfy the condition:
 
 $$
-u\mod{(L+4)}=0 \\
-L = \mathrm{current~party~level~(minimum~of~1)} \\
+u\mod{4}=0 \\
 u = \mathrm{current~amount~of~story~points}
 $$
 

@@ -28,6 +28,13 @@ import {
   normalizeSkillFromSources,
 } from "../../domain/character-sheet/invariants";
 import { experienceFacade } from "../experience/experience-facade.ts";
+import {
+  getFalloutMarks,
+  shouldClearStressForFalloutResolution,
+  shouldApplyFalloutResolution,
+  type FalloutResolution,
+} from "../../lib/rolling/fallout.ts";
+import { addCondition, normalizeConditionTrack } from "../../lib/conditions.ts";
 
 function toResolverPerks(
   input: Record<number, PerkDefinition>,
@@ -245,6 +252,7 @@ export type ApplyRollResultInput = {
   potentialKey: PotentialKey;
   result: TestResult;
   resistanceRecoveryPotentialKey?: PotentialKey | null;
+  falloutResolution?: FalloutResolution | null;
 };
 
 export function getResistanceRecoveryPotentials(
@@ -257,14 +265,54 @@ export function applyRollResult(
   sheet: CharacterSheetState,
   input: ApplyRollResultInput,
 ): CharacterSheetState {
-  const { potentialKey, result, resistanceRecoveryPotentialKey } = input;
+  const {
+    potentialKey,
+    result,
+    resistanceRecoveryPotentialKey,
+    falloutResolution,
+  } = input;
   const chargeExploded = Boolean(result.exploded);
   const sheetWithExperience = experienceFacade.adjust(sheet, {
     beats: Math.max(0, result.beatsAwarded),
     strings: chargeExploded ? 1 : 0,
   });
+  const falloutMarks = getFalloutMarks(falloutResolution);
+  const shouldApplyFallout = shouldApplyFalloutResolution(falloutResolution);
+  const shouldClearStressForFallout =
+    shouldClearStressForFalloutResolution(falloutResolution);
+  const sheetWithFalloutMarks =
+    falloutMarks > 0
+      ? {
+          ...sheetWithExperience,
+          marks: {
+            ...sheetWithExperience.marks,
+            taken: Math.min(
+              sheetWithExperience.marks.total,
+              Math.max(0, sheetWithExperience.marks.taken + falloutMarks),
+            ),
+          },
+        }
+      : sheetWithExperience;
+  const sheetWithFalloutEffects =
+    shouldApplyFallout &&
+    !falloutResolution?.forgo &&
+    falloutResolution?.conditionKind &&
+    falloutResolution?.conditionId
+      ? {
+          ...sheetWithFalloutMarks,
+          conditions: addCondition(
+            sheetWithFalloutMarks.conditions,
+            falloutResolution.conditionKind,
+            falloutResolution.conditionId,
+            falloutResolution.conditionDetails,
+          ),
+        }
+      : {
+          ...sheetWithFalloutMarks,
+          conditions: normalizeConditionTrack(sheetWithFalloutMarks.conditions),
+        };
   const recollectSurge = chargeExploded
-    ? createRecollectSurge(sheetWithExperience, potentialKey)
+    ? createRecollectSurge(sheetWithFalloutEffects, potentialKey)
     : null;
   const naturalCritRecoveryTarget =
     result.naturalCrit && resistanceRecoveryPotentialKey
@@ -276,11 +324,11 @@ export function applyRollResult(
   );
 
   return {
-    ...sheetWithExperience,
+    ...sheetWithFalloutEffects,
     recollectSurges: recollectSurge
-      ? [...(sheetWithExperience.recollectSurges ?? []), recollectSurge]
-      : sheetWithExperience.recollectSurges,
-    potentials: sheetWithExperience.potentials.map((potential) => {
+      ? [...(sheetWithFalloutEffects.recollectSurges ?? []), recollectSurge]
+      : sheetWithFalloutEffects.recollectSurges,
+    potentials: sheetWithFalloutEffects.potentials.map((potential) => {
       let stress = Math.max(0, Math.min(potential.stress, potential.score));
       let resistance = Math.max(
         0,
@@ -301,6 +349,10 @@ export function applyRollResult(
 
         if (!chargeExploded && result.stressApplied) {
           stress = Math.min(potential.score - resistance, stress + 1);
+        }
+
+        if (shouldClearStressForFallout) {
+          stress = 0;
         }
       }
 
@@ -856,7 +908,8 @@ function syncFeatureDrivenGoals(sheet: CharacterSheetState): CharacterSheetState
 }
 
 function syncFeatureDrivenSheetState(sheet: CharacterSheetState): CharacterSheetState {
-  return experienceFacade.normalizeSheet(
+  return {
+    ...experienceFacade.normalizeSheet(
     syncObtainedPotentialPerks(syncFeatureDrivenGoals(
       syncFeatureDrivenKnacks(
         syncFeatureDrivenDomains(
@@ -866,7 +919,9 @@ function syncFeatureDrivenSheetState(sheet: CharacterSheetState): CharacterSheet
         ),
       ),
     )),
-  );
+    ),
+    conditions: normalizeConditionTrack(sheet.conditions),
+  };
 }
 
 function getSkillNameFromSelection(selection?: string): string | undefined {

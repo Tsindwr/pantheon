@@ -1,25 +1,78 @@
 .page {
-    max-width: 1360px;
-    margin: 0 auto;
-    padding: 1.5rem;
+    width: 100%;
     display: grid;
     gap: 1rem;
 }
 
 .backLink {
-    color: white;
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 2.15rem;
+    padding: 0.42rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid rgba(210, 178, 76, 0.18);
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(245, 247, 251, 0.86);
     text-decoration: none;
     font-weight: 800;
+    font-size: 0.82rem;
+    transition:
+        transform 140ms ease,
+        background 140ms ease,
+        border-color 140ms ease;
+}
+
+.backLink:hover,
+.backLink:focus-visible {
+    transform: translateY(-1px);
+    border-color: rgba(210, 178, 76, 0.36);
+    background: rgba(210, 178, 76, 0.1);
+    outline: none;
 }
 
 .hero,
-.section {
+.section,
+.state {
     display: grid;
-    gap: 0.55rem;
-    padding: 1.2rem;
-    border-radius: 1.1rem;
+    gap: 0.7rem;
+    padding: 1rem;
+    border-radius: 1rem;
     border: 1px solid rgba(210, 178, 76, 0.16);
-    background: rgba(255, 255, 255, 0.03);
+    background:
+        linear-gradient(180deg, rgba(18, 22, 31, 0.96), rgba(12, 15, 22, 0.94));
+    color: var(--sunder-text);
+    box-shadow:
+        0 10px 26px rgba(0, 0, 0, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.hero {
+    position: relative;
+    overflow: hidden;
+}
+
+.hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at top left, rgba(139, 124, 243, 0.14), transparent 34%),
+        radial-gradient(circle at bottom right, rgba(210, 178, 76, 0.12), transparent 32%);
+}
+
+.hero > * {
+    position: relative;
+}
+
+.heroTopline {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.85rem;
 }
 
 .eyebrow,
@@ -34,6 +87,25 @@
 .title,
 .section h2 {
     margin: 0;
+}
+
+.title {
+    margin-top: 0.28rem;
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    line-height: 0.95;
+    color: var(--sunder-text);
+}
+
+.section h2 {
+    color: var(--sunder-text);
+}
+
+.sectionHeader {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
 }
 
 .metaRow {
@@ -56,7 +128,1411 @@
 
 .copy {
     margin: 0;
-    color: rgba(255, 255, 255, 0.64);
+    max-width: 72ch;
+    color: var(--sunder-text-dim);
+    line-height: 1.45;
+}
+
+.joinCodeBlock {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    width: fit-content;
+    max-width: 100%;
+    padding: 0.65rem 0.75rem;
+    border-radius: 0.9rem;
+    border: 1px solid rgba(210, 178, 76, 0.22);
+    background: rgba(210, 178, 76, 0.08);
+}
+
+.joinCodeBlock div {
+    display: grid;
+    gap: 0.18rem;
+}
+
+.joinCodeBlock span {
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.joinCodeBlock strong {
+    color: #f5dea0;
+    font-size: 1.08rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+}
+
+.joinCodeBlock button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.42rem;
+    min-height: 2.2rem;
+    min-width: 7.4rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: white;
+    font: inherit;
+    font-weight: 900;
+    padding: 0.45rem 0.75rem;
+    cursor: pointer;
+}
+
+.joinCodeBlock button i {
+    color: rgba(245, 222, 160, 0.88);
+    font-size: 0.9rem;
+}
+
+.joinCodeBlock button:hover,
+.joinCodeBlock button:focus-visible {
+    border-color: rgba(210, 178, 76, 0.5);
+    background: rgba(210, 178, 76, 0.12);
+    outline: none;
+}
+
+.joinCodeBlock button:disabled {
+    cursor: not-allowed;
+    opacity: 0.52;
+}
+
+.joinCodeBlock button[data-copy-status="success"] {
+    border-color: rgba(210, 178, 76, 0.48);
+    background:
+        linear-gradient(135deg, rgba(139, 124, 243, 0.22), rgba(210, 178, 76, 0.16)),
+        rgba(255, 255, 255, 0.05);
+    color: #f5dea0;
+}
+
+.joinCodeBlock button[data-copy-status="success"] i {
+    color: var(--sunder-gold, #d2b24c);
+}
+
+.joinCodeBlock button[data-copy-status="error"] {
+    border-color: rgba(255, 118, 118, 0.48);
+    color: #ffc1c1;
+}
+
+.primaryAction,
+.secondaryAction {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.42rem;
+    min-height: 2.35rem;
+    padding: 0.52rem 0.85rem;
+    border-radius: 0.78rem;
+    font: inherit;
+    font-weight: 900;
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+        transform 140ms ease,
+        background 140ms ease,
+        border-color 140ms ease;
+}
+
+.primaryAction {
+    border: none;
+    background: linear-gradient(135deg, var(--sunder-gold, #d2b24c), #f0daa0);
+    color: #141821;
+}
+
+.secondaryAction {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--sunder-text);
+}
+
+.primaryAction:hover,
+.secondaryAction:hover,
+.primaryAction:focus-visible,
+.secondaryAction:focus-visible {
+    transform: translateY(-1px);
+    outline: none;
+}
+
+.primaryAction:disabled,
+.secondaryAction:disabled {
+    cursor: not-allowed;
+    opacity: 0.56;
+    transform: none;
+}
+
+.inlineError {
+    padding: 0.65rem 0.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 118, 118, 0.35);
+    background: rgba(255, 118, 118, 0.08);
+    color: #ffc1c1;
+    font-size: 0.86rem;
+    font-weight: 800;
+}
+
+.tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    padding: 0.35rem;
+    border-radius: 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.tabButton {
+    min-height: 2.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0.48rem 0.78rem;
+    border-radius: 0.72rem;
+    border: 1px solid transparent;
+    background: transparent;
+    color: rgba(245, 247, 251, 0.72);
+    font: inherit;
+    font-size: 0.86rem;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.tabButton i {
+    color: rgba(210, 178, 76, 0.82);
+}
+
+.tabButton:hover,
+.tabButton:focus-visible,
+.tabButtonActive {
+    border-color: rgba(210, 178, 76, 0.32);
+    background: rgba(210, 178, 76, 0.1);
+    color: var(--sunder-text);
+    outline: none;
+}
+
+.loomPanel {
+    display: grid;
+    gap: 1rem;
+}
+
+.loomPlaymat {
+    min-height: 41rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(14rem, 18rem);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas:
+        "stage spirit"
+        "hand hand";
+    gap: 1rem;
+    padding: clamp(1rem, 2vw, 1.45rem);
+    border-radius: 1.1rem;
+    border: 1px solid rgba(210, 178, 76, 0.16);
+    background:
+        radial-gradient(circle at 50% 34%, rgba(139, 124, 243, 0.14), transparent 38%),
+        linear-gradient(180deg, rgba(18, 22, 31, 0.96), rgba(8, 11, 18, 0.97));
+    box-shadow:
+        0 18px 42px rgba(0, 0, 0, 0.26),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    color: var(--sunder-text);
+}
+
+.loomStage {
+    grid-area: stage;
+    min-width: 0;
+    display: grid;
+    grid-template-rows: auto minmax(18rem, 1fr) auto auto;
+    align-items: center;
+    justify-items: center;
+    gap: 0.85rem;
+}
+
+.loomStageHeader,
+.spiritRailHeader,
+.boonHandHeader {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.loomStageHeader h3,
+.spiritRailHeader h3,
+.boonHandHeader h3 {
+    margin: 0.15rem 0 0;
+    color: var(--sunder-text);
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.loomPlaymatActions {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
+}
+
+.loomLevelControl {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 2.35rem;
+    padding: 0.34rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.045);
+}
+
+.loomLevelControl span {
+    color: rgba(245, 247, 251, 0.62);
+    font-size: 0.7rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.loomLevelControl strong {
+    min-width: 1.6rem;
+    color: var(--sunder-gold, #d2b24c);
+    text-align: center;
+}
+
+.loomLevelControl button,
+.boonRemoveButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--sunder-text);
+    font: inherit;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.loomLevelControl button {
+    width: 1.65rem;
+    height: 1.65rem;
+    border-radius: 999px;
+}
+
+.spiritRail {
+    grid-area: spirit;
+    align-self: stretch;
+    display: grid;
+    align-content: start;
+    gap: 0.9rem;
+    padding: 0.95rem;
+    border-left: 1px solid rgba(210, 178, 76, 0.14);
+    background:
+        linear-gradient(180deg, rgba(139, 124, 243, 0.1), transparent),
+        rgba(255, 255, 255, 0.025);
+}
+
+.spiritRailHeader strong {
+    color: #c1b2ff;
+    font-size: 1.15rem;
+}
+
+.boonHand {
+    grid-area: hand;
+    display: grid;
+    gap: 0.75rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid rgba(210, 178, 76, 0.14);
+}
+
+.boonCardFan {
+    display: flex;
+    gap: 0.8rem;
+    overflow-x: auto;
+    padding: 0.15rem 0.15rem 0.7rem;
+    scroll-snap-type: x proximity;
+}
+
+.boonCard {
+    flex: 0 0 clamp(12.5rem, 24vw, 16rem);
+    min-height: 18rem;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 0.65rem;
+    padding: 0.85rem;
+    border-radius: 0.75rem;
+    border: 2px solid rgba(231, 220, 186, 0.2);
+    background:
+        linear-gradient(180deg, rgba(24, 27, 40, 0.98), rgba(11, 13, 21, 0.98));
+    color: #f4f2eb;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
+    scroll-snap-align: start;
+}
+
+.boonCard:nth-child(2n) {
+    transform: translateY(0.35rem);
+}
+
+.boonCardTopline,
+.boonCardFooter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem;
+}
+
+.boonCardTopline span,
+.boonCardTopline em {
+    color: rgba(244, 242, 235, 0.68);
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.boonCardTopline em {
+    font-style: normal;
+    text-align: right;
+}
+
+.boonCard > strong {
+    color: #f5dea0;
+    font-size: 1.1rem;
+    line-height: 1.05;
+    text-transform: uppercase;
+}
+
+.boonCard p {
+    margin: 0;
+    color: rgba(244, 242, 235, 0.72);
+    font-size: 0.84rem;
+    line-height: 1.38;
+    overflow: hidden;
+}
+
+.boonRemoveButton {
+    min-height: 1.85rem;
+    padding: 0.28rem 0.5rem;
+    border-radius: 0.5rem;
+    color: #ffc1c1;
+}
+
+.emptyBoonHand {
+    display: grid;
+    justify-items: start;
+    gap: 0.35rem;
+    min-height: 9rem;
+    padding: 1rem;
+    border-radius: 0.85rem;
+    border: 1px dashed rgba(210, 178, 76, 0.24);
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.emptyBoonHand strong {
+    color: var(--sunder-text);
+}
+
+.emptyBoonHand p {
+    margin: 0;
+    color: rgba(245, 247, 251, 0.62);
+    font-size: 0.86rem;
+}
+
+.gmPanel {
+    display: grid;
+    gap: 1rem;
+}
+
+.gmWorkspace {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(210, 178, 76, 0.16);
+    background:
+        linear-gradient(180deg, rgba(18, 22, 31, 0.96), rgba(10, 13, 20, 0.95));
+    color: var(--sunder-text);
+    box-shadow:
+        0 10px 26px rgba(0, 0, 0, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.gmToolbar,
+.gmSectionHeader,
+.gmRowHeader,
+.gmChapterTopline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.gmToolbar {
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.gmToolbar h3,
+.gmSectionHeader h4,
+.gmDisplayCard h5,
+.gmSceneAbilityCard h5,
+.gmChapterTopline h5 {
+    margin: 0.18rem 0 0;
+    color: var(--sunder-text);
+    line-height: 1.1;
+}
+
+.gmToolbar h3 {
+    font-size: 1.35rem;
+}
+
+.gmSectionHeader h4 {
+    font-size: 1.08rem;
+}
+
+.gmToolbarActions,
+.gmInlineActions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.gmSaveError {
+    max-width: 24rem;
+    color: #ffc1c1;
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.gmWorkspaceGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+    align-items: start;
+}
+
+.gmToolSurface {
+    display: grid;
+    gap: 0.78rem;
+    min-width: 0;
+    padding: 0.9rem;
+    border-radius: 0.9rem;
+    border: 1px solid rgba(210, 178, 76, 0.14);
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.gmFormGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+}
+
+.gmField {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.gmField span {
+    color: rgba(245, 247, 251, 0.68);
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.gmFieldWide {
+    grid-column: 1 / -1;
+}
+
+.gmInput,
+.gmSelect,
+.gmTextarea,
+.gmLockedValue {
+    width: 100%;
+    min-width: 0;
+    border-radius: 0.78rem;
+    border: 1px solid rgba(210, 178, 76, 0.18);
+    background: rgba(7, 10, 16, 0.72);
+    color: var(--sunder-text);
+    font: inherit;
+    font-weight: 700;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.gmInput,
+.gmSelect,
+.gmLockedValue {
+    min-height: 2.45rem;
+    padding: 0.52rem 0.65rem;
+}
+
+.gmTextarea {
+    min-height: 6rem;
+    padding: 0.65rem 0.7rem;
+    line-height: 1.42;
+    resize: vertical;
+}
+
+.gmSelect option {
+    color: #141821;
+}
+
+.gmInput:focus,
+.gmSelect:focus,
+.gmTextarea:focus {
+    border-color: rgba(210, 178, 76, 0.48);
+    outline: none;
+    box-shadow:
+        0 0 0 3px rgba(210, 178, 76, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.gmLockedValue {
+    display: flex;
+    align-items: center;
+    color: #f5dea0;
+}
+
+.gmDisplayBlock,
+.gmEditorList,
+.gmChapterTimeline,
+.gmSceneAbilityCard,
+.gmEmptyState {
+    display: grid;
+    gap: 0.62rem;
+}
+
+.gmPill,
+.gmChapterTopline span {
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.8rem;
+    padding: 0.22rem 0.58rem;
+    border-radius: 999px;
+    border: 1px solid rgba(139, 124, 243, 0.28);
+    background: rgba(139, 124, 243, 0.13);
+    color: #ddd7ff;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.gmDisplayBlock p,
+.gmDisplayCard p,
+.gmSceneAbilityCard p,
+.gmChapterItem p,
+.gmEmptyState p {
+    margin: 0;
+    color: rgba(245, 247, 251, 0.68);
+    font-size: 0.86rem;
+    line-height: 1.42;
+}
+
+.gmEmptyText {
+    color: rgba(245, 247, 251, 0.5) !important;
+    font-style: italic;
+}
+
+.gmEditorRow,
+.gmDisplayCard,
+.gmSceneAbilityCard {
+    display: grid;
+    gap: 0.72rem;
+    padding: 0.78rem;
+    border-radius: 0.85rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.gmRowHeader strong,
+.gmEmptyState strong {
+    color: var(--sunder-text);
+}
+
+.gmDisplayGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 0.65rem;
+}
+
+.gmDisplayTopline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    color: rgba(245, 247, 251, 0.58);
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.gmDisplayTopline em {
+    color: #f5dea0;
+    font-style: normal;
+}
+
+.gmDetailList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+    margin: 0;
+}
+
+.gmDetailList div {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.gmDetailList dt {
+    color: rgba(245, 247, 251, 0.5);
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.gmDetailList dd {
+    margin: 0;
+    color: rgba(245, 247, 251, 0.82);
+    font-size: 0.84rem;
+    font-weight: 800;
+}
+
+.gmChapterTimeline {
+    position: relative;
+}
+
+.gmChapterItem {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.65rem;
+    padding: 0.7rem;
+    border-radius: 0.85rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.gmChapterItemActive {
+    border-color: rgba(210, 178, 76, 0.3);
+    background: rgba(210, 178, 76, 0.075);
+}
+
+.gmChapterMarker {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    border: 1px solid rgba(210, 178, 76, 0.28);
+    background: rgba(7, 10, 16, 0.7);
+    color: #f5dea0;
+    font-size: 0.82rem;
+    font-weight: 900;
+}
+
+.loomSummary,
+.loomGrid,
+.gmSummary,
+.gmGrid {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.loomSummary,
+.gmSummary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.loomGrid,
+.gmGrid {
+    grid-template-columns: minmax(0, 1.25fr) minmax(18rem, 0.75fr);
+}
+
+.loomStat,
+.gmStat,
+.loomBlock,
+.gmBlock,
+.emptyLoomState {
+    display: grid;
+    gap: 0.55rem;
+    padding: 0.9rem;
+    border-radius: 0.9rem;
+    border: 1px solid rgba(210, 178, 76, 0.14);
+    background: rgba(255, 255, 255, 0.035);
+    color: var(--sunder-text);
+}
+
+.loomStat span,
+.gmStat span {
+    color: rgba(245, 247, 251, 0.58);
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.loomStat strong,
+.gmStat strong {
+    color: var(--sunder-gold, #d2b24c);
+    font-size: 1.8rem;
+    line-height: 1;
+}
+
+.loomStat small,
+.gmStat small,
+.loomNote,
+.emptyLoomState p {
+    margin: 0;
+    color: rgba(245, 247, 251, 0.62);
+    font-size: 0.82rem;
+    line-height: 1.35;
+}
+
+.stepper,
+.loomActions,
+.boonActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    align-items: center;
+}
+
+.stepper button {
+    width: 1.9rem;
+    height: 1.9rem;
+    border-radius: 0.6rem;
+    border: 1px solid rgba(210, 178, 76, 0.22);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--sunder-text);
+    font: inherit;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.stepper button:hover,
+.stepper button:focus-visible {
+    border-color: rgba(210, 178, 76, 0.48);
+    background: rgba(210, 178, 76, 0.12);
+    outline: none;
+}
+
+.loomBlockHeader {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.loomBlockHeader h3 {
+    margin: 0.15rem 0 0;
+    color: var(--sunder-text);
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.loomValue {
+    color: var(--sunder-gold, #d2b24c);
+    font-weight: 900;
+}
+
+.loomHalo {
+    position: relative;
+    width: min(100%, 31rem);
+    aspect-ratio: 1;
+    justify-self: center;
+    display: grid;
+    place-items: center;
+}
+
+.loomHaloSvg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.loomHaloGuide {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.08);
+    stroke-width: 2;
+}
+
+.loomHaloNode {
+    cursor: pointer;
+    outline: none;
+}
+
+.loomHaloNode circle:first-child {
+    fill: transparent;
+}
+
+.loomHaloNode circle:last-child {
+    fill: rgba(10, 13, 20, 0.98);
+    stroke: rgba(139, 124, 243, 0.58);
+    stroke-width: 2.5;
+    transition:
+        fill 140ms ease,
+        stroke 140ms ease,
+        filter 140ms ease,
+        transform 140ms ease;
+}
+
+.loomHaloNode:hover circle:last-child,
+.loomHaloNode:focus-visible circle:last-child {
+    stroke: rgba(210, 178, 76, 0.86);
+    filter: drop-shadow(0 0 8px rgba(210, 178, 76, 0.28));
+}
+
+.loomHaloNodeFilled circle:last-child {
+    fill: var(--sunder-gold, #d2b24c);
+    stroke: rgba(245, 222, 160, 0.96);
+    filter: drop-shadow(0 0 7px rgba(210, 178, 76, 0.28));
+}
+
+.loomHaloNodeCheckpoint circle:last-child {
+    stroke: rgba(139, 124, 243, 0.98);
+}
+
+.loomHaloNodeCheckpoint.loomHaloNodeFilled circle:last-child {
+    fill: #8b7cf3;
+    stroke: #d8d0ff;
+    filter: drop-shadow(0 0 9px rgba(139, 124, 243, 0.42));
+}
+
+.loomHaloCenter {
+    position: absolute;
+    inset: 28%;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 0.24rem;
+    border-radius: 999px;
+    border: 1px solid rgba(210, 178, 76, 0.16);
+    background:
+        radial-gradient(circle at 35% 25%, rgba(210, 178, 76, 0.1), transparent 44%),
+        rgba(10, 13, 20, 0.9);
+    pointer-events: none;
+    text-align: center;
+}
+
+.loomHaloCenter span {
+    color: rgba(245, 247, 251, 0.58);
+    font-size: 0.7rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.loomHaloCenter strong {
+    color: var(--sunder-gold, #d2b24c);
+    font-size: clamp(1.45rem, 5vw, 2.35rem);
+    line-height: 1;
+}
+
+.loomHaloCenter small {
+    max-width: 11ch;
+    color: rgba(245, 247, 251, 0.64);
+    font-size: 0.72rem;
+    line-height: 1.2;
+}
+
+.loomHaloEmpty {
+    padding: 1rem;
+    border-radius: 0.85rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(245, 247, 251, 0.68);
+    font-size: 0.86rem;
+    font-weight: 800;
+}
+
+.storyTrack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.42rem;
+    align-items: center;
+}
+
+.storyPip {
+    position: relative;
+    width: 1.05rem;
+    height: 1.05rem;
+    border-radius: 999px;
+    border: 2px solid rgba(139, 124, 243, 0.5);
+    background: transparent;
+    cursor: pointer;
+    transition:
+        transform 140ms ease,
+        background 140ms ease,
+        border-color 140ms ease,
+        box-shadow 140ms ease;
+}
+
+.storyPip:hover,
+.storyPip:focus-visible {
+    transform: translateY(-1px);
+    border-color: rgba(210, 178, 76, 0.7);
+    outline: none;
+}
+
+.storyPipFilled {
+    border-color: rgba(210, 178, 76, 0.9);
+    background:
+        radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.42), transparent 35%),
+        var(--sunder-gold, #d2b24c);
+    box-shadow: 0 0 16px rgba(210, 178, 76, 0.24);
+}
+
+.storyPipCheckpoint {
+    border-color: rgba(139, 124, 243, 0.95);
+    box-shadow: 0 0 0 2px rgba(139, 124, 243, 0.2);
+}
+
+.storyPipCheckpoint::after {
+    content: "";
+    position: absolute;
+    inset: -0.35rem;
+    border-radius: 999px;
+    border: 1px dashed rgba(139, 124, 243, 0.56);
+}
+
+.checkpointCallout {
+    padding: 0.7rem 0.8rem;
+    border-radius: 0.8rem;
+    border: 1px solid rgba(139, 124, 243, 0.34);
+    background: rgba(139, 124, 243, 0.12);
+    color: rgba(245, 247, 251, 0.88);
+    font-size: 0.86rem;
+    line-height: 1.35;
+}
+
+.gmReferenceList,
+.interventionList,
+.tierSnapshot {
+    display: grid;
+    gap: 0.6rem;
+}
+
+.gmReferenceList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.gmReferenceList div,
+.interventionItem,
+.tierItem {
+    display: grid;
+    gap: 0.28rem;
+    padding: 0.72rem;
+    border-radius: 0.78rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.gmReferenceList strong,
+.tierItem strong {
+    color: var(--sunder-text);
+}
+
+.gmReferenceList p {
+    margin: 0;
+    color: rgba(245, 247, 251, 0.66);
+    font-size: 0.84rem;
+    line-height: 1.35;
+}
+
+.interventionList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.interventionItem {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+}
+
+.interventionItem span {
+    color: rgba(245, 247, 251, 0.84);
+    font-weight: 900;
+}
+
+.interventionItem strong {
+    color: var(--sunder-gold, #d2b24c);
+    font-size: 1.35rem;
+}
+
+.interventionItem small,
+.tierItem span,
+.tierItem small {
+    color: rgba(245, 247, 251, 0.62);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.tierSnapshot {
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+
+.boonList {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 0.65rem;
+}
+
+.boonItem {
+    display: grid;
+    gap: 0.45rem;
+    padding: 0.78rem;
+    border-radius: 0.82rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.boonTopline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.45rem;
+}
+
+.boonTopline strong,
+.emptyLoomState strong {
+    color: var(--sunder-text);
+}
+
+.boonTopline span,
+.spiritBadge {
+    width: fit-content;
+    padding: 0.18rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(139, 124, 243, 0.16);
+    color: #c1b2ff;
+    font-size: 0.7rem;
+    font-weight: 900;
+}
+
+.boonItem p {
+    margin: 0;
+    color: rgba(245, 247, 251, 0.68);
+    font-size: 0.84rem;
+    line-height: 1.35;
+}
+
+.boonNameInput,
+.boonDescriptionInput {
+    width: 100%;
+    border-radius: 0.72rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.055);
+    color: var(--sunder-text);
+    font: inherit;
+    padding: 0.58rem 0.65rem;
+}
+
+.boonNameInput {
+    font-weight: 900;
+}
+
+.boonDescriptionInput {
+    resize: vertical;
+    min-height: 4.25rem;
+}
+
+.boonNameInput:focus-visible,
+.boonDescriptionInput:focus-visible {
+    border-color: rgba(210, 178, 76, 0.52);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(210, 178, 76, 0.12);
+}
+
+.checkboxLabel {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+    color: rgba(245, 247, 251, 0.72);
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(4, 6, 10, 0.68);
+    backdrop-filter: blur(10px);
+}
+
+.modalPanel {
+    width: min(42rem, 100%);
+    max-height: min(42rem, calc(100dvh - 2rem));
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    border-radius: 1rem;
+    border: 1px solid rgba(210, 178, 76, 0.22);
+    background:
+        linear-gradient(180deg, rgba(18, 22, 31, 0.98), rgba(10, 13, 20, 0.97));
+    box-shadow:
+        0 22px 70px rgba(0, 0, 0, 0.48),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    overflow: hidden;
+}
+
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 1rem;
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.modalHeader h3 {
+    margin: 0.25rem 0 0;
+    color: var(--sunder-text);
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
+.iconButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.15rem;
+    height: 2.15rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(245, 247, 251, 0.84);
+    cursor: pointer;
+}
+
+.iconButton:hover,
+.iconButton:focus-visible {
+    border-color: rgba(210, 178, 76, 0.36);
+    background: rgba(210, 178, 76, 0.12);
+    outline: none;
+}
+
+.modalBody {
+    display: grid;
+    gap: 0.85rem;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.fieldLabel {
+    display: grid;
+    gap: 0.35rem;
+    color: rgba(245, 247, 251, 0.78);
+    font-size: 0.82rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.characterSelector {
+    position: relative;
+}
+
+.selectorButton {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    width: 100%;
+    min-height: 3.15rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: 0.8rem;
+    border: 1px solid rgba(210, 178, 76, 0.26);
+    background:
+        linear-gradient(135deg, rgba(139, 124, 243, 0.14), rgba(210, 178, 76, 0.08)),
+        rgba(255, 255, 255, 0.055);
+    color: var(--sunder-text);
+    text-align: left;
+    cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    transition:
+        border-color 140ms ease,
+        background 140ms ease,
+        box-shadow 140ms ease;
+}
+
+.selectorButton:hover,
+.selectorButton:focus-visible {
+    border-color: rgba(210, 178, 76, 0.48);
+    box-shadow: 0 0 0 3px rgba(139, 124, 243, 0.14);
+    outline: none;
+}
+
+.selectorButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.58;
+}
+
+.selectorButtonText {
+    display: grid;
+    gap: 0.12rem;
+    min-width: 0;
+}
+
+.selectorButtonText strong {
+    color: var(--sunder-text);
+    font-size: 0.98rem;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.selectorButtonText small {
+    color: rgba(245, 247, 251, 0.62);
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.selectorButton i {
+    color: var(--sunder-gold, #d2b24c);
+    flex: 0 0 auto;
+}
+
+.selectorMenu {
+    position: absolute;
+    z-index: 5;
+    top: calc(100% + 0.42rem);
+    left: 0;
+    right: 0;
+    display: grid;
+    gap: 0.45rem;
+    max-height: min(18rem, 46dvh);
+    padding: 0.45rem;
+    overflow-y: auto;
+    border-radius: 0.9rem;
+    border: 1px solid rgba(210, 178, 76, 0.26);
+    background:
+        radial-gradient(circle at top left, rgba(139, 124, 243, 0.2), transparent 40%),
+        linear-gradient(180deg, rgba(18, 22, 31, 0.99), rgba(10, 13, 20, 0.99));
+    box-shadow:
+        0 18px 46px rgba(0, 0, 0, 0.48),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.selectorOption {
+    display: grid;
+    gap: 0.18rem;
+    width: 100%;
+    padding: 0.65rem 0.7rem;
+    border-radius: 0.72rem;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: rgba(255, 255, 255, 0.045);
+    color: var(--sunder-text);
+    text-align: left;
+    cursor: pointer;
+}
+
+.selectorOption strong {
+    color: var(--sunder-text);
+    font-size: 0.95rem;
+}
+
+.selectorOption span,
+.selectorOption small {
+    color: rgba(245, 247, 251, 0.66);
+}
+
+.selectorOption:hover,
+.selectorOption:focus-visible,
+.selectorOptionSelected {
+    border-color: rgba(210, 178, 76, 0.42);
+    background:
+        linear-gradient(135deg, rgba(139, 124, 243, 0.2), rgba(210, 178, 76, 0.12)),
+        rgba(255, 255, 255, 0.055);
+    outline: none;
+}
+
+.characterPreviewList {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.characterOption {
+    display: grid;
+    gap: 0.22rem;
+    width: 100%;
+    padding: 0.7rem 0.8rem;
+    border-radius: 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.045);
+    color: var(--sunder-text);
+    text-align: left;
+    cursor: pointer;
+}
+
+.characterOption strong {
+    color: var(--sunder-text);
+    font-size: 1rem;
+}
+
+.characterOption span,
+.characterOption small {
+    color: rgba(245, 247, 251, 0.66);
+}
+
+.characterOption:hover,
+.characterOption:focus-visible,
+.characterOptionSelected {
+    border-color: rgba(210, 178, 76, 0.38);
+    background:
+        linear-gradient(135deg, rgba(139, 124, 243, 0.16), rgba(210, 178, 76, 0.1)),
+        rgba(255, 255, 255, 0.05);
+    outline: none;
+}
+
+.characterSummary {
+    cursor: default;
+    border-color: rgba(210, 178, 76, 0.34);
+    background:
+        linear-gradient(135deg, rgba(139, 124, 243, 0.14), rgba(210, 178, 76, 0.1)),
+        rgba(255, 255, 255, 0.045);
+}
+
+.modalActions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.65rem;
+    padding-top: 0.2rem;
+}
+
+.emptyPickerState {
+    display: grid;
+    justify-items: start;
+    gap: 0.6rem;
+    padding: 0.8rem;
+    border-radius: 0.85rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.emptyPickerState strong {
+    color: var(--sunder-text);
+}
+
+.emptyPickerState p {
+    margin: 0;
+    color: var(--sunder-text-dim);
 }
 
 .grid {
@@ -67,6 +1543,71 @@
 
 @media (max-width: 900px) {
     .grid {
+        grid-template-columns: 1fr;
+    }
+
+    .loomPlaymat {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "stage"
+            "spirit"
+            "hand";
+    }
+
+    .spiritRail {
+        border-left: none;
+        border-top: 1px solid rgba(210, 178, 76, 0.14);
+    }
+
+    .loomSummary,
+    .loomGrid,
+    .gmSummary,
+    .gmGrid,
+    .gmWorkspaceGrid,
+    .gmFormGrid,
+    .gmReferenceList {
+        grid-template-columns: 1fr;
+    }
+
+    .gmFieldWide {
+        grid-column: auto;
+    }
+}
+
+@media (max-width: 620px) {
+    .loomSummary,
+    .gmSummary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .boonList,
+    .interventionList {
+        grid-template-columns: 1fr;
+    }
+
+    .boonCard {
+        flex-basis: min(80vw, 16rem);
+    }
+
+    .gmToolbar,
+    .gmSectionHeader,
+    .gmToolbarActions,
+    .gmInlineActions {
+        align-items: stretch;
+    }
+
+    .gmToolbarActions,
+    .gmInlineActions {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    .gmToolbarActions > *,
+    .gmInlineActions > * {
+        flex: 1 1 auto;
+    }
+
+    .gmDetailList {
         grid-template-columns: 1fr;
     }
 }

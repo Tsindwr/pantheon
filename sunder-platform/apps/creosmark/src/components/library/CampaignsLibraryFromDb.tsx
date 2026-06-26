@@ -12,6 +12,10 @@ export default function CampaignsLibraryFromDb() {
     const [joinCode, setJoinCode] = useState("");
     const [busy, setBusy] = useState(false);
 
+    function formatJoinCode(value: string): string {
+        return value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+    }
+
     async function load() {
         try {
             setLoading(true);
@@ -88,8 +92,11 @@ export default function CampaignsLibraryFromDb() {
                     <form className={styles.joinForm} onSubmit={handleJoinCampaign}>
                         <input
                             value={joinCode}
-                            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                            onChange={(e) => setJoinCode(formatJoinCode(e.target.value))}
                             placeholder={'Join code'}
+                            aria-label="Campaign join code"
+                            autoComplete="off"
+                            spellCheck={false}
                             />
                         <button type={'submit'} className={styles.secondary} disabled={busy}>
                             Join Campaign

@@ -10,6 +10,9 @@ export default defineConfig({
     base: '/',
     integrations: [react()],
     vite: {
+        resolve: {
+            dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+        },
         optimizeDeps: {
             include: ['@xyflow/react'],
             exclude: ['@3d-dice/dice-box'],

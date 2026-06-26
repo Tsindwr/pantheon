@@ -23,13 +23,15 @@ import InventoryPanel from "../inventory/InventoryPanel.tsx";
 import DiceRoller from "../roll/DiceRoller.tsx";
 import EditorWorkspace from "../manage/EditorWorkspace.tsx";
 import ManageDrawer from "../manage/ManageDrawer";
-import CampaignRollWidget from "../roll/CampaignRollWidget.tsx";
-import RollHistoryDrawer from "../roll/RollHistoryDrawer.tsx";
 import CharacterAbilitiesPanel from "../abilities/CharacterAbilitiesPanel.tsx";
+import ConditionsDrawer from "../conditions/ConditionsDrawer.tsx";
 import type { CampaignAssignment, RollBroadcastMode } from "../../types/roll-feed.ts";
+import type { CampaignLoomState } from "../../lib/campaign-loom.ts";
+import { getStoryPointsFromExplicitExperienceGain } from "../../lib/campaign-loom.ts";
 import styles from "./CharacterSheetShell.module.css";
 import {routes} from "../../lib/routing.ts";
 import { supabaseLibraryCampaignService } from "../../infrastructure";
+import type { ExperienceDenomination } from "../../application/experience/experience-facade.ts";
 import {
     applyRecollectSurge,
     applyRollResult,
@@ -75,9 +77,11 @@ export default function CharacterSheetShell({
     const [mode, setMode] = useState<'play' | 'edit'>(initialMode);
     const [rollBroadcastMode, setRollBroadcastMode] =
         useState<RollBroadcastMode>('everyone');
-    const [rollHistoryOpen, setRollHistoryOpen] = useState(false);
+    const [campaignLoom, setCampaignLoom] = useState<CampaignLoomState | null>(null);
     const [rollComposerOpen, setRollComposerOpen] = useState(false);
+    const [conditionsOpen, setConditionsOpen] = useState(false);
     const rollComposerTriggerRef = useRef<HTMLButtonElement | null>(null);
+    const conditionsTriggerRef = useRef<HTMLButtonElement | null>(null);
     const incomingSheetJsonRef = useRef<string | null>(null);
     const notifiedSheetJsonRef = useRef<string | null>(null);
 
@@ -88,6 +92,10 @@ export default function CharacterSheetShell({
         );
         return `${potential?.title ?? activeRollRequest.potentialKey} · ${activeRollRequest.skillName}`;
     }, [activeRollRequest, sheet.potentials]);
+    const activeConditionCount =
+        sheet.conditions.minor.length +
+        sheet.conditions.major.length +
+        sheet.conditions.exhaustion;
 
     const seedRoll = (seed: { potentialKey: PotentialKey; skillName: string }) => {
         setRollBuilderSeed({
@@ -143,6 +151,79 @@ export default function CharacterSheetShell({
         notifiedSheetJsonRef.current = sheetJson;
         onSheetChange(sheet);
     }, [sheet, onSheetChange]);
+
+    useEffect(() => {
+        if (!assignedCampaign || mode !== "play") {
+            setCampaignLoom(null);
+            return;
+        }
+
+        let cancelled = false;
+
+        async function loadCampaignLoom() {
+            if (!assignedCampaign) return;
+
+            try {
+                const nextLoom = await supabaseLibraryCampaignService.getCampaignLoom(
+                    assignedCampaign.id,
+                );
+                if (!cancelled) setCampaignLoom(nextLoom);
+            } catch (error) {
+                console.error("Failed to load campaign loom:", error);
+            }
+        }
+
+        loadCampaignLoom();
+
+        const unsubscribe = supabaseLibraryCampaignService.subscribeToCampaignLoom(
+            assignedCampaign.id,
+            loadCampaignLoom,
+        );
+
+        return () => {
+            cancelled = true;
+            unsubscribe();
+        };
+    }, [assignedCampaign, mode]);
+
+    async function updateCampaignSpiritTokens(nextCurrent: number) {
+        if (!assignedCampaign) return;
+
+        try {
+            const nextLoom = await supabaseLibraryCampaignService.updateCampaignLoom(
+                assignedCampaign.id,
+                { spiritTokens: nextCurrent },
+            );
+            setCampaignLoom(nextLoom);
+        } catch (error) {
+            console.error("Failed to update campaign spirit tokens:", error);
+        }
+    }
+
+    async function addCampaignStoryPointsForExperienceGain(
+        denomination: ExperienceDenomination,
+        amount: number,
+    ) {
+        const storyPoints = getStoryPointsFromExplicitExperienceGain(
+            denomination,
+            amount,
+        );
+
+        if (!assignedCampaign || storyPoints <= 0) return;
+
+        try {
+            const currentLoom = await supabaseLibraryCampaignService.getCampaignLoom(
+                assignedCampaign.id,
+            );
+            const nextLoom = await supabaseLibraryCampaignService.updateCampaignLoom(
+                assignedCampaign.id,
+                { storyPoints: currentLoom.storyPoints + storyPoints },
+            );
+            setCampaignLoom(nextLoom);
+        } catch (error) {
+            console.error("Failed to add campaign story points:", error);
+        }
+    }
 
     return (
         <div className={styles.shell}>
@@ -204,34 +285,53 @@ export default function CharacterSheetShell({
                 activeTab={activeTab}
                 onChange={(id) => setActiveTab(id as SheetTabId)}
                 action={
-                    <button
-                        type="button"
-                        ref={rollComposerTriggerRef}
-                        className={styles.rollComposerButton}
-                        onClick={() => setRollComposerOpen((current) => !current)}
-                        aria-expanded={rollComposerOpen}
-                        aria-controls="roll-composer"
-                    >
-                        <i className="fa-solid fa-dice" aria-hidden="true" />
-                        <span>Roll</span>
-                    </button>
+                    <div className={styles.sheetActions}>
+                        <button
+                            type="button"
+                            ref={conditionsTriggerRef}
+                            className={styles.conditionsButton}
+                            onClick={() => setConditionsOpen((current) => !current)}
+                            aria-expanded={conditionsOpen}
+                            aria-controls="conditions-drawer"
+                        >
+                            <i className="fa-solid fa-notes-medical" aria-hidden="true" />
+                            <span>Conditions</span>
+                            {activeConditionCount > 0 ? (
+                                <strong>{activeConditionCount}</strong>
+                            ) : null}
+                        </button>
+
+                        <button
+                            type="button"
+                            ref={rollComposerTriggerRef}
+                            className={styles.rollComposerButton}
+                            onClick={() => setRollComposerOpen((current) => !current)}
+                            aria-expanded={rollComposerOpen}
+                            aria-controls="roll-composer"
+                        >
+                            <i className="fa-solid fa-dice" aria-hidden="true" />
+                            <span>Roll</span>
+                        </button>
+                    </div>
                 }
             />
-
-            {mode === 'play' && assignedCampaign ? (
-                <CampaignRollWidget campaign={assignedCampaign}
-                                    mode={rollBroadcastMode}
-                                    onModeChange={setRollBroadcastMode}
-                                    onOpenHistory={() => setRollHistoryOpen(true)}
-                />
-            ) : null}
 
             <main className={styles.content}>
                 {mode === 'edit' ? (
                     <EditorWorkspace sheet={sheet} onChange={replaceSheet} />
                 ) : (
                     <>
-                        {activeTab === "overview" ? <OverviewSection sheet={sheet} onChange={setSheet}/> : null}
+                        {activeTab === "overview" ? (
+                            <OverviewSection
+                                sheet={sheet}
+                                onChange={setSheet}
+                                campaignLoom={campaignLoom}
+                                onCampaignSpiritChange={updateCampaignSpiritTokens}
+                                onExplicitExperienceGain={
+                                    addCampaignStoryPointsForExperienceGain
+                                }
+                            />
+                        ) : null}
 
                         {activeTab === "potentials" ? (
                             <PotentialsList
@@ -300,21 +400,33 @@ export default function CharacterSheetShell({
                 onOpenChange={setRollComposerOpen}
                 triggerRef={rollComposerTriggerRef}
                 hideTrigger
+                campaign={mode === 'play' ? assignedCampaign : null}
+                rollBroadcastMode={rollBroadcastMode}
+                onRollBroadcastModeChange={setRollBroadcastMode}
                 onRoll={(request) => {
                     setActiveRollRequest(request);
                 }}
+            />
+
+            <ConditionsDrawer
+                open={conditionsOpen}
+                conditions={sheet.conditions}
+                onChange={(conditions) => setSheetField("conditions", conditions)}
+                onClose={() => setConditionsOpen(false)}
+                triggerRef={conditionsTriggerRef}
             />
 
             <DiceRoller
                 sheet={sheet}
                 request={activeRollRequest}
                 onClose={() => setActiveRollRequest(null)}
-                onApplyResults={(roll, resistanceRecoveryPotentialKey) => {
+                onApplyResults={(roll, resistanceRecoveryPotentialKey, falloutResolution) => {
                     setSheet((current) =>
                         applyRollResult(current, {
                             potentialKey: roll.meta.potentialKey,
                             result: roll.result,
                             resistanceRecoveryPotentialKey,
+                            falloutResolution,
                         }),
                     );
                 }}
@@ -325,8 +437,7 @@ export default function CharacterSheetShell({
                         assignedCampaign &&
                         characterId &&
                         activeRollRequest &&
-                        activeRollLabel &&
-                        rollBroadcastMode !== "self"
+                        activeRollLabel
                     ) {
                         try {
                             await supabaseLibraryCampaignService.publishRollEvent({
@@ -344,11 +455,6 @@ export default function CharacterSheetShell({
                 }}
             />
 
-            <RollHistoryDrawer
-                open={rollHistoryOpen}
-                onClose={() => setRollHistoryOpen(false)}
-                campaign={assignedCampaign}
-            />
         </div>
     );
 }

@@ -4,6 +4,8 @@ import {
   POTENTIAL_LABELS,
   RISKINESS_LABELS,
   SKILL_LABELS,
+  type MajorConditionId,
+  type MinorConditionId,
   type PotentialKey,
   type RiskinessLevel,
   type RollMode,
@@ -165,10 +167,24 @@ export type MarksState = {
   taken: number;
 };
 
+export type ConditionDetailState = {
+  potentialKey?: PotentialKey;
+  secondaryPotentialKey?: PotentialKey;
+  amount?: number;
+};
+
+export type ConditionTrackState = {
+  minor: MinorConditionId[];
+  major: MajorConditionId[];
+  details?: Record<string, ConditionDetailState>;
+  exhaustion: number;
+};
+
 export type ExperienceState = {
   beats: number;
   strings: number;
   milestones: number;
+  zeniths: number;
 };
 
 export type TokenPoolState = {
@@ -288,6 +304,7 @@ export type OriginSelectionState = {
 export type CharacterSheetState = {
   header: CharacterHeaderState;
   marks: MarksState;
+  conditions: ConditionTrackState;
   experience: ExperienceState;
   tokens: TokenPoolState[];
   armor: ArmorPieceState[];

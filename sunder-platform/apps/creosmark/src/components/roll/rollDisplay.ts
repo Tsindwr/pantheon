@@ -11,7 +11,7 @@ export type DisplayRollMeta = {
     potentialKey: PotentialKey;
     potentialLabel: string;
     skillName: string;
-    riskiness: string;
+    riskiness: RollComposerDraft["riskiness"];
     rollMode: string;
     volatilityDie: VolatilityDieType;
     stress: number;

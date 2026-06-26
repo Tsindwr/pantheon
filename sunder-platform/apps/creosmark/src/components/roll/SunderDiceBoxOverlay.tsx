@@ -5,6 +5,8 @@ import { formatPerkLabel, formatSuccessLevel } from "./rollDisplay";
 import styles from './SunderDiceBoxOverlay.module.css';
 import type {RollPhase} from "./DiceRoller.tsx";
 import type { PotentialKey } from "../../types/sheet.ts";
+import FalloutResolutionModal from "./FalloutResolutionModal";
+import type { FalloutResolution } from "../../lib/rolling/fallout";
 
 export type ResistanceRecoveryOption = {
     value: PotentialKey;
@@ -20,7 +22,10 @@ type SunderDiceBoxOverlayProps = {
     errorText: string | null;
     hostRef: RefObject<HTMLDivElement | null>;
     resistanceRecoveryOptions: ResistanceRecoveryOption[];
-    onApplyResults: (resistanceRecoveryPotentialKey?: PotentialKey) => void;
+    onApplyResults: (
+        resistanceRecoveryPotentialKey?: PotentialKey,
+        falloutResolution?: FalloutResolution,
+    ) => void;
 };
 
 export default function SunderDiceBoxOverlay({
@@ -35,9 +40,11 @@ export default function SunderDiceBoxOverlay({
 }: SunderDiceBoxOverlayProps) {
     const [resistanceRecoveryPotentialKey, setResistanceRecoveryPotentialKey] =
         useState<PotentialKey | "">("");
+    const [falloutResolverOpen, setFalloutResolverOpen] = useState(false);
 
     useEffect(() => {
         setResistanceRecoveryPotentialKey(resistanceRecoveryOptions[0]?.value ?? "");
+        setFalloutResolverOpen(false);
     }, [roll, resistanceRecoveryOptions]);
 
     if (!open) return null;
@@ -55,6 +62,15 @@ export default function SunderDiceBoxOverlay({
             explosionRecoversResistance
         ),
     );
+    const requiresFalloutResolution = Boolean(
+        roll?.result.falloutTriggered &&
+        (roll.result.finalSuccessLevel === "failure" || roll.result.finalSuccessLevel === "miff"),
+    );
+    const selectedRecoveryPotential = resistanceRecoveryPotentialKey || undefined;
+
+    function applyResults(falloutResolution?: FalloutResolution) {
+        onApplyResults(selectedRecoveryPotential, falloutResolution);
+    }
 
     return (
         <div className={styles.overlay} role={"dialog"} aria-modal={'true'}>
@@ -188,15 +204,27 @@ export default function SunderDiceBoxOverlay({
                                 <button
                                     type="button"
                                     className={styles.apply}
-                                    onClick={() =>
-                                        onApplyResults(
-                                            resistanceRecoveryPotentialKey || undefined,
-                                        )
-                                    }
+                                    onClick={() => {
+                                        if (requiresFalloutResolution) {
+                                            setFalloutResolverOpen(true);
+                                            return;
+                                        }
+
+                                        applyResults();
+                                    }}
                                 >
-                                    Apply Results
+                                    {requiresFalloutResolution ? "Resolve Fallout" : "Apply Results"}
                                 </button>
                             </div>
+
+                            {falloutResolverOpen ? (
+                                <FalloutResolutionModal
+                                    roll={roll}
+                                    onCancel={() => setFalloutResolverOpen(false)}
+                                    onForgo={(resolution) => applyResults(resolution)}
+                                    onResolve={(resolution) => applyResults(resolution)}
+                                />
+                            ) : null}
                         </>
                     ) : null}
                 </section>

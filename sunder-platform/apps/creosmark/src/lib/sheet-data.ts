@@ -103,10 +103,16 @@ export const DEMO_SHEET: CharacterSheetState = {
     total: 7,
     taken: 2,
   },
+  conditions: {
+    minor: [],
+    major: [],
+    exhaustion: 0,
+  },
   experience: {
     beats: 14,
     strings: 6,
     milestones: 1,
+    zeniths: 0,
   },
   tokens: [
     {

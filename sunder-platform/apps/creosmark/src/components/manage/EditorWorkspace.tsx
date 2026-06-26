@@ -1307,14 +1307,6 @@ export default function EditorWorkspace({
                             <h3>Proficiencies</h3>
                         </header>
 
-                        <div className={styles.inlineCard}>
-                            <strong>Feature-driven only.</strong>
-                            <p>
-                                Skill proficiencies, domains, and knacks are populated by origin choices and
-                                archetype boons.
-                            </p>
-                        </div>
-
                         <section className={styles.section}>
                             <header className={styles.sectionHeader}>
                                 <div className={styles.sectionEyebrow}>Skills</div>

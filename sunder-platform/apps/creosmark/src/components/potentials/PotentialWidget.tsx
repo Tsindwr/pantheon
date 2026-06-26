@@ -687,7 +687,7 @@ export default function PotentialWidget({
 
   const { start: startLongPress, cancel: cancelLongPress, fired } = useLongPress(450);
 
-  const titleY = cy + size * 0.295;
+  const titleY = cy + size * 0.225;
   const scoreY = cy + 6;
   const readyArcPath = describeArc(cx, cy, outerR, startDeg, endDeg);
   const outerAngles = useMemo(
@@ -950,7 +950,7 @@ export default function PotentialWidget({
         y={titleY}
         textAnchor="middle"
         dominantBaseline="middle"
-        fontSize={size * 0.085}
+        fontSize={size * 0.078}
         fill={explosiveReady ? TOKENS.gold : TOKENS.purple}
         style={{
           fontFamily: "var(--md-text-font, system-ui)",

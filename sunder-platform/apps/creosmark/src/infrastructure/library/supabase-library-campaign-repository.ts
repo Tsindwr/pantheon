@@ -1,15 +1,23 @@
 import type { LibraryCampaignRepository } from "../../application/library/repositories.ts";
 import {
+  addCharacterToCampaign,
   createBlankSheet,
   createCampaignWithMembership,
   createCharacterSheet,
+  deleteCharacterSheet,
+  getCampaignGmTools,
+  getCampaignLoom,
   getCampaignForCharacter,
   getCampaignRoster,
   getMyCharacterSheet,
   joinCampaignByCode,
   listMyCampaigns,
   listMyCharacterSheets,
+  subscribeToCampaignLoom,
+  subscribeToCampaignGmTools,
   updateCharacterSheet,
+  updateCampaignGmTools,
+  updateCampaignLoom,
 } from "../../lib/supabase/db.ts";
 import {
   listCampaignRollEvents,
@@ -40,6 +48,9 @@ export const supabaseLibraryCampaignRepository: LibraryCampaignRepository = {
   async updateCharacterSheet(id, sheet) {
     await updateCharacterSheet(id, sheet);
   },
+  async deleteCharacterSheet(id) {
+    await deleteCharacterSheet(id);
+  },
   async listMyCampaigns() {
     return listMyCampaigns();
   },
@@ -54,6 +65,27 @@ export const supabaseLibraryCampaignRepository: LibraryCampaignRepository = {
   },
   async getCampaignRoster(campaignId) {
     return getCampaignRoster(campaignId);
+  },
+  async addCharacterToCampaign(campaignId, characterSheetId) {
+    await addCharacterToCampaign(campaignId, characterSheetId);
+  },
+  async getCampaignLoom(campaignId) {
+    return getCampaignLoom(campaignId);
+  },
+  async updateCampaignLoom(campaignId, patch) {
+    return updateCampaignLoom(campaignId, patch);
+  },
+  subscribeToCampaignLoom(campaignId, onChange) {
+    return subscribeToCampaignLoom(campaignId, onChange);
+  },
+  async getCampaignGmTools(campaignId) {
+    return getCampaignGmTools(campaignId);
+  },
+  async updateCampaignGmTools(campaignId, tools) {
+    return updateCampaignGmTools(campaignId, tools);
+  },
+  subscribeToCampaignGmTools(campaignId, onChange) {
+    return subscribeToCampaignGmTools(campaignId, onChange);
   },
   async publishRollEvent(input) {
     await publishRollEvent(input);

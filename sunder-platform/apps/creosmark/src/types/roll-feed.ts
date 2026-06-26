@@ -13,7 +13,7 @@ export type RollFeedItem = {
     authorUserId: string;
     characterName: string;
     skillTestLabel: string;
-    visibility: "gm" | "everyone";
+    visibility: RollBroadcastMode;
     baseD20: number;
     volatilityResults: number[];
     finalSuccessLevel: string;

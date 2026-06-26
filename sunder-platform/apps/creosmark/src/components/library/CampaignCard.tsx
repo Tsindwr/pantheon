@@ -2,26 +2,15 @@ import React from 'react';
 import type { CampaignRecord } from '../../types/library';
 import styles from './LibraryCards.module.css';
 import {routes} from "../../lib/routing.ts";
+import ClipboardButton from "../common/ClipboardButton.tsx";
 
 type CampaignCardProps = {
     campaign: CampaignRecord;
 };
 
 export default function CampaignCard({ campaign }: CampaignCardProps) {
-    async function copyShareLink() {
-        const relativePath = routes.campaignView(campaign.id);
-        const absolute =
-            typeof window !== 'undefined'
-                ? `${window.location.origin}${relativePath}`
-                : relativePath;
-
-        try {
-            await navigator.clipboard.writeText(absolute);
-            window.alert('Campaign link copied.');
-        } catch {
-            window.alert(absolute);
-        }
-    }
+    const sheetCount = campaign.characterIds.length;
+    const joinCode = campaign.joinCode?.trim().toUpperCase();
 
     return (
         <article className={styles.card}>
@@ -32,7 +21,7 @@ export default function CampaignCard({ campaign }: CampaignCardProps) {
                 </div>
 
                 <div className={styles.badge}>
-                    {campaign.characters.length} sheet{campaign.characters.length === 1 ? "" : "s"}
+                    {sheetCount} sheet{sheetCount === 1 ? "" : "s"}
                 </div>
             </div>
 
@@ -43,13 +32,23 @@ export default function CampaignCard({ campaign }: CampaignCardProps) {
 
             {campaign.pitch ? <p className={styles.copy}>{campaign.pitch}</p> : null}
 
-            <div className={styles.actions}>
-                <a className={styles.actionLink} href={routes.campaignView(campaign.id)}>
-                    View
-                </a>
-                <button type={'button'} className={styles.actionLinkSecondary} onClick={copyShareLink}>
-                    Share Link
-                </button>
+            <div className={styles.cardFooter}>
+                <div className={styles.joinCodeBlock}>
+                    <span>Join Code</span>
+                    <strong>{joinCode ?? "Unavailable"}</strong>
+                </div>
+
+                <div className={styles.actions}>
+                    <a className={styles.actionLink} href={routes.campaignView(campaign.id)}>
+                        View
+                    </a>
+                    <ClipboardButton
+                        className={styles.actionLinkSecondary}
+                        value={joinCode}
+                        label="Copy"
+                        successLabel="Copied"
+                    />
+                </div>
             </div>
         </article>
     );

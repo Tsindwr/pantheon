@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import PotentialWidget from "./PotentialWidget.tsx";
 import styles from "./PotentialCard.module.css";
 import type { PotentialState, PotentialKey } from "../../types/sheet.ts";
 import { getPerkMarksFromAssignedPerks } from "../../lib/volatility.ts";
+import SideTray from "../common/SideTray.tsx";
 
 type PotentialCardProps = {
   potential: PotentialState;
@@ -32,26 +33,9 @@ export default function PotentialCard({
     charged ? "charged" : "uncharged",
   ].join(":");
 
-  useEffect(() => {
-    if (!selectedSkill) return;
-
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      setSelectedSkill(null);
-    };
-
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [selectedSkill]);
-
   const startRoll = (skillName: string) => {
     onStartRoll?.({ potentialKey: potential.key, skillName });
   };
-
-  const drawerTitleId = selectedSkill
-    ? `${potential.key}-${selectedSkill.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-details`
-    : undefined;
 
   return (
     <article className={[styles.card, charged ? styles.charged : ""].filter(Boolean).join(" ")}>
@@ -123,37 +107,15 @@ export default function PotentialCard({
       </div>
 
       {selectedSkill ? (
-        <div className={styles.drawerLayer}>
-          <button
-            type="button"
-            className={styles.drawerScrim}
-            aria-label="Close skill details"
-            onClick={() => setSelectedSkill(null)}
-          />
-
-          <aside
-            className={styles.skillDrawer}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={drawerTitleId}
-          >
-            <header className={styles.drawerHeader}>
-              <div>
-                <div className={styles.drawerEyebrow}>{potential.title}</div>
-                <h3 id={drawerTitleId}>{selectedSkill.name}</h3>
-              </div>
-
-              <button
-                type="button"
-                className={styles.drawerClose}
-                aria-label="Close skill details"
-                onClick={() => setSelectedSkill(null)}
-              >
-                ×
-              </button>
-            </header>
-
-            <p className={styles.drawerSummary}>{selectedSkill.summary}</p>
+        <SideTray
+          open={Boolean(selectedSkill)}
+          onClose={() => setSelectedSkill(null)}
+          title={selectedSkill.name}
+          eyebrow={potential.title}
+          width="min(24rem, calc(100vw - 2rem))"
+          ariaLabel={`${selectedSkill.name} details`}
+        >
+          <p className={styles.drawerSummary}>{selectedSkill.summary}</p>
 
             <dl className={styles.drawerStats}>
               <div>
@@ -184,8 +146,7 @@ export default function PotentialCard({
             >
               Start Roll
             </button>
-          </aside>
-        </div>
+        </SideTray>
       ) : null}
     </article>
   );

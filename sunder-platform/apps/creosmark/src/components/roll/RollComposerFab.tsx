@@ -12,6 +12,15 @@ import {
   getPotentialByKey,
 } from "../../lib/rolls";
 import type {DomainData} from "../../lib/sheet-data.ts";
+import SideTray from "../common/SideTray";
+import type {
+  CampaignAssignment,
+  RollBroadcastMode,
+  RollFeedItem,
+} from "../../types/roll-feed";
+import { supabaseLibraryCampaignService } from "../../infrastructure";
+import { routes } from "../../lib/routing.ts";
+import { getCachedUserInfo, getCurrentUser } from "../../lib/auth.ts";
 
 type RollComposerFabProps = {
   potentials: PotentialState[];
@@ -24,6 +33,9 @@ type RollComposerFabProps = {
   onOpenChange?: (open: boolean) => void;
   triggerRef?: React.RefObject<HTMLElement | null>;
   hideTrigger?: boolean;
+  campaign?: CampaignAssignment | null;
+  rollBroadcastMode?: RollBroadcastMode;
+  onRollBroadcastModeChange?: (mode: RollBroadcastMode) => void;
 };
 
 function mergeDraft(
@@ -60,9 +72,37 @@ const RISKINESS_ICONS = {
   desperate: "fa-skull-crossbones",
 } as const;
 
+const BROADCAST_OPTIONS: RollBroadcastMode[] = ["self", "gm", "everyone"];
+
+const BROADCAST_LABELS: Record<RollBroadcastMode, string> = {
+  self: "Self",
+  gm: "To GM",
+  everyone: "Everyone",
+};
+
 function getPotentialAbbreviation(potential?: PotentialState | null): string {
   if (!potential) return "---";
   return potential.title.slice(0, 3).toUpperCase();
+}
+
+function formatSuccess(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function getRollAudienceLabel(mode: RollBroadcastMode): string {
+  if (mode === "self") return "Sent to self";
+  if (mode === "gm") return "Sent to GM";
+  return "Sent to everyone";
+}
+
+function canShowRollEvent(
+    item: RollFeedItem,
+    campaign: CampaignAssignment | null,
+    currentUserId: string | null,
+): boolean {
+  if (item.visibility === "everyone") return true;
+  if (currentUserId && item.authorUserId === currentUserId) return true;
+  return item.visibility === "gm" && campaign?.role === "gm";
 }
 
 export default function RollComposerFab({
@@ -76,14 +116,24 @@ export default function RollComposerFab({
   onOpenChange,
   triggerRef,
   hideTrigger = false,
+  campaign = null,
+  rollBroadcastMode = "everyone",
+  onRollBroadcastModeChange,
 }: RollComposerFabProps) {
   const [internalOpen, setInternalOpen] = useState(false);
-  const drawerRef = useRef<HTMLElement | null>(null);
   const fabRef = useRef<HTMLButtonElement | null>(null);
+  const [trayView, setTrayView] = useState<"roll" | "campaign">("roll");
+  const [rollHistoryItems, setRollHistoryItems] = useState<RollFeedItem[]>([]);
+  const [rollHistoryLoading, setRollHistoryLoading] = useState(false);
+  const [rollHistoryError, setRollHistoryError] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(
+      () => getCachedUserInfo()?.id ?? null,
+  );
   const [draft, setDraft] = useState<RollComposerDraft>(() =>
     mergeDraft(potentials, initialDraft),
   );
   const open = controlledOpen ?? internalOpen;
+  const showingCampaign = trayView === "campaign" && campaign;
 
   function setOpen(next: boolean | ((current: boolean) => boolean)) {
     const resolved = typeof next === "function" ? next(open) : next;
@@ -96,9 +146,80 @@ export default function RollComposerFab({
   useEffect(() => {
     if (!initialDraft) return;
     setDraft(mergeDraft(potentials, initialDraft));
+    setTrayView("roll");
     setOpen(true);
     onDraftConsumed?.();
   }, [initialDraft, onDraftConsumed, potentials]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getCurrentUser()
+        .then((user) => {
+          if (cancelled) return;
+          setCurrentUserId(user?.id ?? getCachedUserInfo()?.id ?? null);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setCurrentUserId(getCachedUserInfo()?.id ?? null);
+        });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      setTrayView("roll");
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || trayView !== "campaign" || !campaign) return;
+
+    let cancelled = false;
+
+    async function load() {
+      if (!campaign) return;
+      try {
+        setRollHistoryLoading(true);
+        setRollHistoryError(null);
+        const rows = await supabaseLibraryCampaignService.listCampaignRollEvents(
+          campaign.id,
+          100,
+        );
+        if (cancelled) return;
+        setRollHistoryItems(rows);
+      } catch (error) {
+        if (cancelled) return;
+        setRollHistoryError(
+          error instanceof Error ? error.message : "Failed to load roll history.",
+        );
+      } finally {
+        if (!cancelled) setRollHistoryLoading(false);
+      }
+    }
+
+    load();
+
+    const unsubscribe = supabaseLibraryCampaignService.subscribeToCampaignRollEvents(
+      campaign.id,
+      (item) => {
+        if (!canShowRollEvent(item, campaign, currentUserId)) return;
+
+        setRollHistoryItems((current) => {
+          if (current.some((entry) => entry.id === item.id)) return current;
+          return [...current, item];
+        });
+      },
+    );
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [campaign, currentUserId, open, trayView]);
 
   const selectedPotential = useMemo(
       () => getPotentialByKey(potentials, draft.potentialKey),
@@ -131,37 +252,6 @@ export default function RollComposerFab({
       setDraft((current) => ({ ...current, skillName: currentSkills[0].name }))
     }
   }, [currentSkills, draft.skillName, selectedPotential]);
-
-  useEffect(() => {
-    if (!open) return;
-
-    function handlePointerDown(event: PointerEvent) {
-      const path = event.composedPath();
-      if (
-          (drawerRef.current && path.includes(drawerRef.current)) ||
-          (fabRef.current && path.includes(fabRef.current)) ||
-          (triggerRef?.current && path.includes(triggerRef.current))
-      ) {
-        return;
-      }
-
-      setOpen(false);
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
-    }
-
-    document.addEventListener("pointerdown", handlePointerDown, true);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown, true);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open, triggerRef]);
 
   const compatibleKnacks = useMemo(() => {
     const compatible = knacks.filter((knack) => {
@@ -224,23 +314,143 @@ export default function RollComposerFab({
         </button>
       ) : null}
 
-      {open ? (
-        <aside
-            id="roll-composer"
-            ref={drawerRef}
-            className={styles.drawer}
-            aria-label="Roll composer"
-        >
-          <button
-              type="button"
-              className={styles.close}
-              onClick={() => setOpen(false)}
-              aria-label="Close roll composer"
-              title="Close"
-          >
-            <i className="fa-solid fa-xmark" aria-hidden="true" />
-          </button>
+      <SideTray
+        id="roll-composer"
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Roll"
+        ariaLabel="Roll composer"
+        modal={false}
+        width="min(430px, calc(100vw - 2rem))"
+        zIndex={29}
+        triggerRef={triggerRef ?? fabRef}
+        showHeader={false}
+        bodyClassName={styles.drawerBody}
+      >
+          {campaign ? (
+            <button
+                type="button"
+                className={`${styles.cornerButton} ${
+                  showingCampaign ? styles.cornerButtonActive : ""
+                }`}
+                onClick={() =>
+                  setTrayView((current) =>
+                    current === "campaign" ? "roll" : "campaign",
+                  )
+                }
+                aria-label={showingCampaign ? "Show roll builder" : "Show campaign"}
+                title={showingCampaign ? "Show roll builder" : "Campaign"}
+                aria-pressed={trayView === "campaign"}
+            >
+              <i
+                  className={`fa-solid ${
+                    showingCampaign ? "fa-dice" : "fa-people-group"
+                  }`}
+                  aria-hidden="true"
+              />
+            </button>
+          ) : null}
 
+          {showingCampaign ? (
+            <div className={styles.campaignPanel}>
+              <section className={styles.campaignHero}>
+                <div>
+                  <div className={styles.blockLabel}>Campaign</div>
+                  <h3 className={styles.campaignTitle}>{showingCampaign.name}</h3>
+                </div>
+
+                <a
+                    className={styles.campaignLink}
+                    href={routes.campaignView(showingCampaign.id)}
+                >
+                  View Campaign
+                </a>
+              </section>
+
+              <section className={styles.block}>
+                <div className={styles.blockLabel}>Roll broadcasting</div>
+                <div
+                    className={styles.broadcastSegmented}
+                    role="group"
+                    aria-label="Roll broadcasting"
+                >
+                  {BROADCAST_OPTIONS.map((entry) => (
+                    <button
+                        key={entry}
+                        type="button"
+                        className={`${styles.broadcastSegment} ${
+                          rollBroadcastMode === entry
+                              ? styles.broadcastSegmentActive
+                              : ""
+                        }`}
+                        onClick={() => onRollBroadcastModeChange?.(entry)}
+                        disabled={!onRollBroadcastModeChange}
+                    >
+                      {BROADCAST_LABELS[entry]}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className={styles.block}>
+                <div className={styles.historyHeader}>
+                  <div className={styles.blockLabel}>Visible roll history</div>
+                  {rollHistoryLoading ? (
+                    <span className={styles.historyStatus}>Loading</span>
+                  ) : null}
+                </div>
+
+                {rollHistoryError ? (
+                  <div className={styles.historyState}>
+                    Error: {rollHistoryError}
+                  </div>
+                ) : null}
+
+                <div className={styles.chatFeed}>
+                  {rollHistoryItems.map((item) => {
+                    const isSent = currentUserId === item.authorUserId;
+
+                    return (
+                      <article
+                          key={item.id}
+                          className={`${styles.chatMessage} ${
+                              isSent
+                                  ? styles.chatMessageSent
+                                  : styles.chatMessageExternal
+                          }`}
+                      >
+                        <div className={styles.messageEyebrow}>
+                          {isSent ? `You · ${item.characterName}` : item.characterName}
+                        </div>
+
+                        <div className={styles.messageBubble}>
+                          <span className={styles.messageTest}>
+                            {item.skillTestLabel}
+                          </span>
+                          <strong className={styles.messageResult}>
+                            {formatSuccess(item.finalSuccessLevel)}
+                          </strong>
+                        </div>
+
+                        {isSent ? (
+                          <div className={styles.sentMeta}>
+                            {getRollAudienceLabel(item.visibility)}
+                          </div>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+
+                  {!rollHistoryLoading &&
+                  !rollHistoryError &&
+                  rollHistoryItems.length === 0 ? (
+                    <div className={styles.historyState}>No rolls yet.</div>
+                  ) : null}
+                </div>
+              </section>
+            </div>
+          ) : (
+            <>
           <section className={styles.block}>
             <div className={styles.blockLabel}>Potential</div>
             <div className={styles.potentialCarousel} aria-label="Potential selector">
@@ -491,8 +701,9 @@ export default function RollComposerFab({
           >
             Roll
           </button>
-        </aside>
-      ) : null}
+            </>
+          )}
+      </SideTray>
     </>
   );
 }

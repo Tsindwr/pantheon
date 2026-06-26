@@ -10,6 +10,12 @@ export default function LibraryHomeFromDb() {
     const [loading, setLoading] = useState(true);
     const [errorText, setErrorText] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState<CharacterSheetSummary | null>(null);
+    const [deleteConfirmation, setDeleteConfirmation] = useState("");
+    const [deletingCharacterId, setDeletingCharacterId] = useState<string | null>(null);
+
+    const deleteConfirmationMatches =
+        Boolean(deleteTarget) && deleteConfirmation === deleteTarget?.name;
 
     async function load() {
         try {
@@ -59,6 +65,44 @@ export default function LibraryHomeFromDb() {
         }
     }
 
+    function openDeleteModal(character: CharacterSheetSummary) {
+        setDeleteTarget(character);
+        setDeleteConfirmation("");
+        setErrorText(null);
+    }
+
+    function closeDeleteModal() {
+        if (deletingCharacterId) return;
+
+        setDeleteTarget(null);
+        setDeleteConfirmation("");
+    }
+
+    async function handleDeleteCharacter(event: React.FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        if (!deleteTarget || !deleteConfirmationMatches) return;
+
+        try {
+            setDeletingCharacterId(deleteTarget.id);
+            setErrorText(null);
+            await supabaseLibraryCampaignService.deleteCharacterSheet(deleteTarget.id);
+            setCharacters((current) =>
+                current.filter((character) => character.id !== deleteTarget.id),
+            );
+            setDeleteTarget(null);
+            setDeleteConfirmation("");
+        } catch (error) {
+            console.error("Failed to delete character:", error);
+            setErrorText(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to delete character.",
+            );
+        } finally {
+            setDeletingCharacterId(null);
+        }
+    }
+
     if (loading) {
         return <main className={styles.state}>Loading library…</main>;
     }
@@ -82,7 +126,89 @@ export default function LibraryHomeFromDb() {
 
             {errorText ? <div className={styles.error}>Error: {errorText}</div> : null}
 
-            <CharacterLibraryHome characters={characters} />
+            <CharacterLibraryHome
+                characters={characters}
+                onRequestDelete={openDeleteModal}
+                deletingCharacterId={deletingCharacterId}
+            />
+
+            {deleteTarget ? (
+                <div
+                    className={styles.modalOverlay}
+                    onMouseDown={(event) => {
+                        if (event.target === event.currentTarget) {
+                            closeDeleteModal();
+                        }
+                    }}
+                >
+                    <form
+                        className={styles.modalPanel}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-character-title"
+                        onSubmit={handleDeleteCharacter}
+                    >
+                        <header className={styles.modalHeader}>
+                            <div>
+                                <div className={styles.eyebrow}>Delete Character</div>
+                                <h3 id="delete-character-title">{deleteTarget.name}</h3>
+                            </div>
+
+                            <button
+                                type="button"
+                                className={styles.iconButton}
+                                onClick={closeDeleteModal}
+                                aria-label="Close delete character dialog"
+                                disabled={Boolean(deletingCharacterId)}
+                            >
+                                <i className="fa-solid fa-xmark" aria-hidden="true" />
+                            </button>
+                        </header>
+
+                        <div className={styles.modalBody}>
+                            <p className={styles.warningText}>
+                                This permanently deletes the character sheet. Type the
+                                character name exactly to confirm.
+                            </p>
+
+                            <label className={styles.fieldLabel}>
+                                <span>Character Name</span>
+                                <input
+                                    value={deleteConfirmation}
+                                    onChange={(event) =>
+                                        setDeleteConfirmation(event.target.value)
+                                    }
+                                    autoFocus
+                                    autoComplete="off"
+                                    placeholder={deleteTarget.name}
+                                    disabled={Boolean(deletingCharacterId)}
+                                />
+                            </label>
+
+                            <div className={styles.modalActions}>
+                                <button
+                                    type="button"
+                                    className={styles.secondary}
+                                    onClick={closeDeleteModal}
+                                    disabled={Boolean(deletingCharacterId)}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className={styles.danger}
+                                    disabled={
+                                        !deleteConfirmationMatches ||
+                                        Boolean(deletingCharacterId)
+                                    }
+                                >
+                                    {deletingCharacterId ? "Deleting..." : "Delete Character"}
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            ) : null}
         </div>
     );
 }

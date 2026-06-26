@@ -22,6 +22,7 @@ import SunderRollOverlay from "./SunderRollOverlay.tsx";
 import SunderDiceBoxOverlay from "./SunderDiceBoxOverlay.tsx";
 import { publicAssetPath } from "../../lib/public-assets.ts";
 import { getResistanceRecoveryPotentials } from "../../application/character-sheet/commands.ts";
+import type { FalloutResolution } from "../../lib/rolling/fallout.ts";
 
 type DiceRollerProps = {
     sheet: CharacterSheetState;
@@ -31,6 +32,7 @@ type DiceRollerProps = {
     onApplyResults?: (
         roll: DisplayRoll,
         resistanceRecoveryPotentialKey?: PotentialKey,
+        falloutResolution?: FalloutResolution,
     ) => void;
 };
 
@@ -219,9 +221,13 @@ export default function DiceRoller({
             errorText={errorText}
             hostRef={hostRef}
             resistanceRecoveryOptions={resistanceRecoveryOptions}
-            onApplyResults={(resistanceRecoveryPotentialKey) => {
+            onApplyResults={(resistanceRecoveryPotentialKey, falloutResolution) => {
                 if (!displayRoll) return;
-                onApplyResults?.(displayRoll, resistanceRecoveryPotentialKey);
+                onApplyResults?.(
+                    displayRoll,
+                    resistanceRecoveryPotentialKey,
+                    falloutResolution,
+                );
 
                 setDisplayRoll(null);
                 setErrorText(null);

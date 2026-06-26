@@ -11,6 +11,7 @@ const DENOMINATIONS: ExperienceDenomination[] = [
   "beats",
   "strings",
   "milestones",
+  "zeniths",
 ];
 
 function toNonNegativeInteger(value: number | undefined): number {
@@ -21,13 +22,15 @@ function toNonNegativeInteger(value: number | undefined): number {
 function normalizeExperience(value: ExperienceState): ExperienceState {
   const beats = toNonNegativeInteger(value.beats);
   const strings = toNonNegativeInteger(value.strings) + Math.floor(beats / CONVERSION_RATE);
+  const milestones =
+    toNonNegativeInteger(value.milestones) +
+    Math.floor(strings / CONVERSION_RATE);
 
   return {
     beats: beats % CONVERSION_RATE,
     strings: strings % CONVERSION_RATE,
-    milestones:
-      toNonNegativeInteger(value.milestones) +
-      Math.floor(strings / CONVERSION_RATE),
+    milestones: milestones % CONVERSION_RATE,
+    zeniths: toNonNegativeInteger(value.zeniths) + Math.floor(milestones / CONVERSION_RATE),
   };
 }
 
@@ -37,7 +40,8 @@ export const experienceFacade = {
     if (
       experience.beats === sheet.experience.beats &&
       experience.strings === sheet.experience.strings &&
-      experience.milestones === sheet.experience.milestones
+      experience.milestones === sheet.experience.milestones &&
+      experience.zeniths === sheet.experience.zeniths
     ) {
       return sheet;
     }

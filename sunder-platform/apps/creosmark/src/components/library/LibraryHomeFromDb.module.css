@@ -47,7 +47,8 @@
 }
 
 .primary,
-.secondary {
+.secondary,
+.danger {
     min-height: 2.4rem;
     padding: 0.55rem 0.95rem;
     border-radius: 0.85rem;
@@ -65,4 +66,136 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     background: rgba(255, 255, 255, 0.05);
     color: var(--sunder-text);
+}
+
+.danger {
+    border: 1px solid rgba(255, 118, 118, 0.42);
+    background: rgba(255, 118, 118, 0.14);
+    color: #ffc1c1;
+}
+
+.primary:disabled,
+.secondary:disabled,
+.danger:disabled {
+    cursor: not-allowed;
+    opacity: 0.52;
+}
+
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(4, 6, 10, 0.68);
+    backdrop-filter: blur(10px);
+}
+
+.modalPanel {
+    width: min(34rem, 100%);
+    max-height: min(36rem, calc(100dvh - 2rem));
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 118, 118, 0.26);
+    background:
+        linear-gradient(180deg, rgba(18, 22, 31, 0.98), rgba(10, 13, 20, 0.97));
+    color: var(--sunder-text);
+    box-shadow:
+        0 22px 70px rgba(0, 0, 0, 0.48),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    overflow: hidden;
+}
+
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 1rem;
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.modalHeader h3 {
+    margin: 0.25rem 0 0;
+    color: var(--sunder-text);
+    font-size: 1.35rem;
+    line-height: 1;
+    overflow-wrap: anywhere;
+}
+
+.iconButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.15rem;
+    height: 2.15rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(245, 247, 251, 0.84);
+    cursor: pointer;
+}
+
+.iconButton:hover,
+.iconButton:focus-visible {
+    border-color: rgba(210, 178, 76, 0.36);
+    background: rgba(210, 178, 76, 0.12);
+    outline: none;
+}
+
+.iconButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.52;
+}
+
+.modalBody {
+    display: grid;
+    gap: 0.85rem;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.warningText {
+    margin: 0;
+    color: rgba(245, 247, 251, 0.72);
+    line-height: 1.45;
+}
+
+.fieldLabel {
+    display: grid;
+    gap: 0.35rem;
+    color: rgba(245, 247, 251, 0.78);
+    font-size: 0.82rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.fieldLabel input {
+    width: 100%;
+    min-height: 2.7rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.055);
+    color: var(--sunder-text);
+    font: inherit;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.fieldLabel input:focus-visible {
+    border-color: rgba(210, 178, 76, 0.52);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(210, 178, 76, 0.12);
+}
+
+.modalActions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.65rem;
+    padding-top: 0.2rem;
 }

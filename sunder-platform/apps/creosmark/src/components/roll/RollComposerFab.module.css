@@ -32,13 +32,20 @@
   box-shadow: 0 20px 44px rgba(0, 0, 0, 0.42);
 }
 
-.close {
+.drawerBody {
+  position: relative;
+  padding-top: 1.1rem;
+}
+
+.cornerButton {
   position: absolute;
   top: 0.65rem;
   right: 0.65rem;
-  z-index: 1;
-  width: 1.85rem;
-  height: 1.85rem;
+  z-index: 2;
+  width: 2.05rem;
+  height: 2.05rem;
+  display: inline-grid;
+  place-items: center;
   border-radius: 0.6rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(8, 10, 16, 0.78);
@@ -46,14 +53,21 @@
   cursor: pointer;
 }
 
-.close:hover,
-.close:focus-visible,
+.cornerButtonActive {
+  border-color: rgba(210, 178, 76, 0.48);
+  background: rgba(210, 178, 76, 0.16);
+  color: #ffe27a;
+}
+
+.cornerButton:hover,
+.cornerButton:focus-visible,
 .iconButton:hover:not(:disabled),
 .iconButton:focus-visible,
 .sidePotential:hover,
 .sidePotential:focus-visible {
   border-color: rgba(210, 178, 76, 0.58);
   background: rgba(210, 178, 76, 0.14);
+  outline: none;
 }
 
 .block,
@@ -68,6 +82,194 @@
   letter-spacing: 0.08rem;
   color: rgba(255, 255, 255, 0.68);
   font-weight: 700;
+}
+
+.campaignPanel {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.campaignHero {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem 3.1rem 0.9rem 0.9rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(210, 178, 76, 0.18);
+  background:
+    radial-gradient(circle at 18% 20%, rgba(139, 124, 243, 0.17), transparent 32%),
+    rgba(255, 255, 255, 0.035);
+}
+
+.campaignTitle {
+  margin: 0.18rem 0 0;
+  color: white;
+  font-size: 1.15rem;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.campaignLink {
+  min-height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  padding: 0.45rem 0.72rem;
+  border-radius: 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.055);
+  color: white;
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.campaignLink:hover,
+.campaignLink:focus-visible {
+  border-color: rgba(210, 178, 76, 0.58);
+  background: rgba(210, 178, 76, 0.13);
+  outline: none;
+}
+
+.broadcastSegmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.broadcastSegment {
+  min-width: 0;
+  min-height: 2.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: white;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.broadcastSegment:disabled {
+  cursor: default;
+  opacity: 0.68;
+}
+
+.broadcastSegment:not(.broadcastSegmentActive):hover:not(:disabled),
+.broadcastSegment:not(.broadcastSegmentActive):focus-visible {
+  border-color: rgba(210, 178, 76, 0.55);
+  background: rgba(210, 178, 76, 0.1);
+  outline: none;
+}
+
+.broadcastSegmentActive {
+  border-color: rgba(255, 226, 122, 0.78);
+  background:
+    radial-gradient(circle at 28% 18%, rgba(255, 226, 122, 0.24), transparent 34%),
+    linear-gradient(145deg, rgba(90, 45, 130, 0.72), rgba(13, 17, 28, 0.94));
+  color: #ffe27a;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 226, 122, 0.2),
+    0 0 0 2px rgba(255, 226, 122, 0.14);
+}
+
+.historyHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.historyStatus {
+  color: rgba(255, 255, 255, 0.54);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.chatFeed {
+  display: grid;
+  gap: 0.72rem;
+}
+
+.chatMessage {
+  max-width: 82%;
+  display: grid;
+  gap: 0.24rem;
+}
+
+.chatMessageExternal {
+  justify-self: start;
+}
+
+.chatMessageSent {
+  justify-self: end;
+  justify-items: end;
+}
+
+.messageEyebrow,
+.sentMeta {
+  max-width: 100%;
+  padding: 0 0.38rem;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.messageBubble {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.58rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  color: white;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.18);
+}
+
+.chatMessageExternal .messageBubble {
+  border-radius: 0.25rem 0.85rem 0.85rem 0.85rem;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.chatMessageSent .messageBubble {
+  border-color: rgba(255, 226, 122, 0.54);
+  border-radius: 0.85rem 0.25rem 0.85rem 0.85rem;
+  background:
+    radial-gradient(circle at 22% 16%, rgba(255, 226, 122, 0.22), transparent 36%),
+    linear-gradient(145deg, rgba(90, 45, 130, 0.78), rgba(13, 17, 28, 0.96));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 226, 122, 0.16),
+    0 12px 24px rgba(0, 0, 0, 0.26),
+    0 0 18px rgba(139, 124, 243, 0.16);
+}
+
+.messageTest {
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.84rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.messageResult {
+  flex: none;
+  color: white;
+  font-size: 1rem;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.chatMessageSent .messageResult {
+  color: #ffe27a;
+}
+
+.historyState {
+  padding: 0.9rem;
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.64);
 }
 
 .potentialCarousel {
