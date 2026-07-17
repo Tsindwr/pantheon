@@ -1,0 +1,54 @@
+name: Announce Release
+description: Send release notes to the shared Supabase post-update function.
+
+inputs:
+  app-name:
+    description: Stable app name, such as site or creosmark.
+    required: true
+  notes-file:
+    description: Path to the release notes JSON file.
+    required: true
+  function-url:
+    description: URL of the deployed Supabase post-update function.
+    required: true
+  shared-secret:
+    description: Shared secret sent in the x-post-update-secret header.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Send release announcement
+      shell: bash
+      env:
+        APP_NAME: ${{ inputs.app-name }}
+        NOTES_FILE: ${{ inputs.notes-file }}
+        SUPABASE_RELEASE_FUNCTION_URL: ${{ inputs.function-url }}
+        SUPABASE_POST_UPDATE_SECRET: ${{ inputs.shared-secret }}
+      run: |
+        set -euo pipefail
+
+        if [ ! -f "$NOTES_FILE" ]; then
+          echo "No release notes file found at ${NOTES_FILE}; skipping ${APP_NAME} announcement."
+          exit 0
+        fi
+
+        if [ -z "$SUPABASE_RELEASE_FUNCTION_URL" ] || [ -z "$SUPABASE_POST_UPDATE_SECRET" ]; then
+          echo "::error title=Missing announcement secrets::Release notes exist, but the Supabase function URL or shared secret is not configured."
+          exit 1
+        fi
+
+        PAYLOAD="$(
+          node -e '
+            const fs = require("node:fs");
+            const [notesFile, appName] = process.argv.slice(1);
+            const payload = JSON.parse(fs.readFileSync(notesFile, "utf8"));
+            payload.appName = appName;
+            process.stdout.write(JSON.stringify(payload));
+          ' "$NOTES_FILE" "$APP_NAME"
+        )"
+
+        curl --fail -sS -X POST "$SUPABASE_RELEASE_FUNCTION_URL" \
+          -H "Content-Type: application/json" \
+          -H "x-post-update-secret: $SUPABASE_POST_UPDATE_SECRET" \
+          -d "$PAYLOAD"

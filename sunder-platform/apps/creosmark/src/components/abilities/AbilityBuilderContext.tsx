@@ -40,10 +40,20 @@ export type AbilityBuilderContextValue = {
     updateSelectedModifier: (updater: (data: ModifierData) => ModifierData) => void;
     updateSelectedFreeform: (updater: (data: FreeformData) => FreeformData) => void;
     updateModifierSelection: (selectionId: string, value: string) => void;
+    updateModifierSelectionByNodeId: (modifierNodeId: string, selectionId: string, value: string) => void;
+    updateModifierSelectionValues: (
+        modifierNodeId: string,
+        updater: (selectionValues: Record<string, string>) => Record<string, string>,
+    ) => void;
+    updateModifierOption: (modifierNodeId: string, optionId: string) => void;
     summary: AbilitySummary;
     hasInvalidState: boolean;
     cardState: AbilityCardState;
     setCardState: React.Dispatch<React.SetStateAction<AbilityCardState>>;
+    canUndo: boolean;
+    canRedo: boolean;
+    onUndo: () => void;
+    onRedo: () => void;
     cardIssues: AbilityCardValidationIssue[];
     nodes: AbilityBuilderNode[];
     edges: Edge[];
@@ -53,6 +63,7 @@ export type AbilityBuilderContextValue = {
     onConnect: (connection: Connection) => void;
     setSelectedNodeId: (id: string | null) => void;
     setSelectedEdgeId: (id: string | null) => void;
+    deleteNodeById: (nodeId: string) => void;
     openPrerequisiteAbilityPicker: (modifierNodeId: string) => void;
     canPublish: boolean;
     hasBlockingCardIssues: boolean;

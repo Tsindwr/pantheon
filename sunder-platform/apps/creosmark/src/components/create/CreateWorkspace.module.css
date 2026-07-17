@@ -1,0 +1,605 @@
+.workspace {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+}
+
+.sidebar {
+    position: fixed;
+    top: 58px;
+    bottom: 0;
+    left: max(14px, calc((100vw - 1400px) / 2 - 292px));
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 232px;
+    padding: 18px 14px 16px;
+    border-radius: 0 1.45rem 1.45rem 0;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-left: none;
+    background: color-mix(in srgb, var(--sunder-bg-elevated) 90%, transparent);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(14px);
+}
+
+.sidebarHeader {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.eyebrow {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sunder-text-dim);
+}
+
+.sidebarTitle,
+.title {
+    margin: 0;
+    color: var(--sunder-text);
+}
+
+.toolButton,
+.primaryButton,
+.secondaryButton,
+.dangerButton,
+.menuButton,
+.sidebarClose,
+.originLibraryTab,
+.iconButton {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: var(--sunder-panel);
+    color: var(--sunder-text);
+    cursor: pointer;
+    font: inherit;
+}
+
+.toolButton {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 42px;
+    padding: 10px 12px;
+    border-radius: 1rem;
+    text-align: left;
+}
+
+.toolButtonActive {
+    border-color: rgba(210, 178, 76, 0.5);
+    background: color-mix(in srgb, var(--sunder-gold) 14%, var(--sunder-panel));
+}
+
+.toolMeta {
+    color: var(--sunder-text-dim);
+    font-size: 0.78rem;
+}
+
+.panel {
+    min-width: 0;
+    width: 100%;
+}
+
+.originBuilder {
+    display: block;
+    min-width: 0;
+}
+
+.section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 18px;
+    border-radius: 1.35rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: var(--sunder-panel);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+}
+
+.originFormSection {
+    width: 100%;
+}
+
+.originLibrary {
+    position: fixed;
+    top: 58px;
+    right: max(14px, calc((100vw - 1400px) / 2 - 292px));
+    bottom: 0;
+    z-index: 30;
+    width: 292px;
+    max-width: calc(14vw);
+    overflow: hidden;
+    border-radius: 1.45rem 0 0 1.45rem;
+    border-right: none;
+    background: color-mix(in srgb, var(--sunder-bg-elevated) 90%, transparent);
+    backdrop-filter: blur(14px);
+}
+
+.originLibrary .savedList {
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.sectionHeader {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.copy {
+    margin: 4px 0 0;
+    color: var(--sunder-text-dim);
+    line-height: 1.5;
+}
+
+.formGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.field,
+.wideField {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    color: var(--sunder-text-dim);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.wideField {
+    grid-column: 1 / -1;
+}
+
+.field input,
+.field select,
+.field textarea,
+.wideField input,
+.wideField select,
+.wideField textarea,
+.searchInput {
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--sunder-text);
+    font: inherit;
+    font-weight: 500;
+    border-radius: 0.95rem;
+    padding: 9px 10px;
+}
+
+.field select option,
+.wideField select option,
+.searchInput option {
+    background: #11151d;
+    color: var(--sunder-text);
+}
+
+.field textarea,
+.wideField textarea {
+    min-height: 96px;
+    resize: vertical;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+    min-height: 38px;
+    padding: 8px 12px;
+    border-radius: 999px;
+}
+
+.primaryButton {
+    border-color: var(--sunder-gold);
+    background: var(--sunder-gold);
+    color: #17130a;
+    font-weight: 800;
+}
+
+.secondaryButton:disabled,
+.primaryButton:disabled,
+.dangerButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.dangerButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border-color: rgba(255, 102, 102, 0.42);
+    background: rgba(255, 102, 102, 0.1);
+    color: #ffd2d2;
+    font-weight: 800;
+}
+
+.status {
+    color: var(--sunder-text-dim);
+    font-size: 0.88rem;
+}
+
+.savedList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.originRow {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    padding: 12px;
+}
+
+.originRowHeader {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.originRowTitle {
+    margin: 0;
+    color: var(--sunder-text);
+    font-size: 1rem;
+    line-height: 1.2;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--sunder-text-dim);
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.rowMeta,
+.rowDescription {
+    margin: 0;
+    color: var(--sunder-text-dim);
+    line-height: 1.45;
+    font-size: 0.88rem;
+}
+
+.originRowActions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.searchInput {
+    margin-bottom: 4px;
+}
+
+.menuButton {
+    position: fixed;
+    top: 62px;
+    left: 12px;
+    z-index: 24;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(17, 21, 29, 0.92);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+}
+
+.originLibraryTab {
+    position: fixed;
+    top: 132px;
+    right: 0;
+    z-index: 24;
+    display: none;
+    place-items: center;
+    width: 46px;
+    height: 48px;
+    padding: 0;
+    border-right: none;
+    border-radius: 999px 0 0 999px;
+    background: rgba(17, 21, 29, 0.92);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+}
+
+.sidebarClose {
+    display: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    padding: 0;
+    place-items: center;
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
+.drawerScrim {
+    position: fixed;
+    inset: 0;
+    z-index: 28;
+    border: 0;
+    background: rgba(3, 5, 10, 0.58);
+    cursor: pointer;
+}
+
+.originLibraryScrim {
+    position: fixed;
+    inset: 0;
+    z-index: 28;
+    border: 0;
+    background: rgba(3, 5, 10, 0.58);
+    cursor: pointer;
+}
+
+.choiceGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px;
+}
+
+.choiceOption {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 8px 10px;
+    border-radius: 0.95rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.045);
+    color: var(--sunder-text);
+    font-size: 0.86rem;
+    font-weight: 650;
+}
+
+.choiceOption input {
+    width: auto;
+    accent-color: var(--sunder-gold);
+}
+
+.badgeInputRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.abilityOptionPicker {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.abilityOptionList {
+    display: grid;
+    gap: 8px;
+}
+
+.abilityOptionRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 40px;
+    padding: 8px 10px;
+    border-radius: 0.95rem;
+    border: 1px solid rgba(210, 178, 76, 0.24);
+    background: rgba(210, 178, 76, 0.1);
+    color: var(--sunder-text);
+    font-size: 0.88rem;
+    font-weight: 750;
+}
+
+.abilityOptionRow span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.badgeList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.optionBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    padding: 6px 8px 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(210, 178, 76, 0.28);
+    background: rgba(210, 178, 76, 0.11);
+    color: var(--sunder-text);
+    font-size: 0.84rem;
+    font-weight: 750;
+}
+
+.badgeRemove {
+    display: inline-grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    background: rgba(5, 7, 12, 0.4);
+    color: var(--sunder-text);
+    cursor: pointer;
+    font: inherit;
+    line-height: 1;
+    justify-content: center;
+}
+
+.abilityPickerStack {
+    display: grid;
+    gap: 8px;
+}
+
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+    background: rgba(3, 5, 10, 0.66);
+    backdrop-filter: blur(8px);
+}
+
+.modalPanel {
+    width: min(480px, 100%);
+    max-height: min(640px, calc(100vh - 36px));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 1.35rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: var(--sunder-panel);
+    color: var(--sunder-text);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+}
+
+.modalHeader {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modalHeader h3 {
+    margin: 4px 0 0;
+    font-size: 1.25rem;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+}
+
+.iconButton {
+    display: inline-grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 auto;
+    padding: 0;
+    border-radius: 999px;
+}
+
+.modalBody {
+    display: grid;
+    gap: 14px;
+    padding: 16px;
+    overflow-y: auto;
+}
+
+.warningText {
+    margin: 0;
+    color: var(--sunder-text-dim);
+    line-height: 1.45;
+}
+
+.fieldLabel {
+    display: grid;
+    gap: 7px;
+    color: var(--sunder-text-dim);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.fieldLabel input {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--sunder-text);
+    font: inherit;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    border-radius: 0.95rem;
+    padding: 9px 10px;
+}
+
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+@media (max-width: 1899px) {
+    .sidebar {
+        left: 0;
+        width: min(286px, calc(100vw - 32px));
+        transform: translateX(-105%);
+        transition: transform 160ms ease;
+    }
+
+    .sidebarOpen {
+        transform: translateX(0);
+    }
+
+    .sidebarClose {
+        display: grid;
+    }
+
+    .menuButton {
+        display: inline-flex;
+    }
+
+    .originLibrary {
+        right: 0;
+        width: min(340px, calc(100vw - 32px));
+        max-width: calc(100vw - 32px);
+        transform: translateX(105%);
+        transition: transform 160ms ease;
+    }
+
+    .originLibraryOpen {
+        transform: translateX(0);
+    }
+
+    .originLibraryTab {
+        display: inline-grid;
+    }
+}
+
+@media (max-width: 720px) {
+    .formGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .sectionHeader {
+        flex-direction: column;
+    }
+}

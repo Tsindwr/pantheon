@@ -1,6 +1,5 @@
-import { useReactFlow, type Edge } from "@xyflow/react";
 import styles from "../../../components/abilities/AbilityBuilderShell.module.css";
-import type { AbilityBuilderNode } from "../../../domain";
+import { useAbilityBuilderContext } from "../../../components/abilities/AbilityBuilderContext";
 
 function TrashIcon() {
     return (
@@ -25,7 +24,7 @@ type NodeDeleteButtonProps = {
 };
 
 export default function NodeDeleteButton({ id, visible }: NodeDeleteButtonProps) {
-    const { setNodes, setEdges } = useReactFlow<AbilityBuilderNode, Edge>();
+    const { deleteNodeById } = useAbilityBuilderContext();
 
     if (!visible) return null;
 
@@ -42,10 +41,7 @@ export default function NodeDeleteButton({ id, visible }: NodeDeleteButtonProps)
                 event.preventDefault();
                 event.stopPropagation();
 
-                setEdges((current) =>
-                    current.filter((edge) => edge.source !== id && edge.target !== id),
-                );
-                setNodes((current) => current.filter((node) => node.id !== id));
+                deleteNodeById(id);
             }}
         >
             <TrashIcon />

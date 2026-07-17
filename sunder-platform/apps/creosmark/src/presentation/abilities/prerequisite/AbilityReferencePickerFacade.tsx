@@ -10,14 +10,19 @@ import {
     listMyCharacterReferenceSummaries,
     listOwnedPrerequisitesForCharacter,
     searchAbilityReferences,
+    describeOriginBoons,
+    formatOriginFacetLabel,
+    searchOriginSelections,
     type AbilityReferenceSummary,
     type CharacterReferenceSummary,
+    type OriginSelectionSummary,
 } from "../../../infrastructure";
 import styles from "./AbilityReferencePickerFacade.module.css";
 import AbilityReferenceEntryRow, {
     type AbilityReferenceEntry,
     type AbilityReferencePickerEntry,
     type ArchetypeReferenceEntry,
+    type OriginReferenceEntry,
 } from "./AbilityReferenceEntryRow";
 
 type ArchetypeFilterValue = "" | "common" | ArchetypeId;
@@ -94,14 +99,16 @@ export default function AbilityReferencePickerFacade({
 
     const [rows, setRows] = useState<AbilityReferenceSummary[]>([]);
     const [lineageRows, setLineageRows] = useState<AbilityReferenceSummary[]>([]);
+    const [originRows, setOriginRows] = useState<OriginSelectionSummary[]>([]);
     const [characters, setCharacters] = useState<CharacterReferenceSummary[]>([]);
     const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
     const [ownedPrerequisitesByCharacter, setOwnedPrerequisitesByCharacter] = useState<
-        Record<string, { abilityIds: string[]; archetypeIds: ArchetypeId[] }>
+        Record<string, { abilityIds: string[]; archetypeIds: ArchetypeId[]; originSelectionIds: string[] }>
     >({});
 
     const [loadingRows, setLoadingRows] = useState(false);
     const [loadingLineageRows, setLoadingLineageRows] = useState(false);
+    const [loadingOriginRows, setLoadingOriginRows] = useState(false);
     const [loadingCharacters, setLoadingCharacters] = useState(false);
     const [loadingOwnedAbilities, setLoadingOwnedAbilities] = useState(false);
     const [errorText, setErrorText] = useState<string | null>(null);
@@ -233,6 +240,44 @@ export default function AbilityReferencePickerFacade({
 
     useEffect(() => {
         if (!open) return;
+
+        let cancelled = false;
+        const timeout = window.setTimeout(async () => {
+            try {
+                setLoadingOriginRows(true);
+                setErrorText(null);
+
+                const items = await searchOriginSelections({
+                    searchText: deferredSearchText,
+                    limit: 300,
+                });
+
+                if (cancelled) return;
+                startTransition(() => {
+                    setOriginRows(items);
+                });
+            } catch (error) {
+                if (cancelled) return;
+                setErrorText(
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to search origin selections.",
+                );
+            } finally {
+                if (!cancelled) {
+                    setLoadingOriginRows(false);
+                }
+            }
+        }, 180);
+
+        return () => {
+            cancelled = true;
+            window.clearTimeout(timeout);
+        };
+    }, [open, deferredSearchText]);
+
+    useEffect(() => {
+        if (!open) return;
         if (!selectedCharacterId) return;
         if (ownedPrerequisitesByCharacter[selectedCharacterId]) return;
 
@@ -280,6 +325,13 @@ export default function AbilityReferencePickerFacade({
         if (!selectedCharacterId) return new Set<ArchetypeId>();
         return new Set(
             ownedPrerequisitesByCharacter[selectedCharacterId]?.archetypeIds ?? [],
+        );
+    }, [ownedPrerequisitesByCharacter, selectedCharacterId]);
+
+    const selectedCharacterOwnedOriginSelectionIds = useMemo(() => {
+        if (!selectedCharacterId) return new Set<string>();
+        return new Set(
+            ownedPrerequisitesByCharacter[selectedCharacterId]?.originSelectionIds ?? [],
         );
     }, [ownedPrerequisitesByCharacter, selectedCharacterId]);
 
@@ -383,9 +435,40 @@ export default function AbilityReferencePickerFacade({
         selectedCharacterOwnedArchetypeIds,
     ]);
 
+    const visibleOriginEntries = useMemo<OriginReferenceEntry[]>(() => {
+        if (selectedArchetypeFilter) return [];
+
+        return originRows.flatMap((row) => {
+            if (
+                selectedCharacterId &&
+                !selectedCharacterOwnedOriginSelectionIds.has(row.id)
+            ) {
+                return [];
+            }
+
+            return [
+                {
+                    ...row,
+                    kind: "origin",
+                    id: `origin:${row.id}`,
+                    originSelectionId: row.id,
+                    experienceCost: describeOriginBoons(row.boons),
+                    prerequisiteText: "Origin Selection",
+                    abilityKind: formatOriginFacetLabel(row.facet),
+                    descriptionText: row.description,
+                },
+            ];
+        });
+    }, [
+        originRows,
+        selectedArchetypeFilter,
+        selectedCharacterId,
+        selectedCharacterOwnedOriginSelectionIds,
+    ]);
+
     const visibleEntries = useMemo<AbilityReferencePickerEntry[]>(
-        () => [...visibleAbilityEntries, ...visibleArchetypeEntries],
-        [visibleAbilityEntries, visibleArchetypeEntries],
+        () => [...visibleAbilityEntries, ...visibleArchetypeEntries, ...visibleOriginEntries],
+        [visibleAbilityEntries, visibleArchetypeEntries, visibleOriginEntries],
     );
 
     if (!open) return null;
@@ -474,7 +557,7 @@ export default function AbilityReferencePickerFacade({
                         <div className={styles.abilityPickerState}>Error: {errorText}</div>
                     ) : null}
 
-                    {loadingRows || loadingLineageRows ? (
+                    {loadingRows || loadingLineageRows || loadingOriginRows ? (
                         <div className={styles.abilityPickerState}>Loading abilities…</div>
                     ) : null}
 
@@ -486,6 +569,7 @@ export default function AbilityReferencePickerFacade({
 
                     {!loadingRows &&
                     !loadingLineageRows &&
+                    !loadingOriginRows &&
                     !loadingOwnedAbilities &&
                     visibleEntries.length === 0 ? (
                         <div className={styles.abilityPickerState}>

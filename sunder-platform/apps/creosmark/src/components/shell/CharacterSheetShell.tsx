@@ -37,6 +37,10 @@ import {
     applyRollResult,
     normalizeFeatureDrivenSheetState,
 } from "../../application/character-sheet/commands.ts";
+import {
+    deriveInventoryAttacks,
+    mergeAttacksWithInventory,
+} from "../../domain/inventory/equipment-derived.ts";
 
 type CharacterSheetShellProps = {
     initialSheet: CharacterSheetState;
@@ -96,6 +100,10 @@ export default function CharacterSheetShell({
         sheet.conditions.minor.length +
         sheet.conditions.major.length +
         sheet.conditions.exhaustion;
+    const attacks = useMemo(
+        () => mergeAttacksWithInventory(sheet.attacks, deriveInventoryAttacks(sheet.inventory)),
+        [sheet.attacks, sheet.inventory],
+    );
 
     const seedRoll = (seed: { potentialKey: PotentialKey; skillName: string }) => {
         setRollBuilderSeed({
@@ -318,7 +326,11 @@ export default function CharacterSheetShell({
 
             <main className={styles.content}>
                 {mode === 'edit' ? (
-                    <EditorWorkspace sheet={sheet} onChange={replaceSheet} />
+                    <EditorWorkspace
+                        sheet={sheet}
+                        onChange={replaceSheet}
+                        assignedCampaign={assignedCampaign}
+                    />
                 ) : (
                     <>
                         {activeTab === "overview" ? (
@@ -342,7 +354,7 @@ export default function CharacterSheetShell({
                         ) : null}
 
                         {activeTab === "actions" ? (
-                            <AttacksPanel attacks={sheet.attacks} onStartRoll={seedRoll}/>
+                            <AttacksPanel attacks={attacks} onStartRoll={seedRoll}/>
                         ) : null}
 
                         {activeTab === "abilities" ? (

@@ -17,6 +17,7 @@ export type ModifierData = {
     family: ModifierFamily;
     lane: AbilityLane;
     description: string;
+    descriptionOverride?: string;
     cost: CostState;
     costOverride?: CostState;
     optionPoolId?: string;

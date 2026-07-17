@@ -14,8 +14,13 @@ export default defineConfig({
             dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
         },
         optimizeDeps: {
-            include: ['@xyflow/react'],
-            exclude: ['@3d-dice/dice-box'],
+            include: [
+                'zustand/traditional',
+                'zustand/vanilla',
+                'zustand/shallow',
+                'use-sync-external-store/shim/with-selector.js',
+            ],
+            exclude: ['@xyflow/react', '@3d-dice/dice-box'],
         },
     },
 });

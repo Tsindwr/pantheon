@@ -31,6 +31,7 @@ type AbilityReferenceSummaryRow = Pick<
 
 export type AbilityReferenceSummary = {
     id: string;
+    ownerId: string;
     title: string;
     author: string;
     abilityKind: string;
@@ -42,6 +43,12 @@ export type AbilityReferenceSummary = {
     descriptionText: string;
     prerequisiteAbilityIds: string[];
     directArchetypeIds: ArchetypeId[];
+    directOriginSelectionIds: string[];
+};
+
+export type CampaignAbilityShareOptions = {
+    rows: AbilityReferenceSummary[];
+    sharedAbilityIds: string[];
 };
 
 export type AbilityReferenceSearchParams = {
@@ -54,6 +61,7 @@ export type CharacterReferenceSummary = Pick<CharacterSheetSummary, "id" | "name
 export type OwnedPrerequisitesForCharacter = {
     abilityIds: string[];
     archetypeIds: ArchetypeId[];
+    originSelectionIds: string[];
 };
 
 export type UserType = "common" | "admin";
@@ -210,6 +218,78 @@ function extractDirectArchetypeIds(document: AbilityPublishDocument): ArchetypeI
     return Array.from(ids);
 }
 
+function extractDirectOriginSelectionIds(document: AbilityPublishDocument): string[] {
+    const ids = new Set<string>();
+
+    for (const node of extractPrerequisiteSelectionNodes(document)) {
+        const id = node.data.selectionValues?.prerequisiteOriginId?.trim();
+        if (id && UUID_PATTERN.test(id)) ids.add(id);
+    }
+
+    return Array.from(ids);
+}
+
+function describeOriginPrerequisiteSelection(node: ModifierAbilityNode): string {
+    const selection = node.data.selectionValues;
+    return (
+        selection?.prerequisiteOriginTitle?.trim() ||
+        selection?.prerequisiteOriginId?.trim() ||
+        "Origin prerequisite"
+    );
+}
+
+function findUnresolvedOriginPrerequisite(document: AbilityPublishDocument): string | null {
+    for (const node of extractPrerequisiteSelectionNodes(document)) {
+        const selection = node.data.selectionValues;
+        const originId = selection?.prerequisiteOriginId?.trim();
+        if (!originId) continue;
+
+        const isTemporary =
+            selection?.prerequisiteOriginTemporary === "true" ||
+            originId.startsWith("draft-bloodline:");
+
+        if (isTemporary || !UUID_PATTERN.test(originId)) {
+            return describeOriginPrerequisiteSelection(node);
+        }
+    }
+
+    return null;
+}
+
+async function assertOriginPrerequisitesCanBePublished(
+    document: AbilityPublishDocument,
+): Promise<void> {
+    const unresolved = findUnresolvedOriginPrerequisite(document);
+    if (unresolved) {
+        throw new Error(
+            `Resolve the draft origin prerequisite "${unresolved}" before uploading this ability.`,
+        );
+    }
+
+    const originSelectionIds = extractDirectOriginSelectionIds(document);
+    if (originSelectionIds.length === 0) return;
+
+    const { data, error } = await supabase
+        .from("origin_selections")
+        .select("id")
+        .in("id", originSelectionIds);
+
+    if (error) throw error;
+
+    const visibleOriginIds = new Set(
+        (data ?? []).map((row) => String((row as { id: string }).id)),
+    );
+    const missingOriginId = originSelectionIds.find(
+        (originSelectionId) => !visibleOriginIds.has(originSelectionId),
+    );
+
+    if (missingOriginId) {
+        throw new Error(
+            `Origin prerequisite ${missingOriginId.slice(0, 8)} is not available to this user.`,
+        );
+    }
+}
+
 function describePrerequisites(document: AbilityPublishDocument): string {
     const prerequisiteNodes = extractPrerequisiteSelectionNodes(document);
     if (prerequisiteNodes.length === 0) return "None";
@@ -228,6 +308,14 @@ function describePrerequisites(document: AbilityPublishDocument): string {
                 ARCHETYPES.find((entry) => entry.id === explicitArchetype)?.label ??
                 explicitArchetype
             );
+        }
+
+        const explicitOriginTitle = selection?.prerequisiteOriginTitle?.trim();
+        if (explicitOriginTitle) return explicitOriginTitle;
+
+        const explicitOriginId = selection?.prerequisiteOriginId?.trim();
+        if (explicitOriginId) {
+            return `Origin ${explicitOriginId.slice(0, 8)}`;
         }
 
         const explicitAbilityId = selection?.prerequisiteAbilityId?.trim();
@@ -313,6 +401,7 @@ function toAbilityReferenceSummary(
 
     return {
         id: row.id,
+        ownerId: row.owner_id,
         title: row.title,
         author,
         abilityKind: row.ability_kind,
@@ -324,6 +413,7 @@ function toAbilityReferenceSummary(
         descriptionText: describeAbilityBody(document),
         prerequisiteAbilityIds: extractPrerequisiteAbilityIds(document),
         directArchetypeIds: extractDirectArchetypeIds(document),
+        directOriginSelectionIds: extractDirectOriginSelectionIds(document),
     };
 }
 
@@ -491,6 +581,28 @@ function extractOwnedArchetypeIds(row: CharacterSheetRow): ArchetypeId[] {
     return Array.from(ids);
 }
 
+function extractOwnedOriginSelectionIds(row: CharacterSheetRow): string[] {
+    const ids = new Set<string>();
+    const sheet = row.sheet_json as Record<string, unknown>;
+    const originSelections = sheet.originSelections;
+
+    if (!originSelections || typeof originSelections !== "object") {
+        return [];
+    }
+
+    for (const value of Object.values(originSelections as Record<string, unknown>)) {
+        if (!value || typeof value !== "object") continue;
+
+        const record = value as Record<string, unknown>;
+        const originSelectionId = record.originSelectionId;
+        if (typeof originSelectionId === "string" && UUID_PATTERN.test(originSelectionId)) {
+            ids.add(originSelectionId);
+        }
+    }
+
+    return Array.from(ids);
+}
+
 async function requireUserId(): Promise<string> {
     const {
         data: { user },
@@ -507,6 +619,7 @@ export async function publishAbilityDocument(
     document: AbilityPublishDocument,
 ): Promise<PublishedAbilityResult> {
     const userId = await requireUserId();
+    await assertOriginPrerequisitesCanBePublished(document);
 
     const { data, error } = await supabase
         .from("abilities")
@@ -642,6 +755,134 @@ export async function getAbilityReferenceById(
     return toAbilityReferenceSummary(data as AbilityReferenceSummaryRow, currentUserId);
 }
 
+type CampaignSharedAbilityRow = {
+    campaign_id: string;
+    ability_id: string;
+    shared_by: string;
+    created_at: string;
+};
+
+export async function listCampaignSharedAbilityIds(
+    campaignId: string,
+): Promise<string[]> {
+    const { data, error } = await supabase
+        .from("campaign_shared_abilities")
+        .select("ability_id")
+        .eq("campaign_id", campaignId);
+
+    if (error) throw error;
+
+    return Array.from(
+        new Set(
+            ((data ?? []) as CampaignSharedAbilityRow[])
+                .map((row) => row.ability_id)
+                .filter(Boolean),
+        ),
+    );
+}
+
+export async function listCampaignAbilityShareOptions(
+    campaignId: string,
+): Promise<CampaignAbilityShareOptions> {
+    const userId = await requireUserId();
+    const [sharedAbilityIds, ownedResult] = await Promise.all([
+        listCampaignSharedAbilityIds(campaignId),
+        supabase
+            .from("abilities")
+            .select(ABILITY_REFERENCE_FIELDS)
+            .eq("owner_id", userId)
+            .order("ability_kind", { ascending: true })
+            .order("updated_at", { ascending: false }),
+    ]);
+
+    if (ownedResult.error) throw ownedResult.error;
+
+    return {
+        rows: ((ownedResult.data ?? []) as AbilityReferenceSummaryRow[]).map((row) =>
+            toAbilityReferenceSummary(row, userId),
+        ),
+        sharedAbilityIds,
+    };
+}
+
+export async function updateCampaignSharedAbilities(
+    campaignId: string,
+    abilityIds: string[],
+): Promise<string[]> {
+    const userId = await requireUserId();
+    const nextIds = Array.from(
+        new Set(
+            abilityIds
+                .map((id) => id.trim())
+                .filter(Boolean),
+        ),
+    );
+
+    if (nextIds.length > 0) {
+        const { data: shareableRows, error: shareableError } = await supabase
+            .from("abilities")
+            .select("id")
+            .eq("owner_id", userId)
+            .in("id", nextIds);
+
+        if (shareableError) throw shareableError;
+
+        const shareableIds = new Set(
+            ((shareableRows ?? []) as Array<{ id: string }>).map((row) => row.id),
+        );
+        const missingId = nextIds.find((id) => !shareableIds.has(id));
+        if (missingId) {
+            throw new Error("Only your abilities can be shared.");
+        }
+    }
+
+    const [{ data: ownedRows, error: ownedError }, currentSharedIds] =
+        await Promise.all([
+            supabase
+                .from("abilities")
+                .select("id")
+                .eq("owner_id", userId),
+            listCampaignSharedAbilityIds(campaignId),
+        ]);
+
+    if (ownedError) throw ownedError;
+
+    const ownedIds = new Set(
+        ((ownedRows ?? []) as Array<{ id: string }>).map((row) => row.id),
+    );
+    const currentOwnSharedIds = currentSharedIds.filter((id) => ownedIds.has(id));
+    const nextIdSet = new Set(nextIds);
+    const currentOwnSharedIdSet = new Set(currentOwnSharedIds);
+    const idsToRemove = currentOwnSharedIds.filter((id) => !nextIdSet.has(id));
+    const idsToAdd = nextIds.filter((id) => !currentOwnSharedIdSet.has(id));
+
+    if (idsToRemove.length > 0) {
+        const { error } = await supabase
+            .from("campaign_shared_abilities")
+            .delete()
+            .eq("campaign_id", campaignId)
+            .in("ability_id", idsToRemove);
+
+        if (error) throw error;
+    }
+
+    if (idsToAdd.length > 0) {
+        const { error } = await supabase
+            .from("campaign_shared_abilities")
+            .insert(
+                idsToAdd.map((abilityId) => ({
+                    campaign_id: campaignId,
+                    ability_id: abilityId,
+                    shared_by: userId,
+                })),
+            );
+
+        if (error && error.code !== "23505") throw error;
+    }
+
+    return listCampaignSharedAbilityIds(campaignId);
+}
+
 export async function listMyCharacterReferenceSummaries(): Promise<CharacterReferenceSummary[]> {
     const summaries = await listMyCharacterSheets();
     return summaries.map((summary) => ({
@@ -665,12 +906,14 @@ export async function listOwnedPrerequisitesForCharacter(
         return {
             abilityIds: [],
             archetypeIds: [],
+            originSelectionIds: [],
         };
     }
 
     return {
         abilityIds: extractOwnedAbilityIds(row),
         archetypeIds: extractOwnedArchetypeIds(row),
+        originSelectionIds: extractOwnedOriginSelectionIds(row),
     };
 }
 

@@ -59,6 +59,7 @@ export type InventoryItem = {
     targetPotential?: string;
     range?: string;
     properties?: string[];
+    specialPropertyDescription?: string;
 
     protectionMax?: number;
     protectionOpen?: number;

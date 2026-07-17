@@ -1,0 +1,10 @@
+[vite] connected.
+[2m16:42:16[22m [34m[types][39m Generated [2m1ms[22m
+[2m16:42:16[22m [34m[vite][39m Re-optimizing dependencies because vite config has changed
+[42m[1m astro [22m[49m [32mv6.3.1[39m [2mready in[22m 1919 [2mms[22m
+[2m┃[22m Local    [36mhttp://127.0.0.1:4321/[39m
+[2m16:42:16[22m [32mwatching for file changes...[39m
+[2m09:13:09[22m Configuration file updated. Restarting...
+[vite] connected.
+[2m09:13:14[22m [34m[vite][39m Re-optimizing dependencies because vite config has changed
+[2m09:13:15[22m [34m[vite][39m server restarted.

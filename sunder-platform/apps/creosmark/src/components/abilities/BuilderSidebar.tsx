@@ -4,6 +4,7 @@ import AbilityCardInspectorSidebar from "../../presentation/abilities/AbilityCar
 import AbilityRootInspector from "../../presentation/abilities/inspectors/AbilityRootInspector";
 import FreeformInspector from "../../presentation/abilities/inspectors/FreeformInspector";
 import ModifierInspector from "../../presentation/abilities/inspectors/ModifierInspector";
+import { deriveActivationProfile } from "../../domain";
 import { useAbilityBuilderContext } from "./AbilityBuilderContext";
 
 export default function BuilderSidebar() {
@@ -23,6 +24,7 @@ export default function BuilderSidebar() {
         updateSelectedModifier,
         updateSelectedFreeform,
         updateModifierSelection,
+        updateModifierOption,
         summary,
         hasInvalidState,
         cardState,
@@ -30,6 +32,7 @@ export default function BuilderSidebar() {
         cardIssues,
         nodes,
     } = useAbilityBuilderContext();
+    const activationProfile = deriveActivationProfile(nodes);
 
     return (
         <aside className={styles.sidebar}>
@@ -190,7 +193,12 @@ export default function BuilderSidebar() {
                                                 node={selectedNode}
                                                 selectedModifierResolved={selectedModifierResolved}
                                                 selectedModifierOptionPool={selectedModifierOptionPool}
+                                                isSplitActionCard={activationProfile.isSplitActionCard}
+                                                focusSide={activationProfile.focusSide}
                                                 onChange={updateSelectedModifier}
+                                                onOptionChange={(optionId) =>
+                                                    updateModifierOption(selectedNode.id, optionId)
+                                                }
                                                 onSelectionChange={updateModifierSelection}
                                             />
                                         ) : null}
@@ -198,6 +206,8 @@ export default function BuilderSidebar() {
                                         {selectedNode.type === "freeformText" ? (
                                             <FreeformInspector
                                                 node={selectedNode}
+                                                isSplitActionCard={activationProfile.isSplitActionCard}
+                                                focusSide={activationProfile.focusSide}
                                                 onChange={updateSelectedFreeform}
                                             />
                                         ) : null}

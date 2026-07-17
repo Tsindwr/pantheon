@@ -878,6 +878,16 @@ export default function PotentialWidget({
 
           const isLeftmostActive = isEnabled && index === 0;
           const isRightmostActive = isEnabled && index === activeSlots - 1;
+          const toggleNode =
+            isLeftmostActive && isRightmostActive
+              ? state === "resistance"
+                ? toggleResistFromRightmost
+                : toggleStressFromLeftmost
+              : isLeftmostActive
+                ? toggleStressFromLeftmost
+                : isRightmostActive
+                  ? toggleResistFromRightmost
+                  : undefined;
 
           return (
             <PotentialTrackNode
@@ -886,13 +896,7 @@ export default function PotentialWidget({
               r={innerNodeR}
               state={state}
               interactive={Boolean(onChange && (isLeftmostActive || isRightmostActive))}
-              onClick={
-                isLeftmostActive
-                  ? toggleStressFromLeftmost
-                  : isRightmostActive
-                    ? toggleResistFromRightmost
-                    : undefined
-              }
+              onClick={toggleNode}
             />
           );
         }}

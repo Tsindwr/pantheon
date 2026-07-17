@@ -78,6 +78,30 @@
     background: rgba(210, 178, 76, 0.3);
 }
 
+.searchBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.42rem;
+    padding: 0.45rem 0.8rem;
+    border-radius: 0.65rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.86);
+    font: inherit;
+    font-size: 0.83rem;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.searchBtn:hover,
+.searchBtn:focus-visible {
+    border-color: rgba(210, 178, 76, 0.38);
+    background: rgba(210, 178, 76, 0.12);
+    outline: none;
+}
+
 /* ── Content area ── */
 .content {
     display: grid;
@@ -375,6 +399,170 @@
     margin-bottom: 0.25rem;
 }
 
+.propertySelect {
+    position: relative;
+}
+
+.propertySelectButton {
+    width: 100%;
+    min-height: 2.32rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.65rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(10, 10, 14, 0.85);
+    color: white;
+    font: inherit;
+    font-size: 0.84rem;
+    cursor: pointer;
+    text-align: left;
+}
+
+.propertySelectButton:hover,
+.propertySelectButton:focus-visible,
+.propertySelectButton[aria-expanded="true"] {
+    border-color: rgba(210, 178, 76, 0.42);
+    outline: none;
+}
+
+.propertySelectText {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.propertySelectChevron {
+    color: rgba(255, 255, 255, 0.5);
+    flex: 0 0 auto;
+}
+
+.propertyMenu {
+    position: absolute;
+    z-index: 12;
+    top: calc(100% + 0.35rem);
+    right: 0;
+    left: 0;
+    max-height: min(23rem, 58vh);
+    overflow-y: auto;
+    display: grid;
+    gap: 0.45rem;
+    padding: 0.55rem;
+    border-radius: 0.7rem;
+    border: 1px solid rgba(210, 178, 76, 0.26);
+    background: rgba(9, 10, 16, 0.98);
+    box-shadow: 0 18px 38px rgba(0, 0, 0, 0.42);
+}
+
+.propertyGroup {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.propertyGroupLabel {
+    padding: 0.25rem 0.25rem 0.1rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.48);
+}
+
+.propertyOption {
+    display: grid;
+    grid-template-columns: 0.95rem minmax(0, 1fr);
+    align-items: center;
+    justify-items: start;
+    gap: 0.5rem;
+    min-height: 2rem;
+    padding: 0.35rem 0.45rem;
+    border-radius: 0.5rem;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.84rem;
+    cursor: pointer;
+    text-align: left;
+}
+
+.propertyOption:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.propertyOption input {
+    width: 0.9rem;
+    height: 0.9rem;
+    margin: 0;
+    accent-color: var(--sunder-gold, #d2b24c);
+}
+
+.propertyOption span {
+    min-width: 0;
+}
+
+.propertyPillList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.editablePropertyPill,
+.legacyPropertyPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    max-width: 100%;
+    padding: 0.18rem 0.28rem 0.18rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.76);
+    font-size: 0.72rem;
+}
+
+.legacyPropertyPill {
+    border-color: rgba(255, 255, 255, 0.14);
+    color: rgba(255, 255, 255, 0.58);
+}
+
+.editablePropertyPill span,
+.legacyPropertyPill span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.editablePropertyPill button,
+.legacyPropertyPill button {
+    width: 1.15rem;
+    height: 1.15rem;
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border: none;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.72);
+    font: inherit;
+    font-size: 0.72rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.editablePropertyPill button:hover,
+.legacyPropertyPill button:hover {
+    background: rgba(255, 107, 107, 0.16);
+    color: #ffb3b3;
+}
+
+.propertyParameterGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
 .subtleButton {
     padding: 0.38rem 0.65rem;
     border-radius: 0.6rem;
@@ -449,6 +637,135 @@
     font-size: 0.88rem;
 }
 
+.catalogPanel {
+    display: grid;
+    gap: 0.8rem;
+}
+
+.catalogSearchRow {
+    display: grid;
+    grid-template-columns: 1rem minmax(0, 1fr);
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.7rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(10, 10, 14, 0.85);
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.catalogSearchInput {
+    width: 100%;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    color: white;
+    font: inherit;
+    font-size: 0.86rem;
+    outline: none;
+}
+
+.catalogFilterRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.catalogFilterButton {
+    padding: 0.34rem 0.68rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.72);
+    font: inherit;
+    font-size: 0.76rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.catalogFilterButton:hover,
+.catalogFilterButton:focus-visible {
+    border-color: rgba(210, 178, 76, 0.38);
+    outline: none;
+}
+
+.catalogFilterButtonActive {
+    border-color: rgba(210, 178, 76, 0.42);
+    background: rgba(210, 178, 76, 0.16);
+    color: var(--sunder-gold, #d2b24c);
+}
+
+.catalogList {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.catalogItem {
+    display: grid;
+    gap: 0.55rem;
+    padding: 0.7rem;
+    border-radius: 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.catalogItemHeader {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.catalogItemHeader h3 {
+    margin: 0.1rem 0 0;
+    color: white;
+    font-size: 0.98rem;
+    line-height: 1.15;
+}
+
+.catalogItemType {
+    color: rgba(255, 255, 255, 0.48);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.catalogAddButton {
+    flex: 0 0 auto;
+    padding: 0.4rem 0.65rem;
+    border-radius: 0.6rem;
+    border: 1px solid rgba(210, 178, 76, 0.32);
+    background: rgba(210, 178, 76, 0.14);
+    color: var(--sunder-gold, #d2b24c);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 850;
+    cursor: pointer;
+}
+
+.catalogAddButton:hover,
+.catalogAddButton:focus-visible {
+    background: rgba(210, 178, 76, 0.22);
+    outline: none;
+}
+
+.catalogMeta,
+.catalogPropertyList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.catalogMeta span {
+    padding: 0.18rem 0.48rem;
+    border-radius: 999px;
+    background: rgba(139, 124, 243, 0.12);
+    color: #c1b2ff;
+    font-size: 0.72rem;
+    font-weight: 750;
+}
+
 @media (max-width: 700px) {
     .listHeader,
     .itemRow {
@@ -475,6 +792,10 @@
     }
 
     .detailRow {
+        grid-template-columns: 1fr;
+    }
+
+    .propertyParameterGrid {
         grid-template-columns: 1fr;
     }
 }

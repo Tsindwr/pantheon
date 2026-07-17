@@ -282,6 +282,22 @@ export type RollComposerDraft = {
 };
 
 export type OriginFacetState = {
+  originSelectionId?: string;
+  originSelectionTitle?: string;
+  originSelectionFacet?: string;
+  skillNameOptions?: string[];
+  knackNameOptions?: string[];
+  equipmentItems?: string[];
+  equipmentNoteOptions?: string[];
+  minorGoalLabelOptions?: string[];
+  majorGoalLabelOptions?: string[];
+  domainIdOptions?: DomainId[];
+  potentialKeyOptions?: PotentialKey[];
+  abilitySummaryOptions?: string[];
+  specialAbilityIds?: string[];
+  specialAbilityTitles?: string[];
+  specialAbilityId?: string;
+  specialAbilityTitle?: string;
   name?: string;
   notes?: string;
   skillName?: string;

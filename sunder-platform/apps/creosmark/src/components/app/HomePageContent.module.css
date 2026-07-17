@@ -1,0 +1,36 @@
+.authCheckBody {
+    height: auto;
+    align-content: start;
+    align-items: start;
+}
+
+.authCheckMain {
+    justify-self: start;
+    width: min(100%, 21rem);
+    height: auto;
+    min-height: 0;
+    padding: 0.7rem 0.85rem;
+    border-radius: 0.85rem;
+    overflow: visible;
+}
+
+.authCheckStatus {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-height: 1.8rem;
+    color: rgba(245, 247, 251, 0.78);
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.authCheckDot {
+    width: 0.55rem;
+    height: 0.55rem;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: var(--sunder-gold);
+    box-shadow: 0 0 0 0.22rem rgba(210, 178, 76, 0.13);
+}

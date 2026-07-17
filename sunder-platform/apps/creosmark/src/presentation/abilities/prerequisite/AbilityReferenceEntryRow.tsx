@@ -1,5 +1,8 @@
 import React from "react";
-import type { AbilityReferenceSummary } from "../../../infrastructure";
+import type {
+    AbilityReferenceSummary,
+    OriginSelectionSummary,
+} from "../../../infrastructure";
 import type { ArchetypeId } from "../../../lib/sheet-data.ts";
 import styles from "./AbilityReferencePickerFacade.module.css";
 
@@ -17,9 +20,20 @@ export type AbilityReferenceEntry = AbilityReferenceSummary & {
     kind: "ability";
 };
 
+export type OriginReferenceEntry = OriginSelectionSummary & {
+    kind: "origin";
+    id: string;
+    originSelectionId: string;
+    experienceCost: string;
+    prerequisiteText: string;
+    abilityKind: string;
+    descriptionText: string;
+};
+
 export type AbilityReferencePickerEntry =
     | AbilityReferenceEntry
-    | ArchetypeReferenceEntry;
+    | ArchetypeReferenceEntry
+    | OriginReferenceEntry;
 
 type AbilityReferenceEntryRowProps = {
     entry: AbilityReferencePickerEntry;
@@ -42,7 +56,7 @@ export default function AbilityReferenceEntryRow({
     actionTone = "default",
     actionDisabled,
 }: AbilityReferenceEntryRowProps) {
-    const isExpandable = entry.kind === "ability";
+    const isExpandable = entry.kind === "ability" || entry.kind === "origin";
     const resolvedActionLabel = actionLabel ?? (selected ? "Selected" : "Use");
     const resolvedActionDisabled = actionDisabled ?? selected;
 
@@ -85,13 +99,27 @@ export default function AbilityReferenceEntryRow({
                 <span>{entry.author}</span>
             </div>
 
-            {isExpandable && expanded ? (
+            {entry.kind === "ability" && expanded ? (
                 <div className={styles.abilityEntryExpanded}>
                     <div>
                         <strong>Prerequisite:</strong> {entry.prerequisiteText}
                     </div>
                     <div>
                         <strong>Kind:</strong> {entry.abilityKind}
+                    </div>
+                    <div>
+                        <strong>Summary:</strong> {entry.descriptionText || "No summary available."}
+                    </div>
+                </div>
+            ) : null}
+
+            {entry.kind === "origin" && expanded ? (
+                <div className={styles.abilityEntryExpanded}>
+                    <div>
+                        <strong>Type:</strong> {entry.abilityKind}
+                    </div>
+                    <div>
+                        <strong>Boons:</strong> {entry.experienceCost}
                     </div>
                     <div>
                         <strong>Summary:</strong> {entry.descriptionText || "No summary available."}

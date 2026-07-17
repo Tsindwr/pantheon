@@ -10,6 +10,7 @@ import BuilderPotentialRoller, {
 import styles from './CharacterBuilderShell.module.css';
 import { applyRolledPotentialBaseScore } from "../../application";
 import { routes } from "../../lib/routing.ts";
+import type { CampaignAssignment } from "../../types/roll-feed.ts";
 
 const BUILDER_STEPS = [
     { id: 'identity', label: '1. Identity' },
@@ -29,6 +30,7 @@ type CharacterBuilderShellProps = {
     saveState?: 'idle' | 'saving' | 'saved' | 'error';
     characterId?: string;
     onRequestView?: () => void;
+    assignedCampaign?: CampaignAssignment | null;
 };
 
 export default function CharacterBuilderShell({
@@ -37,6 +39,7 @@ export default function CharacterBuilderShell({
     saveState = 'idle',
     characterId,
     onRequestView,
+    assignedCampaign = null,
 }: CharacterBuilderShellProps) {
     const [step, setStep] = useState<BuilderStepId>('identity');
     const [rollRequest, setRollRequest] =
@@ -105,6 +108,7 @@ export default function CharacterBuilderShell({
                     onChange={onChange}
                     forcedTab={step}
                     hideNav
+                    assignedCampaign={assignedCampaign}
                     onRequestPotentialRoll={(potential) => {
                         setRollRequest({
                             potentialKey: potential.key,

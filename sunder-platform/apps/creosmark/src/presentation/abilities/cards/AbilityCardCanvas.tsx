@@ -9,6 +9,10 @@ type Props = {
     title: string;
     subtitle?: string;
     onCardStateChange: (next: AbilityCardState) => void;
+    canUndo?: boolean;
+    canRedo?: boolean;
+    onUndo?: () => void;
+    onRedo?: () => void;
 };
 
 export default function AbilityCardCanvas({
@@ -17,8 +21,12 @@ export default function AbilityCardCanvas({
     title,
     subtitle,
     onCardStateChange,
+    canUndo = false,
+    canRedo = false,
+    onUndo,
+    onRedo,
 }: Props) {
-    const [previewMode, setPreviewMode] = useState<"edit" | "preview">("preview");
+    const [previewMode, setPreviewMode] = useState<"edit" | "preview">("edit");
 
     return (
         <div className={styles.cardCanvasWorkspace}>
@@ -41,10 +49,18 @@ export default function AbilityCardCanvas({
                 <button
                     type="button"
                     className={styles.cardModeButton}
-                    disabled
-                    title="Undo is planned for command history."
+                    disabled={!canUndo || !onUndo}
+                    onClick={onUndo}
                 >
                     Undo
+                </button>
+                <button
+                    type="button"
+                    className={styles.cardModeButton}
+                    disabled={!canRedo || !onRedo}
+                    onClick={onRedo}
+                >
+                    Redo
                 </button>
             </div>
 

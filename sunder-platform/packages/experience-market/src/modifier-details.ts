@@ -66,18 +66,35 @@ const POOL_DETAIL_SCHEMAS: Record<string, ModifierDetailSchema[]> = {
     activationType: [
         {
             id: "focusSide",
-            label: "Focus",
+            label: "Card Side",
             optionPoolId: "cardSideRef",
             defaultOptionId: "direct",
         },
     ],
 };
 
+const SPLIT_ACTION_DETAIL_OPTION_IDS = new Set([
+    "action",
+    "twoActions",
+    "minute",
+    "ritual",
+]);
+
+function getPoolDetailSchemas(data: ModifierData): ModifierDetailSchema[] {
+    if (data.optionPoolId !== "activationType") {
+        return POOL_DETAIL_SCHEMAS[data.optionPoolId ?? ""] ?? [];
+    }
+
+    return SPLIT_ACTION_DETAIL_OPTION_IDS.has(data.selectedOptionId ?? "")
+        ? POOL_DETAIL_SCHEMAS.activationType
+        : [];
+}
+
 const BASE_DETAIL_SCHEMAS: Record<string, ModifierDetailSchema[]> = {
     // "activationType:action": [
     //     {
     //         id: "focusSide",
-    //         label: "Focus",
+    //         label: "Card Side",
     //         optionPoolId: "cardSideRef",
     //         defaultOptionId: "direct",
     //     },
@@ -308,7 +325,7 @@ const BASE_DETAIL_SCHEMAS: Record<string, ModifierDetailSchema[]> = {
 
 export function getModifierDetailSchemas(data: ModifierData): ModifierDetailSchema[] {
     const schemas = [
-        ...(POOL_DETAIL_SCHEMAS[data.optionPoolId ?? ""] ?? []),
+        ...getPoolDetailSchemas(data),
         ...(BASE_DETAIL_SCHEMAS[baseKey(data)] ?? [])
     ];
 

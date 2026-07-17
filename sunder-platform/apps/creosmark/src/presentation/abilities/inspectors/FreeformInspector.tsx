@@ -1,12 +1,33 @@
 import styles from "../../../components/abilities/AbilityBuilderShell.module.css";
-import type { AbilityLane, FreeformData, FreeformNodeType } from "../../../domain";
+import type {
+    CardSideRef,
+    FreeformData,
+    FreeformNodeType,
+} from "../../../domain";
+import {
+    getCardSideForLane,
+    getLaneControlOptions,
+    getLaneForCardSide,
+    type LaneControlValue,
+} from "./laneControls";
 
 type FreeformInspectorProps = {
     node: FreeformNodeType;
+    isSplitActionCard: boolean;
+    focusSide: CardSideRef;
     onChange: (updater: (data: FreeformData) => FreeformData) => void;
 };
 
-export default function FreeformInspector({ node, onChange }: FreeformInspectorProps) {
+export default function FreeformInspector({
+    node,
+    isSplitActionCard,
+    focusSide,
+    onChange,
+}: FreeformInspectorProps) {
+    const laneControlOptions = getLaneControlOptions(node.data.lane, isSplitActionCard);
+    const laneControlValue = getCardSideForLane(node.data.lane, focusSide);
+    const laneControlDisabled = laneControlOptions.length === 1;
+
     return (
         <div className={styles.editorStack}>
             <label className={styles.field}>
@@ -22,23 +43,30 @@ export default function FreeformInspector({ node, onChange }: FreeformInspectorP
                 />
             </label>
 
-            <label className={styles.field}>
-                <span>Lane</span>
-                <select
-                    value={node.data.lane}
-                    onChange={(event) =>
-                        onChange((data) => ({
-                            ...data,
-                            lane: event.target.value as AbilityLane,
-                        }))
-                    }
-                >
-                    <option value="body">Body</option>
-                    <option value="focus">Focus</option>
-                    <option value="flipside">Flipside</option>
-                    <option value="option">Option</option>
-                </select>
-            </label>
+            {laneControlOptions.length > 0 ? (
+                <label className={styles.field}>
+                    <span>Lane</span>
+                    <select
+                        value={laneControlValue}
+                        disabled={laneControlDisabled}
+                        onChange={(event) =>
+                            onChange((data) => ({
+                                ...data,
+                                lane: getLaneForCardSide(
+                                    event.target.value as LaneControlValue,
+                                    focusSide,
+                                ),
+                            }))
+                        }
+                    >
+                        {laneControlOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+            ) : null}
 
             <label className={styles.field}>
                 <span>Text</span>

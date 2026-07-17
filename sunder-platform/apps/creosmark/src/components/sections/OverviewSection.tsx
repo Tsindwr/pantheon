@@ -11,6 +11,11 @@ import {
 } from "../../application/experience/experience-facade.ts";
 import type { CampaignLoomState } from "../../lib/campaign-loom.ts";
 import { getCampaignLoomMetrics } from "../../lib/campaign-loom.ts";
+import {
+  deriveInventoryArmorPieces,
+  mergeArmorWithInventory,
+  splitArmorUpdatesBySource,
+} from "../../domain/inventory/equipment-derived.ts";
 
 type OverviewSectionProps = {
   sheet: CharacterSheetState;
@@ -33,6 +38,10 @@ export default function OverviewSection({
   const campaignLoomMetrics = campaignLoom
     ? getCampaignLoomMetrics(campaignLoom)
     : null;
+  const armorPieces = React.useMemo(
+    () => mergeArmorWithInventory(sheet.armor, deriveInventoryArmorPieces(sheet.inventory)),
+    [sheet.armor, sheet.inventory],
+  );
 
   return (
     <section className={styles.layout}>
@@ -73,8 +82,15 @@ export default function OverviewSection({
 
       <div className={styles.armor}>
         <ArmorProtectionTracker
-          pieces={sheet.armor}
-          onChange={(armor) => onChange({ ...sheet, armor })}
+          pieces={armorPieces}
+          onChange={(nextPieces) => {
+            const next = splitArmorUpdatesBySource(nextPieces, sheet.inventory);
+            onChange({
+              ...sheet,
+              armor: next.sheetArmor,
+              inventory: next.inventory,
+            });
+          }}
         />
       </div>
     </section>

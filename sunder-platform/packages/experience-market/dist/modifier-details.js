@@ -39,17 +39,31 @@ const POOL_DETAIL_SCHEMAS = {
     activationType: [
         {
             id: "focusSide",
-            label: "Focus",
+            label: "Card Side",
             optionPoolId: "cardSideRef",
             defaultOptionId: "direct",
         },
     ],
 };
+const SPLIT_ACTION_DETAIL_OPTION_IDS = new Set([
+    "action",
+    "twoActions",
+    "minute",
+    "ritual",
+]);
+function getPoolDetailSchemas(data) {
+    if (data.optionPoolId !== "activationType") {
+        return POOL_DETAIL_SCHEMAS[data.optionPoolId ?? ""] ?? [];
+    }
+    return SPLIT_ACTION_DETAIL_OPTION_IDS.has(data.selectedOptionId ?? "")
+        ? POOL_DETAIL_SCHEMAS.activationType
+        : [];
+}
 const BASE_DETAIL_SCHEMAS = {
     // "activationType:action": [
     //     {
     //         id: "focusSide",
-    //         label: "Focus",
+    //         label: "Card Side",
     //         optionPoolId: "cardSideRef",
     //         defaultOptionId: "direct",
     //     },
@@ -258,7 +272,7 @@ const BASE_DETAIL_SCHEMAS = {
 };
 export function getModifierDetailSchemas(data) {
     const schemas = [
-        ...(POOL_DETAIL_SCHEMAS[data.optionPoolId ?? ""] ?? []),
+        ...getPoolDetailSchemas(data),
         ...(BASE_DETAIL_SCHEMAS[baseKey(data)] ?? [])
     ];
     const minorConditionName = data.selectionValues?.minorConditionName;

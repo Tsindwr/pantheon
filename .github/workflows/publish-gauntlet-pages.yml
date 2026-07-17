@@ -1,0 +1,111 @@
+name: Publish Gauntlet Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "sunder-platform/apps/gauntlet/**"
+      - ".github/workflows/publish-gauntlet-pages.yml"
+  workflow_dispatch:
+    inputs:
+      force_publish:
+        description: "Publish even if no relevant app files changed."
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-gauntlet-pages
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect Gauntlet changes
+    runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.detect.outputs.should_publish }}
+
+    steps:
+      - name: Detect relevant changes
+        id: detect
+        shell: bash
+        env:
+          FORCE_PUBLISH: ${{ github.event_name == 'workflow_dispatch' && inputs.force_publish }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+
+          if [ "$FORCE_PUBLISH" = "true" ]; then
+            echo "Manual force publish requested."
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          node <<'NODE' > /tmp/gauntlet-changed-files.txt
+          const fs = require("node:fs");
+          const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
+          const files = new Set();
+
+          for (const commit of event.commits ?? []) {
+            for (const key of ["added", "modified", "removed"]) {
+              for (const file of commit[key] ?? []) {
+                files.add(file);
+              }
+            }
+          }
+
+          for (const file of files) {
+            console.log(file);
+          }
+          NODE
+
+          cat /tmp/gauntlet-changed-files.txt
+
+          if [ "$EVENT_NAME" = "push" ] && [ ! -s /tmp/gauntlet-changed-files.txt ]; then
+            echo "No changed files were available in the push payload; publishing to avoid missing a Gauntlet deploy."
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          SHOULD_PUBLISH=false
+          while IFS= read -r file; do
+            case "$file" in
+              sunder-platform/apps/gauntlet/*|.github/workflows/publish-gauntlet-pages.yml)
+                SHOULD_PUBLISH=true
+                break
+                ;;
+            esac
+          done < /tmp/gauntlet-changed-files.txt
+
+          echo "should_publish=$SHOULD_PUBLISH" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Build and publish Gauntlet
+    needs: changes
+    if: needs.changes.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build static artifact
+        working-directory: sunder-platform/apps/gauntlet
+        run: node scripts/build.mjs
+
+      - name: Publish public GitHub Pages
+        uses: ./.github/actions/publish-public-gh-pages
+        with:
+          app-name: gauntlet
+          publish-dir: sunder-platform/apps/gauntlet/dist
+          external-repository: Tsindwr/gauntlet
+          deploy-key: ${{ secrets.GAUNTLET_PAGES_DEPLOY_KEY }}

@@ -1,9 +1,10 @@
-import React, {useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import styles from './EditorWorkspace.module.css';
 import {
     type CharacterSheetState,
     type PotentialState,
     type GoalState,
+    type OriginFacetState,
     type PotentialKey,
     REWARD_FROM_GOAL,
     ARCHETYPE_MARKS,
@@ -39,8 +40,28 @@ import {
     getPotentialTotalScore,
 } from "../../domain";
 import EditorAbilitiesSection from "./EditorAbilitiesSection.tsx";
+import {
+    describeOriginBoons,
+    formatOriginFacetLabel,
+    formatOriginSelectionSource,
+    searchOriginSelections,
+    type OriginFacetId,
+    type OriginSelectionOwnerFilter,
+    type OriginSelectionSummary,
+} from "../../infrastructure";
+import type { CampaignAssignment } from "../../types/roll-feed.ts";
 
 type BuilderTabId = EditorTabId | "origin";
+
+const ORIGIN_PICKER_OWNER_FILTERS: Array<{
+    id: OriginSelectionOwnerFilter;
+    label: string;
+}> = [
+    { id: "all", label: "All Owners" },
+    { id: "public", label: "Public" },
+    { id: "personal", label: "Personal" },
+    { id: "gm-shared", label: "GM Shared" },
+];
 
 function getSkillNameFromChoiceId(choiceId?: string): string | undefined {
     if (!choiceId) return undefined;
@@ -51,6 +72,12 @@ function getSkillNameFromChoiceId(choiceId?: string): string | undefined {
 
 function getSelectedSkillNames(sheet: CharacterSheetState): Set<string> {
     const selected = new Set<string>();
+
+    sheet.potentials.forEach((potential) => {
+        potential.skills.forEach((skill) => {
+            if (skill.proficient || skill.sources?.length) selected.add(skill.name);
+        });
+    });
 
     [
         sheet.originSelections?.profession?.skillName,
@@ -87,6 +114,7 @@ type EditorWorkspaceProps = {
     forcedTab?: BuilderTabId;
     hideNav?: boolean;
     onRequestPotentialRoll?: (potential: PotentialState) => void;
+    assignedCampaign?: CampaignAssignment | null;
 };
 
 export default function EditorWorkspace({
@@ -95,11 +123,20 @@ export default function EditorWorkspace({
     forcedTab,
     hideNav = false,
     onRequestPotentialRoll,
+    assignedCampaign = null,
 }: EditorWorkspaceProps) {
     const [internalTab, setInternalTab] = useState<BuilderTabId>("identity");
     const [addArchetypeOpen, setAddArchetypeOpen] = useState(false);
     const [pendingArchetypeId, setPendingArchetypeId] = useState<ArchetypeKey | "">("");
     const [expandedArchetypes, setExpandedArchetypes] = useState<Set<string>>(() => new Set());
+    const [originPickerFacet, setOriginPickerFacet] = useState<OriginFacetId | null>(null);
+    const [originPickerSearch, setOriginPickerSearch] = useState("");
+    const [originPickerOwnerFilter, setOriginPickerOwnerFilter] =
+        useState<OriginSelectionOwnerFilter>("all");
+    const [expandedOriginPickerRowId, setExpandedOriginPickerRowId] = useState<string | null>(null);
+    const [originPickerRows, setOriginPickerRows] = useState<OriginSelectionSummary[]>([]);
+    const [originPickerLoading, setOriginPickerLoading] = useState(false);
+    const [originPickerError, setOriginPickerError] = useState<string | null>(null);
     const tab = forcedTab ?? internalTab;
     const setTab = forcedTab ? (() => {}) : setInternalTab;
 
@@ -118,6 +155,59 @@ export default function EditorWorkspace({
 
     const selectedSkillNames = useMemo(() => getSelectedSkillNames(sheet), [sheet]);
     const selectedDomainIds = useMemo(() => getSelectedDomainIds(sheet), [sheet]);
+
+    useEffect(() => {
+        if (!originPickerFacet) return;
+
+        let cancelled = false;
+        const timeout = window.setTimeout(async () => {
+            try {
+                setOriginPickerLoading(true);
+                setOriginPickerError(null);
+                const rows = await searchOriginSelections({
+                    facet: originPickerFacet,
+                    searchText: originPickerSearch,
+                    ownerFilter: originPickerOwnerFilter,
+                    campaignId: assignedCampaign?.id,
+                    limit: 120,
+                });
+                if (!cancelled) setOriginPickerRows(rows);
+            } catch (error) {
+                if (!cancelled) {
+                    setOriginPickerError(
+                        error instanceof Error
+                            ? error.message
+                            : "Failed to load origin selections.",
+                    );
+                }
+            } finally {
+                if (!cancelled) setOriginPickerLoading(false);
+            }
+        }, 160);
+
+        return () => {
+            cancelled = true;
+            window.clearTimeout(timeout);
+        };
+    }, [
+        assignedCampaign?.id,
+        originPickerFacet,
+        originPickerOwnerFilter,
+        originPickerSearch,
+    ]);
+
+    useEffect(() => {
+        if (originPickerOwnerFilter === "gm-shared" && !assignedCampaign?.id) {
+            setOriginPickerOwnerFilter("all");
+        }
+    }, [assignedCampaign?.id, originPickerOwnerFilter]);
+
+    useEffect(() => {
+        if (!expandedOriginPickerRowId) return;
+        if (!originPickerRows.some((row) => row.id === expandedOriginPickerRowId)) {
+            setExpandedOriginPickerRowId(null);
+        }
+    }, [expandedOriginPickerRowId, originPickerRows]);
 
     const skillOptions = useMemo(
         () =>
@@ -144,6 +234,73 @@ export default function EditorWorkspace({
         return DOMAINS.filter(
             (domain) => domain.id === currentDomainId || !selectedDomainIds.has(domain.id),
         );
+    }
+
+    function getOriginSkillOptions(
+        facet: "profession" | "crux" | "descent",
+        currentSkillName?: string,
+    ) {
+        const allowed = sheet.originSelections?.[facet]?.skillNameOptions;
+        if (allowed && allowed.length > 0) {
+            return allowed
+                .filter(
+                    (skillName) =>
+                        skillName === currentSkillName || !selectedSkillNames.has(skillName),
+                )
+                .map((skillName) => ({
+                    name: skillName,
+                    label: skillName,
+                }));
+        }
+
+        return getAvailableSkillOptions(currentSkillName);
+    }
+
+    function getOriginPotentialOptions(
+        facet: "crux" | "bloodline",
+    ) {
+        const allowed = sheet.originSelections?.[facet]?.potentialKeyOptions;
+        if (allowed && allowed.length > 0) {
+            return sheet.potentials.filter((potential) => allowed.includes(potential.key));
+        }
+
+        return sheet.potentials;
+    }
+
+    function getBloodlineAbilityOptions(
+        bloodline: OriginFacetState | undefined = sheet.originSelections?.bloodline,
+    ) {
+        const ids = bloodline?.specialAbilityIds;
+        const titles = bloodline?.specialAbilityTitles;
+
+        if (ids && ids.length > 0) {
+            return ids.map((id, index) => ({
+                id,
+                title: titles?.[index] || `Ability ${id.slice(0, 8)}`,
+            }));
+        }
+
+        if (bloodline?.specialAbilityId) {
+            return [
+                {
+                    id: bloodline.specialAbilityId,
+                    title:
+                        bloodline.specialAbilityTitle ??
+                        `Ability ${bloodline.specialAbilityId.slice(0, 8)}`,
+                },
+            ];
+        }
+
+        return [];
+    }
+
+    function getOriginDomainOptions(currentDomainId?: string) {
+        const allowed = sheet.originSelections?.descent?.domainIdOptions;
+        if (allowed && allowed.length > 0) {
+            return DOMAINS.filter((domain) => allowed.includes(domain.id));
+        }
+
+        return getAvailableDomainOptions(currentDomainId);
     }
 
     const allPerkOptions = useMemo(
@@ -207,6 +364,187 @@ export default function EditorWorkspace({
         patch: Record<string, unknown>,
     ) {
         applyCommand(patchOriginFacetCommand(sheet, facet, patch));
+    }
+
+    function applyBloodlineSpecialAbilitySelection(nextAbilityId?: string) {
+        const currentBloodline = sheet.originSelections?.bloodline;
+        const previousAbilityId = currentBloodline?.specialAbilityId;
+        const selectedAbility = getBloodlineAbilityOptions(currentBloodline).find(
+            (ability) => ability.id === nextAbilityId,
+        );
+
+        let nextSheet = patchOriginFacetCommand(sheet, "bloodline", {
+            specialAbilityId: selectedAbility?.id,
+            specialAbilityTitle: selectedAbility?.title,
+            abilitySummary: selectedAbility?.title,
+        });
+
+        let nextAbilityIds = nextSheet.abilityIds;
+        if (previousAbilityId && previousAbilityId !== selectedAbility?.id) {
+            nextAbilityIds = nextAbilityIds.filter((abilityId) => abilityId !== previousAbilityId);
+        }
+
+        if (selectedAbility?.id && !nextAbilityIds.includes(selectedAbility.id)) {
+            nextAbilityIds = [...nextAbilityIds, selectedAbility.id];
+        }
+
+        if (nextAbilityIds !== nextSheet.abilityIds) {
+            nextSheet = {
+                ...nextSheet,
+                abilityIds: nextAbilityIds,
+            };
+        }
+
+        applyCommand(nextSheet);
+    }
+
+    function openOriginPicker(facet: OriginFacetId) {
+        setOriginPickerFacet(facet);
+        setOriginPickerSearch("");
+        setOriginPickerRows([]);
+        setExpandedOriginPickerRowId(null);
+        setOriginPickerError(null);
+    }
+
+    function applyOriginSelection(selection: OriginSelectionSummary) {
+        const currentFacet = sheet.originSelections?.[selection.facet];
+        const chooseDefault = <T extends string>(
+            options: T[] | undefined,
+            currentValue: T | undefined,
+        ): T | undefined => {
+            if (!options || options.length === 0) return undefined;
+            if (options.length === 1) return options[0];
+            return currentValue && options.includes(currentValue) ? currentValue : undefined;
+        };
+        const chooseSkillDefault = (
+            options: string[] | undefined,
+            currentValue: string | undefined,
+        ): string | undefined =>
+            chooseDefault(
+                options?.filter(
+                    (skillName) =>
+                        skillName === currentValue || !selectedSkillNames.has(skillName),
+                ),
+                currentValue,
+            );
+        const basePatch = {
+            originSelectionId: selection.id,
+            originSelectionTitle: selection.title,
+            originSelectionFacet: formatOriginFacetLabel(selection.facet),
+            name: selection.title,
+            notes: selection.description || undefined,
+        };
+
+        const boons = selection.boons;
+        const facetPatch: Record<string, unknown> = (() => {
+            switch (selection.facet) {
+                case "profession": {
+                    const equipmentItems = boons.equipmentItems ?? boons.equipmentNotes;
+                    return {
+                        skillNameOptions: boons.skillNames,
+                        knackNameOptions: boons.knackNames,
+                        equipmentItems,
+                        equipmentNoteOptions: undefined,
+                        skillName: chooseSkillDefault(boons.skillNames, currentFacet?.skillName),
+                        knackName: chooseDefault(boons.knackNames, currentFacet?.knackName),
+                        equipmentNote: equipmentItems?.join(", "),
+                    };
+                }
+                case "crux":
+                    return {
+                        potentialKeyOptions: boons.potentialKeys,
+                        skillNameOptions: boons.skillNames,
+                        knackNameOptions: boons.knackNames,
+                        minorGoalLabelOptions: boons.minorGoalLabels,
+                        majorGoalLabelOptions: boons.majorGoalLabels,
+                        equipmentNoteOptions: boons.equipmentNotes,
+                        potentialKey: chooseDefault(boons.potentialKeys, currentFacet?.potentialKey),
+                        skillName: chooseSkillDefault(boons.skillNames, currentFacet?.skillName),
+                        knackName: chooseDefault(boons.knackNames, currentFacet?.knackName),
+                        minorGoalLabel: chooseDefault(boons.minorGoalLabels, currentFacet?.minorGoalLabel),
+                        majorGoalLabel: chooseDefault(boons.majorGoalLabels, currentFacet?.majorGoalLabel),
+                        equipmentNote: chooseDefault(boons.equipmentNotes, currentFacet?.equipmentNote),
+                    };
+                case "descent":
+                    return {
+                        skillNameOptions: boons.skillNames,
+                        domainIdOptions: boons.domainIds,
+                        skillName: chooseSkillDefault(boons.skillNames, currentFacet?.skillName),
+                        domainId: chooseDefault(boons.domainIds, currentFacet?.domainId),
+                    };
+                case "bloodline":
+                    {
+                        const specialAbilityIds =
+                            boons.specialAbilityIds?.length
+                                ? boons.specialAbilityIds
+                                : boons.specialAbilityId
+                                    ? [boons.specialAbilityId]
+                                    : undefined;
+                        const specialAbilityTitles =
+                            boons.specialAbilityTitles?.length
+                                ? boons.specialAbilityTitles
+                                : boons.specialAbilityTitle
+                                    ? [boons.specialAbilityTitle]
+                                    : undefined;
+                        const specialAbilityId = chooseDefault(
+                            specialAbilityIds,
+                            currentFacet?.specialAbilityId,
+                        );
+                        const specialAbilityIndex = specialAbilityId
+                            ? specialAbilityIds?.indexOf(specialAbilityId) ?? -1
+                            : -1;
+                        const specialAbilityTitle =
+                            specialAbilityIndex >= 0
+                                ? specialAbilityTitles?.[specialAbilityIndex]
+                                : undefined;
+
+                        return {
+                            potentialKeyOptions: boons.potentialKeys,
+                            specialAbilityIds,
+                            specialAbilityTitles,
+                            specialAbilityId,
+                            specialAbilityTitle,
+                            abilitySummaryOptions: undefined,
+                            potentialKey: chooseDefault(boons.potentialKeys, currentFacet?.potentialKey),
+                            abilitySummary:
+                                specialAbilityTitle ??
+                                chooseDefault(boons.abilitySummaries, currentFacet?.abilitySummary),
+                        };
+                    }
+            }
+        })();
+
+        const previousBloodlineAbilityId =
+            selection.facet === "bloodline"
+                ? currentFacet?.specialAbilityId
+                : undefined;
+        let nextSheet = patchOriginFacetCommand(sheet, selection.facet, {
+            ...basePatch,
+            ...facetPatch,
+        });
+        const selectedBloodlineAbilityId =
+            selection.facet === "bloodline"
+                ? nextSheet.originSelections?.bloodline?.specialAbilityId
+                : undefined;
+
+        if (previousBloodlineAbilityId && previousBloodlineAbilityId !== selectedBloodlineAbilityId) {
+            nextSheet = {
+                ...nextSheet,
+                abilityIds: nextSheet.abilityIds.filter(
+                    (abilityId) => abilityId !== previousBloodlineAbilityId,
+                ),
+            };
+        }
+
+        if (selectedBloodlineAbilityId && !nextSheet.abilityIds.includes(selectedBloodlineAbilityId)) {
+            nextSheet = {
+                ...nextSheet,
+                abilityIds: [...nextSheet.abilityIds, selectedBloodlineAbilityId],
+            };
+        }
+
+        applyCommand(nextSheet);
+        setOriginPickerFacet(null);
     }
 
 
@@ -380,6 +718,7 @@ export default function EditorWorkspace({
     }
 
     return (
+        <>
         <section className={`${styles.editor} ${hideNav ? styles.editorFull : ""}`}>
             {!hideNav ? (
                 <aside className={styles.sidebar}>
@@ -482,6 +821,13 @@ export default function EditorWorkspace({
                             <article className={styles.card}>
                                 <div className={styles.cardHeader}>
                                     <strong>Profession</strong>
+                                    <button
+                                        type="button"
+                                        className={styles.secondaryButton}
+                                        onClick={() => openOriginPicker("profession")}
+                                    >
+                                        Choose
+                                    </button>
                                 </div>
 
                                 <div className={styles.stack}>
@@ -507,7 +853,7 @@ export default function EditorWorkspace({
                                             }
                                         >
                                             <option value="">Choose skill...</option>
-                                                {getAvailableSkillOptions(sheet.originSelections?.profession?.skillName).map((skill) => (
+                                                {getOriginSkillOptions("profession", sheet.originSelections?.profession?.skillName).map((skill) => (
                                                 <option key={`profession-${skill.name}`} value={skill.name}>
                                                     {skill.label}
                                                 </option>
@@ -517,22 +863,48 @@ export default function EditorWorkspace({
 
                                     <label className={styles.field}>
                                         <span>Granted knack</span>
-                                        <input
-                                            value={sheet.originSelections?.profession?.knackName ?? ""}
-                                            onChange={(e) =>
-                                                patchOriginFacet("profession", { knackName: e.target.value })
-                                            }
-                                        />
+                                        {sheet.originSelections?.profession?.knackNameOptions?.length ? (
+                                            <select
+                                                value={sheet.originSelections?.profession?.knackName ?? ""}
+                                                onChange={(e) =>
+                                                    patchOriginFacet("profession", { knackName: e.target.value || undefined })
+                                                }
+                                            >
+                                                <option value="">Choose knack...</option>
+                                                {sheet.originSelections.profession.knackNameOptions.map((knackName) => (
+                                                    <option key={`profession-knack-${knackName}`} value={knackName}>
+                                                        {knackName}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            <input
+                                                value={sheet.originSelections?.profession?.knackName ?? ""}
+                                                onChange={(e) =>
+                                                    patchOriginFacet("profession", { knackName: e.target.value })
+                                                }
+                                            />
+                                        )}
                                     </label>
 
                                     <label className={styles.field}>
                                         <span>Functional starting equipment</span>
-                                        <textarea
-                                            value={sheet.originSelections?.profession?.equipmentNote ?? ""}
-                                            onChange={(e) =>
-                                                patchOriginFacet("profession", { equipmentNote: e.target.value })
-                                            }
-                                        />
+                                        {sheet.originSelections?.profession?.equipmentItems?.length ? (
+                                            <div className={styles.inlineCard}>
+                                                <ul className={styles.compactList}>
+                                                    {sheet.originSelections.profession.equipmentItems.map((item) => (
+                                                        <li key={`profession-equipment-${item}`}>{item}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        ) : (
+                                            <textarea
+                                                value={sheet.originSelections?.profession?.equipmentNote ?? ""}
+                                                onChange={(e) =>
+                                                    patchOriginFacet("profession", { equipmentNote: e.target.value })
+                                                }
+                                            />
+                                        )}
                                     </label>
                                 </div>
                             </article>
@@ -540,6 +912,13 @@ export default function EditorWorkspace({
                             <article className={styles.card}>
                                 <div className={styles.cardHeader}>
                                     <strong>Crux</strong>
+                                    <button
+                                        type="button"
+                                        className={styles.secondaryButton}
+                                        onClick={() => openOriginPicker("crux")}
+                                    >
+                                        Choose
+                                    </button>
                                 </div>
 
                                 <div className={styles.stack}>
@@ -565,7 +944,7 @@ export default function EditorWorkspace({
                                             }
                                         >
                                             <option value="">Choose potential...</option>
-                                            {sheet.potentials.map((potential) => (
+                                            {getOriginPotentialOptions("crux").map((potential) => (
                                                 <option key={`crux-${potential.key}`} value={potential.key}>
                                                     {potential.title}
                                                 </option>
@@ -585,7 +964,7 @@ export default function EditorWorkspace({
                                             }
                                         >
                                             <option value="">Choose skill...</option>
-                                                {getAvailableSkillOptions(sheet.originSelections?.crux?.skillName).map((skill) => (
+                                                {getOriginSkillOptions("crux", sheet.originSelections?.crux?.skillName).map((skill) => (
                                                 <option key={`crux-${skill.name}`} value={skill.name}>
                                                     {skill.label}
                                                 </option>
@@ -595,48 +974,112 @@ export default function EditorWorkspace({
 
                                     <label className={styles.field}>
                                         <span>Granted knack</span>
-                                        <input
-                                            value={sheet.originSelections?.crux?.knackName ?? ""}
-                                            onChange={(e) =>
-                                                patchOriginFacet("crux", { knackName: e.target.value })
-                                            }
-                                        />
+                                        {sheet.originSelections?.crux?.knackNameOptions?.length ? (
+                                            <select
+                                                value={sheet.originSelections?.crux?.knackName ?? ""}
+                                                onChange={(e) =>
+                                                    patchOriginFacet("crux", { knackName: e.target.value || undefined })
+                                                }
+                                            >
+                                                <option value="">Choose knack...</option>
+                                                {sheet.originSelections.crux.knackNameOptions.map((knackName) => (
+                                                    <option key={`crux-knack-${knackName}`} value={knackName}>
+                                                        {knackName}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            <input
+                                                value={sheet.originSelections?.crux?.knackName ?? ""}
+                                                onChange={(e) =>
+                                                    patchOriginFacet("crux", { knackName: e.target.value })
+                                                }
+                                            />
+                                        )}
                                     </label>
 
                                     <label className={styles.field}>
                                         <span>Minor Goal</span>
-                                        <textarea
-                                            value={sheet.originSelections?.crux?.minorGoalLabel ?? ""}
-                                            onChange={(e) =>
-                                                patchOriginFacet("crux", {
-                                                    minorGoalLabel: e.target.value,
-                                                })
-                                            }
-                                        />
+                                        {sheet.originSelections?.crux?.minorGoalLabelOptions?.length ? (
+                                            <select
+                                                value={sheet.originSelections?.crux?.minorGoalLabel ?? ""}
+                                                onChange={(e) =>
+                                                    patchOriginFacet("crux", { minorGoalLabel: e.target.value || undefined })
+                                                }
+                                            >
+                                                <option value="">Choose minor goal...</option>
+                                                {sheet.originSelections.crux.minorGoalLabelOptions.map((goalLabel) => (
+                                                    <option key={`crux-minor-${goalLabel}`} value={goalLabel}>
+                                                        {goalLabel}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            <textarea
+                                                value={sheet.originSelections?.crux?.minorGoalLabel ?? ""}
+                                                onChange={(e) =>
+                                                    patchOriginFacet("crux", {
+                                                        minorGoalLabel: e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        )}
                                     </label>
 
                                     <label className={styles.field}>
                                         <span>Major Goal</span>
-                                        <textarea
-                                            value={sheet.originSelections?.crux?.majorGoalLabel ?? ""}
-                                            onChange={(e) =>
-                                                patchOriginFacet("crux", {
-                                                    majorGoalLabel: e.target.value,
-                                                })
-                                            }
-                                        />
+                                        {sheet.originSelections?.crux?.majorGoalLabelOptions?.length ? (
+                                            <select
+                                                value={sheet.originSelections?.crux?.majorGoalLabel ?? ""}
+                                                onChange={(e) =>
+                                                    patchOriginFacet("crux", { majorGoalLabel: e.target.value || undefined })
+                                                }
+                                            >
+                                                <option value="">Choose major goal...</option>
+                                                {sheet.originSelections.crux.majorGoalLabelOptions.map((goalLabel) => (
+                                                    <option key={`crux-major-${goalLabel}`} value={goalLabel}>
+                                                        {goalLabel}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            <textarea
+                                                value={sheet.originSelections?.crux?.majorGoalLabel ?? ""}
+                                                onChange={(e) =>
+                                                    patchOriginFacet("crux", {
+                                                        majorGoalLabel: e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        )}
                                     </label>
 
                                     <label className={styles.field}>
                                         <span>Sentimental Equipment</span>
-                                        <textarea
-                                            value={sheet.originSelections?.crux?.equipmentNote ?? ""}
-                                            onChange={(e) =>
-                                                patchOriginFacet("crux", {
-                                                    equipmentNote: e.target.value,
-                                                })
-                                            }
-                                        />
+                                        {sheet.originSelections?.crux?.equipmentNoteOptions?.length ? (
+                                            <select
+                                                value={sheet.originSelections?.crux?.equipmentNote ?? ""}
+                                                onChange={(e) =>
+                                                    patchOriginFacet("crux", { equipmentNote: e.target.value || undefined })
+                                                }
+                                            >
+                                                <option value="">Choose equipment...</option>
+                                                {sheet.originSelections.crux.equipmentNoteOptions.map((equipmentNote) => (
+                                                    <option key={`crux-equipment-${equipmentNote}`} value={equipmentNote}>
+                                                        {equipmentNote}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            <textarea
+                                                value={sheet.originSelections?.crux?.equipmentNote ?? ""}
+                                                onChange={(e) =>
+                                                    patchOriginFacet("crux", {
+                                                        equipmentNote: e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        )}
                                     </label>
                                 </div>
                             </article>
@@ -644,6 +1087,13 @@ export default function EditorWorkspace({
                             <article className={styles.card}>
                                 <div className={styles.cardHeader}>
                                     <strong>Descent</strong>
+                                    <button
+                                        type="button"
+                                        className={styles.secondaryButton}
+                                        onClick={() => openOriginPicker("descent")}
+                                    >
+                                        Choose
+                                    </button>
                                 </div>
 
                                 <div className={styles.stack}>
@@ -669,7 +1119,7 @@ export default function EditorWorkspace({
                                             }
                                         >
                                             <option value="">Choose skill...</option>
-                                                {getAvailableSkillOptions(sheet.originSelections?.descent?.skillName).map((skill) => (
+                                                {getOriginSkillOptions("descent", sheet.originSelections?.descent?.skillName).map((skill) => (
                                                 <option key={`descent-${skill.name}`} value={skill.name}>
                                                     {skill.label}
                                                 </option>
@@ -688,7 +1138,7 @@ export default function EditorWorkspace({
                                             }
                                         >
                                             <option value="">Choose domain...</option>
-                                                {getAvailableDomainOptions(sheet.originSelections?.descent?.domainId).map((domain) => (
+                                                {getOriginDomainOptions(sheet.originSelections?.descent?.domainId).map((domain) => (
                                                 <option key={domain.id} value={domain.id}>
                                                     {domain.label}
                                                 </option>
@@ -701,6 +1151,13 @@ export default function EditorWorkspace({
                             <article className={styles.card}>
                                 <div className={styles.cardHeader}>
                                     <strong>Bloodline</strong>
+                                    <button
+                                        type="button"
+                                        className={styles.secondaryButton}
+                                        onClick={() => openOriginPicker("bloodline")}
+                                    >
+                                        Choose
+                                    </button>
                                 </div>
 
                                 <div className={styles.stack}>
@@ -726,7 +1183,7 @@ export default function EditorWorkspace({
                                             }
                                         >
                                             <option value="">Choose potential...</option>
-                                            {sheet.potentials.map((potential) => (
+                                            {getOriginPotentialOptions("bloodline").map((potential) => (
                                                 <option key={`bloodline-${potential.key}`} value={potential.key}>
                                                     {potential.title}
                                                 </option>
@@ -734,17 +1191,46 @@ export default function EditorWorkspace({
                                         </select>
                                     </label>
 
-                                    <label className={styles.field}>
-                                        <span>Bloodline ability summary</span>
-                                        <textarea
-                                            value={sheet.originSelections?.bloodline?.abilitySummary ?? ""}
-                                            onChange={(e) =>
-                                                patchOriginFacet("bloodline", {
-                                                    abilitySummary: e.target.value,
-                                                })
-                                            }
-                                        />
-                                    </label>
+                                    {getBloodlineAbilityOptions().length > 0 ? (
+                                        <>
+                                            <label className={styles.field}>
+                                                <span>Bloodline ability</span>
+                                                <select
+                                                    value={sheet.originSelections?.bloodline?.specialAbilityId ?? ""}
+                                                    onChange={(e) =>
+                                                        applyBloodlineSpecialAbilitySelection(
+                                                            e.target.value || undefined,
+                                                        )
+                                                    }
+                                                >
+                                                    <option value="">Choose ability...</option>
+                                                    {getBloodlineAbilityOptions().map((ability) => (
+                                                        <option key={ability.id} value={ability.id}>
+                                                            {ability.title}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </label>
+                                            {sheet.originSelections?.bloodline?.specialAbilityTitle ? (
+                                                <div className={styles.inlineCard}>
+                                                    <strong>{sheet.originSelections.bloodline.specialAbilityTitle}</strong>
+                                                    <span>Granted by Bloodline</span>
+                                                </div>
+                                            ) : null}
+                                        </>
+                                    ) : (
+                                        <label className={styles.field}>
+                                            <span>Bloodline ability summary</span>
+                                            <textarea
+                                                value={sheet.originSelections?.bloodline?.abilitySummary ?? ""}
+                                                onChange={(e) =>
+                                                    patchOriginFacet("bloodline", {
+                                                        abilitySummary: e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        </label>
+                                    )}
                                 </div>
                             </article>
                         </div>
@@ -1532,5 +2018,150 @@ export default function EditorWorkspace({
                 ) : null}
             </div>
         </section>
+
+        {originPickerFacet ? (
+            <div className={styles.modalBackdrop}>
+                <section
+                    className={styles.modal}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={`Choose ${formatOriginFacetLabel(originPickerFacet)}`}
+                >
+                    <header className={styles.sectionHeader}>
+                        <div>
+                            <div className={styles.sectionEyebrow}>Origin Selection</div>
+                            <h3>Choose {formatOriginFacetLabel(originPickerFacet)}</h3>
+                        </div>
+                    </header>
+
+                    <div className={styles.originPickerControls}>
+                        <label className={styles.field}>
+                            <span>Search</span>
+                            <input
+                                value={originPickerSearch}
+                                onChange={(event) => setOriginPickerSearch(event.target.value)}
+                                placeholder="Search by title, description, or boon..."
+                            />
+                        </label>
+
+                        <label className={styles.field}>
+                            <span>Owner</span>
+                            <select
+                                value={originPickerOwnerFilter}
+                                onChange={(event) => {
+                                    setOriginPickerOwnerFilter(
+                                        event.target.value as OriginSelectionOwnerFilter,
+                                    );
+                                    setExpandedOriginPickerRowId(null);
+                                }}
+                            >
+                                {ORIGIN_PICKER_OWNER_FILTERS.map((filter) => (
+                                    <option
+                                        key={filter.id}
+                                        value={filter.id}
+                                        disabled={
+                                            filter.id === "gm-shared" && !assignedCampaign?.id
+                                        }
+                                    >
+                                        {filter.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    </div>
+
+                    <div className={styles.stack}>
+                        {originPickerError ? (
+                            <div className={styles.inlineCard}>Error: {originPickerError}</div>
+                        ) : null}
+
+                        {originPickerLoading ? (
+                            <div className={styles.inlineCard}>Loading origin selections...</div>
+                        ) : null}
+
+                        {!originPickerLoading && originPickerRows.length === 0 ? (
+                            <div className={styles.inlineCard}>
+                                No saved {formatOriginFacetLabel(originPickerFacet)} selections match.
+                            </div>
+                        ) : null}
+
+                        {!originPickerLoading && originPickerRows.map((row) => {
+                            const expanded = expandedOriginPickerRowId === row.id;
+
+                            return (
+                                <article
+                                    key={row.id}
+                                    className={`${styles.originPickerRow} ${
+                                        expanded ? styles.originPickerRowExpanded : ""
+                                    }`}
+                                >
+                                    <div className={styles.originPickerRowHeader}>
+                                        <button
+                                            type="button"
+                                            className={styles.originPickerRowToggle}
+                                            onClick={() =>
+                                                setExpandedOriginPickerRowId((current) =>
+                                                    current === row.id ? null : row.id,
+                                                )
+                                            }
+                                            aria-expanded={expanded}
+                                        >
+                                            <span className={styles.originPickerRowTitle}>
+                                                <strong>{row.title}</strong>
+                                                <span>
+                                                    {formatOriginFacetLabel(row.facet)} ·{" "}
+                                                    {formatOriginSelectionSource(row.source)}
+                                                </span>
+                                            </span>
+                                            <i
+                                                className={`fa-solid ${
+                                                    expanded
+                                                        ? "fa-chevron-up"
+                                                        : "fa-chevron-down"
+                                                }`}
+                                                aria-hidden="true"
+                                            />
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            className={styles.smallButton}
+                                            onClick={() => applyOriginSelection(row)}
+                                        >
+                                            Use
+                                        </button>
+                                    </div>
+
+                                    <p className={styles.originPickerBoonText}>
+                                        {describeOriginBoons(row.boons)}
+                                    </p>
+
+                                    {expanded ? (
+                                        <div className={styles.originPickerDescription}>
+                                            {row.description ? (
+                                                <p>{row.description}</p>
+                                            ) : (
+                                                <p>No description provided.</p>
+                                            )}
+                                        </div>
+                                    ) : null}
+                                </article>
+                            );
+                        })}
+                    </div>
+
+                    <div className={styles.modalActions}>
+                        <button
+                            type="button"
+                            className={styles.secondaryButton}
+                            onClick={() => setOriginPickerFacet(null)}
+                        >
+                            Close
+                        </button>
+                    </div>
+                </section>
+            </div>
+        ) : null}
+        </>
     );
 }

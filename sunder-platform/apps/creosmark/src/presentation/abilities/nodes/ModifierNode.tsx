@@ -1,9 +1,7 @@
-import { Handle, Position, useReactFlow, type Edge, type NodeProps } from "@xyflow/react";
+import { Handle, Position, type NodeProps } from "@xyflow/react";
 import styles from "../../../components/abilities/AbilityBuilderShell.module.css";
 import type {
-    AbilityBuilderNode,
     AbilityLane,
-    ModifierData,
     ModifierNodeType,
 } from "../../../domain";
 import {
@@ -26,104 +24,8 @@ function resolveOptionId(selectedOptionId: string | undefined, fallbackOptionId:
     return selectedOptionId ?? fallbackOptionId ?? "";
 }
 
-function applyLaneToNodeTree(
-    nodes: AbilityBuilderNode[],
-    edges: Edge[],
-    rootNodeId: string,
-    lane: AbilityLane,
-): AbilityBuilderNode[] {
-    const nodeIdsToUpdate = new Set<string>([rootNodeId]);
-    const queue = [rootNodeId];
-    const seen = new Set<string>([rootNodeId]);
-
-    while (queue.length > 0) {
-        const currentId = queue.shift();
-        if (!currentId) continue;
-
-        for (const edge of edges) {
-            if (edge.source !== currentId || !edge.target) continue;
-            if (seen.has(edge.target)) continue;
-
-            seen.add(edge.target);
-            nodeIdsToUpdate.add(edge.target);
-            queue.push(edge.target);
-        }
-    }
-
-    return nodes.map((node): AbilityBuilderNode => {
-        if (!nodeIdsToUpdate.has(node.id)) return node;
-
-        if (node.type === "marketModifier") {
-            if (node.data.lane === lane) return node;
-            return {
-                ...node,
-                data: {
-                    ...node.data,
-                    lane,
-                },
-            };
-        }
-
-        if (node.type === "freeformText") {
-            if (node.data.lane === lane) return node;
-            return {
-                ...node,
-                data: {
-                    ...node.data,
-                    lane,
-                },
-            };
-        }
-
-        return node;
-    });
-}
-
-type CardSide = "direct" | "indirect";
-
-function getFocusSideSelection(data: ModifierData): CardSide {
-    return data.selectionValues?.focusSide === "indirect" ? "indirect" : "direct";
-}
-
 const ACTIVATION_DIRECT_HANDLE_ID = "activation-direct";
 const ACTIVATION_INDIRECT_HANDLE_ID = "activation-indirect";
-
-function getActivationHandleLane(
-    data: ModifierData,
-    handleId: string | null | undefined,
-): AbilityLane | null {
-    const focusSide = getFocusSideSelection(data);
-
-    if (handleId === ACTIVATION_DIRECT_HANDLE_ID) {
-        return focusSide === "direct" ? "focus" : "flipside";
-    }
-
-    if (handleId === ACTIVATION_INDIRECT_HANDLE_ID) {
-        return focusSide === "direct" ? "flipside" : "focus";
-    }
-
-    return null;
-}
-
-function applyActivationHandleLanes(
-    nodes: AbilityBuilderNode[],
-    edges: Edge[],
-    activationNodeId: string,
-    activationData: ModifierData,
-): AbilityBuilderNode[] {
-    let nextNodes = nodes;
-
-    for (const edge of edges) {
-        if (edge.source !== activationNodeId || !edge.target) continue;
-
-        const lane = getActivationHandleLane(activationData, edge.sourceHandle);
-        if (!lane) continue;
-
-        nextNodes = applyLaneToNodeTree(nextNodes, edges, edge.target, lane);
-    }
-
-    return nextNodes;
-}
 
 type ModifierNodeProps = NodeProps<ModifierNodeType> & {
     isActionCard?: boolean;
@@ -132,8 +34,11 @@ type ModifierNodeProps = NodeProps<ModifierNodeType> & {
 export default function ModifierNode(
     { id, data, selected, isActionCard = false }: ModifierNodeProps,
 ) {
-    const { setNodes, getEdges } = useReactFlow<AbilityBuilderNode, Edge>();
-    const { openPrerequisiteAbilityPicker } = useAbilityBuilderContext();
+    const {
+        openPrerequisiteAbilityPicker,
+        updateModifierOption,
+        updateModifierSelectionByNodeId,
+    } = useAbilityBuilderContext();
     const resolvedData = resolveModifierData(data);
     const optionPool = data.optionPoolId ? getModifierOptionPool(data.optionPoolId) : undefined;
     const selectedOptionId = resolveOptionId(resolvedData.selectedOptionId, optionPool?.options[0]?.id);
@@ -148,6 +53,7 @@ export default function ModifierNode(
             selectedOptionId === "prerequisite") ||
         isLegacyPrerequisiteCaveat;
     const prerequisiteAbilityId = data.selectionValues?.prerequisiteAbilityId?.trim();
+    const prerequisiteOriginId = data.selectionValues?.prerequisiteOriginId?.trim();
     const prerequisiteArchetypeId =
         data.selectionValues?.prerequisiteArchetypeId?.trim() ??
         data.selectionValues?.prerequisiteArchetype?.trim();
@@ -155,51 +61,36 @@ export default function ModifierNode(
         ? ARCHETYPES.find((entry) => entry.id === prerequisiteArchetypeId)?.label
         : undefined;
     const prerequisiteAbilityTitle = data.selectionValues?.prerequisiteAbilityTitle?.trim();
-    const prerequisiteButtonText =
+    const prerequisiteOriginTitle = data.selectionValues?.prerequisiteOriginTitle?.trim();
+    const prerequisiteOriginFacet = data.selectionValues?.prerequisiteOriginFacet?.trim();
+    const prerequisiteOriginTemporary =
+        data.selectionValues?.prerequisiteOriginTemporary === "true" ||
+        Boolean(prerequisiteOriginId?.startsWith("draft-bloodline:"));
+    const prerequisiteButtonText = [
+        prerequisiteOriginTitle
+            ? `${prerequisiteOriginFacet ? `${prerequisiteOriginFacet}: ` : ""}${prerequisiteOriginTitle}${
+                prerequisiteOriginTemporary ? " (Draft)" : ""
+            }`
+            : "",
         prerequisiteAbilityTitle ||
         prerequisiteArchetypeLabel ||
         (prerequisiteArchetypeId
             ? `Archetype ${prerequisiteArchetypeId}`
             : "") ||
+        (prerequisiteOriginId
+            ? `Origin ${prerequisiteOriginId.slice(0, 8)}`
+            : "") ||
         (prerequisiteAbilityId
             ? `Ability ${prerequisiteAbilityId.slice(0, 8)}`
-            : "Select Prerequisite");
+            : ""),
+    ].find(Boolean) ?? "Select Prerequisite";
+    const hasPrerequisiteSelection =
+        Boolean(prerequisiteOriginId) ||
+        Boolean(prerequisiteAbilityId) ||
+        Boolean(prerequisiteArchetypeId);
 
     function updateModifierSelection(selectionId: string, value: string) {
-        setNodes((current) => {
-            const withSelection = current.map((node): AbilityBuilderNode => {
-                if (node.id !== id || node.type !== "marketModifier") return node;
-
-                return {
-                    ...node,
-                    data: {
-                        ...node.data,
-                        selectionValues: {
-                            ...(node.data.selectionValues ?? {}),
-                            [selectionId]: value,
-                        },
-                    },
-                };
-            });
-
-            const updatedNode = withSelection.find(
-                (node): node is ModifierNodeType =>
-                    node.id === id && node.type === "marketModifier",
-            );
-
-            if (!updatedNode) return withSelection;
-
-            if (selectionId === "focusSide" && updatedNode.data.optionPoolId === "activationType") {
-                return applyActivationHandleLanes(
-                    withSelection,
-                    getEdges(),
-                    id,
-                    updatedNode.data,
-                );
-            }
-
-            return withSelection;
-        });
+        updateModifierSelectionByNodeId(id, selectionId, value);
     }
 
     return (
@@ -224,18 +115,7 @@ export default function ModifierNode(
                     onClick={(event) => event.stopPropagation()}
                     onChange={(event) => {
                         const nextOptionId = event.target.value;
-                        setNodes((current) =>
-                            current.map((node): AbilityBuilderNode => {
-                                if (node.id !== id || node.type !== "marketModifier") return node;
-                                return {
-                                    ...node,
-                                    data: {
-                                        ...node.data,
-                                        selectedOptionId: nextOptionId,
-                                    },
-                                };
-                            }),
-                        );
+                        updateModifierOption(id, nextOptionId);
                     }}
                 >
                     {optionPool.options.map((option) => (
@@ -256,7 +136,7 @@ export default function ModifierNode(
                 <button
                     type="button"
                     className={`${styles.nodePrerequisiteButton} ${
-                        prerequisiteAbilityTitle ? "" : styles.nodePrerequisiteButtonEmpty
+                        hasPrerequisiteSelection ? "" : styles.nodePrerequisiteButtonEmpty
                     }`}
                     onClick={(event) => {
                         event.stopPropagation();

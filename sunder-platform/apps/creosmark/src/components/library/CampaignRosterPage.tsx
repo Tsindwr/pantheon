@@ -6,6 +6,7 @@ import {routes} from "../../lib/routing.ts";
 import ClipboardButton from "../common/ClipboardButton.tsx";
 import CampaignLoomPanel from "./CampaignLoomPanel.tsx";
 import CampaignGmPanel from "./CampaignGmPanel.tsx";
+import CampaignSettingsPanel from "./CampaignSettingsPanel.tsx";
 import type {
     CampaignGmTools,
     CampaignLoomPatch,
@@ -43,7 +44,7 @@ export default function CampaignRosterPage({
     const sheetCount = campaign.characterIds.length;
     const isGm = campaign.viewerRole === "gm";
     const [pickerOpen, setPickerOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<"roster" | "loom" | "gm">("roster");
+    const [activeTab, setActiveTab] = useState<"roster" | "loom" | "gm" | "settings">("roster");
     const [selectorOpen, setSelectorOpen] = useState(false);
     const [selectedCharacterId, setSelectedCharacterId] = useState("");
     const linkedCharacterIds = useMemo(
@@ -84,7 +85,7 @@ export default function CampaignRosterPage({
     }, [pickerOpen]);
 
     useEffect(() => {
-        if (activeTab === "gm" && !isGm) {
+        if ((activeTab === "gm" || activeTab === "settings") && !isGm) {
             setActiveTab("roster");
         }
     }, [activeTab, isGm]);
@@ -150,16 +151,28 @@ export default function CampaignRosterPage({
                     <span>Loom</span>
                 </button>
                 {isGm ? (
-                    <button
-                        type="button"
-                        className={`${styles.tabButton} ${
-                            activeTab === "gm" ? styles.tabButtonActive : ""
-                        }`}
-                        onClick={() => setActiveTab("gm")}
-                    >
-                        <i className="fa-solid fa-user-shield" aria-hidden="true" />
-                        <span>GM</span>
-                    </button>
+                    <>
+                        <button
+                            type="button"
+                            className={`${styles.tabButton} ${
+                                activeTab === "gm" ? styles.tabButtonActive : ""
+                            }`}
+                            onClick={() => setActiveTab("gm")}
+                        >
+                            <i className="fa-solid fa-user-shield" aria-hidden="true" />
+                            <span>GM</span>
+                        </button>
+                        <button
+                            type="button"
+                            className={`${styles.tabButton} ${
+                                activeTab === "settings" ? styles.tabButtonActive : ""
+                            }`}
+                            onClick={() => setActiveTab("settings")}
+                        >
+                            <i className="fa-solid fa-gear" aria-hidden="true" />
+                            <span>Settings</span>
+                        </button>
+                    </>
                 ) : null}
             </nav>
 
@@ -221,6 +234,10 @@ export default function CampaignRosterPage({
                 ) : (
                     <div className={styles.state}>Loading GM tools...</div>
                 )
+            ) : null}
+
+            {activeTab === "settings" && isGm ? (
+                <CampaignSettingsPanel campaign={campaign} />
             ) : null}
 
             {pickerOpen ? (

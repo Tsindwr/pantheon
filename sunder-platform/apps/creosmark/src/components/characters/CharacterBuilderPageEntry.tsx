@@ -3,6 +3,7 @@ import AuthGate from '../auth/AuthGate';
 import SignInScreen from "../auth/SignInScreen.tsx";
 import CharacterBuilderShell from "../builder/CharacterBuilderShell.tsx";
 import type { CharacterSheetState } from "../../types/sheet.ts";
+import type { CampaignAssignment } from "../../types/roll-feed.ts";
 import { supabaseLibraryCampaignService } from "../../infrastructure/library/supabase-library-campaign-service";
 import { normalizeFeatureDrivenSheetState } from "../../application/character-sheet/commands";
 import { routes } from "../../lib/routing.ts";
@@ -13,6 +14,7 @@ type CharacterBuilderPageEntryProps = {
 
 function InnerBuilder({ characterId }: CharacterBuilderPageEntryProps) {
     const [sheet, setSheet] = useState<CharacterSheetState | null>(null);
+    const [assignedCampaign, setAssignedCampaign] = useState<CampaignAssignment | null>(null);
     const [loading, setLoading] = useState(true);
     const [errorText, setErrorText] = useState<string | null>(null);
     const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -33,9 +35,13 @@ function InnerBuilder({ characterId }: CharacterBuilderPageEntryProps) {
                     return;
                 }
 
+                const campaign = await supabaseLibraryCampaignService.getCampaignForCharacter(
+                    characterId,
+                );
                 if (cancelled) return;
                 const normalizedSheet = normalizeFeatureDrivenSheetState(row.sheet);
                 setSheet(normalizedSheet);
+                setAssignedCampaign(campaign);
                 lastSavedJsonRef.current = JSON.stringify(normalizedSheet);
                 loadedRef.current = true;
             } catch (error) {
@@ -109,6 +115,7 @@ function InnerBuilder({ characterId }: CharacterBuilderPageEntryProps) {
             onChange={setSheet}
             saveState={saveState}
             characterId={characterId}
+            assignedCampaign={assignedCampaign}
             onRequestView={() => {
                 void viewCharacterSheet();
             }}

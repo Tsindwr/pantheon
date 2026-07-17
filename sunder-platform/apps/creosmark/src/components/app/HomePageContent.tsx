@@ -4,6 +4,7 @@ import { getCurrentSession, onAuthStateChange } from "../../lib/auth";
 import SignInScreen from "../auth/SignInScreen";
 import LibraryHomeFromDb from "../library/LibraryHomeFromDb";
 import { routes } from "../../lib/routing.ts";
+import styles from "./HomePageContent.module.css";
 
 export default function HomePageContent() {
     const [loading, setLoading] = useState(true);
@@ -34,9 +35,14 @@ export default function HomePageContent() {
         <AppShell
             aside={!isSignedIn ? <SignInScreen /> : null}
             activePath={routes.home()}
+            bodyClassName={loading ? styles.authCheckBody : undefined}
+            mainClassName={loading ? styles.authCheckMain : undefined}
         >
             {loading ? (
-                <main style={{ padding: "0.5rem" }}>Loading…</main>
+                <div className={styles.authCheckStatus} role="status" aria-live="polite">
+                    <span className={styles.authCheckDot} aria-hidden="true" />
+                    Checking session
+                </div>
             ) : isSignedIn ? (
                 <LibraryHomeFromDb />
             ) : (

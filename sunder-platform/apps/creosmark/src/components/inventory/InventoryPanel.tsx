@@ -33,6 +33,24 @@ import {
     getEquippedBySlot,
     INVENTORY_ITEM_CATEGORY_LABELS,
 } from '../../domain/inventory/invariants';
+import {
+    buildEquipmentProperties,
+    EQUIPMENT_DISTANCE_OPTIONS,
+    EQUIPMENT_POTENTIAL_OPTIONS,
+    EQUIPMENT_PROPERTY_DEFINITIONS,
+    EQUIPMENT_PROPERTY_GROUPS,
+    type EquipmentPropertyDefinition,
+    type EquipmentPropertyId,
+    getEquipmentPropertyDefinition,
+    getEquipmentPropertyGroups,
+    parseEquipmentProperties,
+    serializeEquipmentProperty,
+} from '../../domain/inventory/equipment-properties';
+import {
+    createInventoryItemFromCatalogEntry,
+    EQUIPMENT_CATALOG,
+    type EquipmentCatalogEntry,
+} from '../../domain/inventory/equipment-catalog';
 
 type InventoryPanelProps = {
     inventory: InventoryState;
@@ -40,6 +58,60 @@ type InventoryPanelProps = {
 };
 
 type InventoryView = 'equipped' | 'items' | 'containers' | 'currency';
+
+function titleCasePotential(value?: string): string | undefined {
+    if (!value) return undefined;
+    return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
+function normalizeInventoryPotential(value?: string): string | undefined {
+    const normalized = value?.trim().toLowerCase();
+
+    switch (normalized) {
+        case "m":
+        case "might":
+            return "might";
+        case "f":
+        case "finesse":
+            return "finesse";
+        case "n":
+        case "nerve":
+            return "nerve";
+        case "s":
+        case "seep":
+            return "seep";
+        default:
+            return normalized || undefined;
+    }
+}
+
+function normalizePositiveInteger(value: string | undefined, fallback = 0): number {
+    const numberValue = Number(value);
+    if (!Number.isFinite(numberValue)) return fallback;
+    return Math.max(0, Math.floor(numberValue));
+}
+
+function getDefaultPropertyParameter(definition: EquipmentPropertyDefinition, item: InventoryItem): string | undefined {
+    if (!definition.parameter) return undefined;
+
+    if (definition.id === "ranged" && item.range) {
+        return item.range;
+    }
+
+    if (definition.id === "durability" && item.durabilityMax !== undefined) {
+        return String(item.durabilityMax);
+    }
+
+    if (definition.id === "protection" && item.protectionMax !== undefined) {
+        return String(item.protectionMax);
+    }
+
+    if (definition.id === "shield") {
+        return titleCasePotential(item.shieldRefreshPotential) ?? definition.parameter.defaultValue;
+    }
+
+    return definition.parameter.defaultValue;
+}
 
 // ── Item Detail Panel (renders inside Sidebar body) ────────────────────────
 function ItemDetail({
@@ -53,6 +125,146 @@ function ItemDetail({
     onChange: (patch: Partial<InventoryItem>) => void;
     onRemove: () => void;
 }) {
+    const [propertiesOpen, setPropertiesOpen] = useState(false);
+    const parsedProperties = parseEquipmentProperties(item.properties);
+    const selectedPropertyIds = new Set(parsedProperties.selectedIds);
+    const specialDescription = item.specialPropertyDescription ?? parsedProperties.parameters.special ?? "";
+
+    if (specialDescription.trim()) {
+        selectedPropertyIds.add("special");
+    }
+
+    const selectedPropertyEntries = EQUIPMENT_PROPERTY_DEFINITIONS
+        .filter((definition) => selectedPropertyIds.has(definition.id))
+        .map((definition) => ({
+            id: definition.id,
+            label: serializeEquipmentProperty(definition.id, parsedProperties.parameters[definition.id]),
+        }));
+    const selectedPropertySummaryLabels = [
+        ...selectedPropertyEntries.map((entry) => entry.label),
+        ...parsedProperties.unknownProperties,
+    ];
+    const selectedPropertySummary = selectedPropertySummaryLabels.length > 0
+        ? selectedPropertySummaryLabels.join(", ")
+        : "No properties";
+    const propertyParameterEntries = selectedPropertyEntries
+        .map((entry) => getEquipmentPropertyDefinition(entry.id))
+        .filter((definition): definition is EquipmentPropertyDefinition =>
+            Boolean(definition?.parameter) &&
+            definition?.id !== "durability" &&
+            definition?.id !== "protection",
+        );
+    const hasWeaponStats =
+        item.category === "weapon" ||
+        selectedPropertyIds.has("damage") ||
+        selectedPropertyIds.has("ranged") ||
+        selectedPropertyIds.has("thrown") ||
+        selectedPropertyIds.has("reach");
+    const hasDurabilityStats =
+        selectedPropertyIds.has("durability") ||
+        item.durabilityMax !== undefined ||
+        item.durabilityStress !== undefined;
+    const hasProtectionStats =
+        item.category === "armor" ||
+        selectedPropertyIds.has("protection") ||
+        selectedPropertyIds.has("light") ||
+        selectedPropertyIds.has("heavy") ||
+        selectedPropertyIds.has("shield") ||
+        item.protectionMax !== undefined ||
+        item.protectionOpen !== undefined;
+
+    function commitPropertySelection(
+        selectedIds: ReadonlySet<EquipmentPropertyId>,
+        parameters: Partial<Record<EquipmentPropertyId, string>>,
+        unknownProperties = parsedProperties.unknownProperties,
+    ) {
+        const nextProperties = buildEquipmentProperties(selectedIds, parameters, unknownProperties);
+        const patch: Partial<InventoryItem> = { properties: nextProperties };
+
+        if (selectedIds.has("ranged")) {
+            patch.range = parameters.ranged?.trim() || "There";
+        } else if (!selectedIds.has("thrown") && item.range !== undefined) {
+            patch.range = undefined;
+        }
+
+        if (selectedIds.has("durability")) {
+            patch.durabilityMax = normalizePositiveInteger(parameters.durability, 1);
+            patch.durabilityStress = Math.min(item.durabilityStress ?? 0, patch.durabilityMax);
+        } else {
+            patch.durabilityMax = undefined;
+            patch.durabilityStress = undefined;
+        }
+
+        if (selectedIds.has("protection")) {
+            patch.protectionMax = normalizePositiveInteger(parameters.protection, 1);
+            patch.protectionOpen = Math.min(item.protectionOpen ?? patch.protectionMax, patch.protectionMax);
+        }
+
+        if (selectedIds.has("shield")) {
+            patch.armorKind = "shield";
+            patch.shieldRefreshPotential = normalizeInventoryPotential(parameters.shield) ?? "might";
+            patch.protectionMax = patch.protectionMax ?? item.protectionMax ?? 1;
+            patch.protectionOpen = Math.min(item.protectionOpen ?? patch.protectionMax, patch.protectionMax);
+        } else if (selectedIds.has("light")) {
+            patch.armorKind = "light";
+        } else if (selectedIds.has("heavy") && item.category === "armor") {
+            patch.armorKind = "heavy";
+        } else if (!selectedIds.has("protection")) {
+            patch.armorKind = item.category === "armor" ? "other" : undefined;
+            patch.protectionMax = item.category === "armor" ? item.protectionMax : undefined;
+            patch.protectionOpen = item.category === "armor" ? item.protectionOpen : undefined;
+            patch.shieldRefreshPotential = undefined;
+        }
+
+        if (!selectedIds.has("special")) {
+            patch.specialPropertyDescription = undefined;
+        } else if (item.specialPropertyDescription === undefined && parsedProperties.parameters.special) {
+            patch.specialPropertyDescription = parsedProperties.parameters.special;
+        }
+
+        onChange(patch);
+    }
+
+    function toggleProperty(propertyId: EquipmentPropertyId) {
+        const nextSelectedIds = new Set(selectedPropertyIds);
+        const nextParameters = { ...parsedProperties.parameters };
+
+        if (nextSelectedIds.has(propertyId)) {
+            nextSelectedIds.delete(propertyId);
+            delete nextParameters[propertyId];
+        } else {
+            nextSelectedIds.add(propertyId);
+
+            const definition = getEquipmentPropertyDefinition(propertyId);
+            const defaultParameter = definition
+                ? getDefaultPropertyParameter(definition, item)
+                : undefined;
+
+            if (defaultParameter && !nextParameters[propertyId]) {
+                nextParameters[propertyId] = defaultParameter;
+            }
+        }
+
+        commitPropertySelection(nextSelectedIds, nextParameters);
+    }
+
+    function updatePropertyParameter(propertyId: EquipmentPropertyId, value: string) {
+        const nextSelectedIds = new Set(selectedPropertyIds);
+        nextSelectedIds.add(propertyId);
+        commitPropertySelection(nextSelectedIds, {
+            ...parsedProperties.parameters,
+            [propertyId]: value,
+        });
+    }
+
+    function removeUnknownProperty(property: string) {
+        commitPropertySelection(
+            selectedPropertyIds,
+            parsedProperties.parameters,
+            parsedProperties.unknownProperties.filter((entry) => entry !== property),
+        );
+    }
+
     return (
         <div className={styles.detailForm}>
             <div className={styles.detailGroup}>
@@ -104,103 +316,232 @@ function ItemDetail({
                 </select>
             </div>
 
-            <div className={styles.detailDivider}>Combat stats</div>
+            <div className={styles.detailDivider}>Properties</div>
 
-            <div className={styles.detailRow}>
-                <div className={styles.detailGroup}>
-                    <label className={styles.fieldLabel}>Damage</label>
-                    <input
-                        className={styles.input}
-                        value={item.damage ?? ""}
-                        onChange={(e) => onChange({ damage: e.target.value || undefined })}
-                        placeholder="1d6"
-                    />
-                </div>
-                <div className={styles.detailGroup}>
-                    <label className={styles.fieldLabel}>Target Potential</label>
-                    <input
-                        className={styles.input}
-                        value={item.targetPotential ?? ""}
-                        onChange={(e) => onChange({ targetPotential: e.target.value || undefined })}
-                        placeholder="might"
-                    />
+            <div className={styles.detailGroup}>
+                <label className={styles.fieldLabel}>Assigned Properties</label>
+                <div className={styles.propertySelect}>
+                    <button
+                        type="button"
+                        className={styles.propertySelectButton}
+                        onClick={() => setPropertiesOpen((open) => !open)}
+                        aria-expanded={propertiesOpen}
+                    >
+                        <span className={styles.propertySelectText}>{selectedPropertySummary}</span>
+                        <span className={styles.propertySelectChevron} aria-hidden="true">
+                            <i className="fa-solid fa-chevron-down" />
+                        </span>
+                    </button>
+
+                    {propertiesOpen ? (
+                        <div className={styles.propertyMenu}>
+                            {EQUIPMENT_PROPERTY_GROUPS.map((group) => {
+                                const definitions = EQUIPMENT_PROPERTY_DEFINITIONS.filter(
+                                    (definition) => getEquipmentPropertyGroups(definition).includes(group),
+                                );
+
+                                return (
+                                    <div key={group} className={styles.propertyGroup}>
+                                        <div className={styles.propertyGroupLabel}>{group}</div>
+                                        {definitions.map((definition) => (
+                                            <label key={definition.id} className={styles.propertyOption}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedPropertyIds.has(definition.id)}
+                                                    onChange={() => toggleProperty(definition.id)}
+                                                />
+                                                <span>{definition.label}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : null}
                 </div>
             </div>
 
-            <div className={styles.detailRow}>
-                <div className={styles.detailGroup}>
-                    <label className={styles.fieldLabel}>Range</label>
-                    <input
-                        className={styles.input}
-                        value={item.range ?? ""}
-                        onChange={(e) => onChange({ range: e.target.value || undefined })}
-                        placeholder="Here / Near / There"
-                    />
+            {(selectedPropertyEntries.length > 0 || parsedProperties.unknownProperties.length > 0) ? (
+                <div className={styles.propertyPillList}>
+                    {selectedPropertyEntries.map((entry) => (
+                        <span key={entry.id} className={styles.editablePropertyPill}>
+                            <span>{entry.label}</span>
+                            <button
+                                type="button"
+                                onClick={() => toggleProperty(entry.id)}
+                                aria-label={`Remove ${entry.label}`}
+                            >
+                                <i className="fa-solid fa-xmark" aria-hidden="true" />
+                            </button>
+                        </span>
+                    ))}
+                    {parsedProperties.unknownProperties.map((property) => (
+                        <span key={property} className={styles.legacyPropertyPill}>
+                            <span>{property}</span>
+                            <button
+                                type="button"
+                                onClick={() => removeUnknownProperty(property)}
+                                aria-label={`Remove ${property}`}
+                            >
+                                <i className="fa-solid fa-xmark" aria-hidden="true" />
+                            </button>
+                        </span>
+                    ))}
                 </div>
-                <div className={styles.detailGroup}>
-                    <label className={styles.fieldLabel}>Properties</label>
-                    <input
-                        className={styles.input}
-                        value={item.properties?.join(", ") ?? ""}
-                        onChange={(e) =>
-                            onChange({
-                                properties: e.target.value
-                                    ? e.target.value.split(",").map((s) => s.trim()).filter(Boolean)
-                                    : [],
-                            })
-                        }
-                        placeholder="Thrown, Light"
-                    />
-                </div>
-            </div>
+            ) : null}
 
-            <div className={styles.detailDivider}>Durability & Protection</div>
+            {propertyParameterEntries.length > 0 ? (
+                <div className={styles.propertyParameterGrid}>
+                    {propertyParameterEntries.map((definition) => {
+                        const parameter = definition.parameter;
+                        if (!parameter) return null;
+                        const value = parsedProperties.parameters[definition.id] ?? getDefaultPropertyParameter(definition, item) ?? "";
 
-            <div className={styles.detailRow}>
-                <div className={styles.detailGroup}>
-                    <label className={styles.fieldLabel}>Durability Max</label>
-                    <input
-                        className={styles.input}
-                        type="number"
-                        min={0}
-                        value={item.durabilityMax ?? 0}
-                        onChange={(e) => onChange({ durabilityMax: Number(e.target.value) || 0 })}
-                    />
+                        return (
+                            <label key={definition.id} className={styles.detailGroup}>
+                                <span className={styles.fieldLabel}>
+                                    {definition.label} {parameter.label}
+                                </span>
+                                {parameter.kind === "distance" ? (
+                                    <select
+                                        className={styles.select}
+                                        value={value}
+                                        onChange={(e) => updatePropertyParameter(definition.id, e.target.value)}
+                                    >
+                                        {EQUIPMENT_DISTANCE_OPTIONS.map((distance) => (
+                                            <option key={distance} value={distance}>{distance}</option>
+                                        ))}
+                                    </select>
+                                ) : null}
+                                {parameter.kind === "potential" ? (
+                                    <select
+                                        className={styles.select}
+                                        value={value}
+                                        onChange={(e) => updatePropertyParameter(definition.id, e.target.value)}
+                                    >
+                                        {EQUIPMENT_POTENTIAL_OPTIONS.map((potential) => (
+                                            <option key={potential} value={potential}>{potential}</option>
+                                        ))}
+                                    </select>
+                                ) : null}
+                                {parameter.kind === "number" ? (
+                                    <input
+                                        className={styles.input}
+                                        type="number"
+                                        min={parameter.min ?? 0}
+                                        value={value}
+                                        onChange={(e) => updatePropertyParameter(definition.id, e.target.value)}
+                                    />
+                                ) : null}
+                            </label>
+                        );
+                    })}
                 </div>
-                <div className={styles.detailGroup}>
-                    <label className={styles.fieldLabel}>Durability Stress</label>
-                    <input
-                        className={styles.input}
-                        type="number"
-                        min={0}
-                        value={item.durabilityStress ?? 0}
-                        onChange={(e) => onChange({ durabilityStress: Number(e.target.value) || 0 })}
-                    />
-                </div>
-            </div>
+            ) : null}
 
-            <div className={styles.detailRow}>
+            {selectedPropertyIds.has("special") ? (
                 <div className={styles.detailGroup}>
-                    <label className={styles.fieldLabel}>Protection Max</label>
-                    <input
-                        className={styles.input}
-                        type="number"
-                        min={0}
-                        value={item.protectionMax ?? 0}
-                        onChange={(e) => onChange({ protectionMax: Number(e.target.value) || 0 })}
+                    <label className={styles.fieldLabel}>Special Description</label>
+                    <textarea
+                        className={styles.textarea}
+                        value={specialDescription}
+                        onChange={(e) => onChange({ specialPropertyDescription: e.target.value })}
+                        placeholder="Custom property rule text..."
                     />
                 </div>
-                <div className={styles.detailGroup}>
-                    <label className={styles.fieldLabel}>Protection Open</label>
-                    <input
-                        className={styles.input}
-                        type="number"
-                        min={0}
-                        value={item.protectionOpen ?? 0}
-                        onChange={(e) => onChange({ protectionOpen: Number(e.target.value) || 0 })}
-                    />
+            ) : null}
+
+            {hasWeaponStats ? (
+                <>
+                    <div className={styles.detailDivider}>Attack Stats</div>
+
+                    <div className={styles.detailRow}>
+                        <div className={styles.detailGroup}>
+                            <label className={styles.fieldLabel}>Damage</label>
+                            <input
+                                className={styles.input}
+                                value={item.damage ?? ""}
+                                onChange={(e) => onChange({ damage: e.target.value || undefined })}
+                                placeholder="1d6"
+                            />
+                        </div>
+                        <div className={styles.detailGroup}>
+                            <label className={styles.fieldLabel}>Target Potential</label>
+                            <select
+                                className={styles.select}
+                                value={titleCasePotential(item.targetPotential) ?? "Might"}
+                                onChange={(e) => onChange({ targetPotential: normalizeInventoryPotential(e.target.value) })}
+                            >
+                                {EQUIPMENT_POTENTIAL_OPTIONS.map((potential) => (
+                                    <option key={potential} value={potential}>{potential}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                </>
+            ) : null}
+
+            {(hasDurabilityStats || hasProtectionStats) ? (
+                <div className={styles.detailDivider}>Durability & Protection</div>
+            ) : null}
+
+            {hasDurabilityStats ? (
+                <div className={styles.detailRow}>
+                    <div className={styles.detailGroup}>
+                        <label className={styles.fieldLabel}>Durability Max</label>
+                        <input
+                            className={styles.input}
+                            type="number"
+                            min={0}
+                            value={item.durabilityMax ?? 0}
+                            onChange={(e) => {
+                                const value = Number(e.target.value) || 0;
+                                updatePropertyParameter("durability", String(value));
+                            }}
+                        />
+                    </div>
+                    <div className={styles.detailGroup}>
+                        <label className={styles.fieldLabel}>Durability Stress</label>
+                        <input
+                            className={styles.input}
+                            type="number"
+                            min={0}
+                            max={item.durabilityMax ?? undefined}
+                            value={item.durabilityStress ?? 0}
+                            onChange={(e) => onChange({ durabilityStress: Number(e.target.value) || 0 })}
+                        />
+                    </div>
                 </div>
-            </div>
+            ) : null}
+
+            {hasProtectionStats ? (
+                <div className={styles.detailRow}>
+                    <div className={styles.detailGroup}>
+                        <label className={styles.fieldLabel}>Protection Max</label>
+                        <input
+                            className={styles.input}
+                            type="number"
+                            min={0}
+                            value={item.protectionMax ?? 0}
+                            onChange={(e) => {
+                                const value = Number(e.target.value) || 0;
+                                updatePropertyParameter("protection", String(value));
+                            }}
+                        />
+                    </div>
+                    <div className={styles.detailGroup}>
+                        <label className={styles.fieldLabel}>Protection Open</label>
+                        <input
+                            className={styles.input}
+                            type="number"
+                            min={0}
+                            max={item.protectionMax ?? undefined}
+                            value={item.protectionOpen ?? 0}
+                            onChange={(e) => onChange({ protectionOpen: Number(e.target.value) || 0 })}
+                        />
+                    </div>
+                </div>
+            ) : null}
 
             <div className={styles.detailGroup}>
                 <label className={styles.fieldLabel}>Notes</label>
@@ -279,6 +620,116 @@ function ContainerDetail({
     );
 }
 
+function EquipmentCatalogTray({
+    open,
+    onClose,
+    onAdd,
+}: {
+    open: boolean;
+    onClose: () => void;
+    onAdd: (entry: EquipmentCatalogEntry) => void;
+}) {
+    const [query, setQuery] = useState("");
+    const [category, setCategory] = useState<"all" | "weapon" | "armor">("all");
+    const filteredCatalog = useMemo(() => {
+        const normalizedQuery = query.trim().toLowerCase();
+
+        return EQUIPMENT_CATALOG.filter((entry) => {
+            if (category !== "all" && entry.category !== category) return false;
+            if (!normalizedQuery) return true;
+
+            return [
+                entry.name,
+                entry.category,
+                entry.damage,
+                entry.targetPotential,
+                entry.range,
+                entry.properties.join(" "),
+            ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase()
+                .includes(normalizedQuery);
+        });
+    }, [category, query]);
+
+    return (
+        <Sidebar
+            open={open}
+            onClose={onClose}
+            title="Item Catalog"
+            width="420px"
+            modal={false}
+        >
+            <div className={styles.catalogPanel}>
+                <div className={styles.catalogSearchRow}>
+                    <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
+                    <input
+                        className={styles.catalogSearchInput}
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Search equipment..."
+                    />
+                </div>
+
+                <div className={styles.catalogFilterRow}>
+                    {(["all", "weapon", "armor"] as const).map((filter) => (
+                        <button
+                            key={filter}
+                            type="button"
+                            className={`${styles.catalogFilterButton} ${category === filter ? styles.catalogFilterButtonActive : ""}`}
+                            onClick={() => setCategory(filter)}
+                        >
+                            {filter === "all" ? "All" : filter === "weapon" ? "Weapons" : "Armor"}
+                        </button>
+                    ))}
+                </div>
+
+                <div className={styles.catalogList}>
+                    {filteredCatalog.map((entry) => (
+                        <article key={entry.id} className={styles.catalogItem}>
+                            <div className={styles.catalogItemHeader}>
+                                <div>
+                                    <div className={styles.catalogItemType}>
+                                        {entry.category === "weapon" ? "Weapon" : "Armor"}
+                                    </div>
+                                    <h3>{entry.name}</h3>
+                                </div>
+                                <button
+                                    type="button"
+                                    className={styles.catalogAddButton}
+                                    onClick={() => onAdd(entry)}
+                                >
+                                    Add
+                                </button>
+                            </div>
+
+                            <div className={styles.catalogMeta}>
+                                {entry.damage ? <span>{entry.damage}</span> : null}
+                                {entry.targetPotential ? <span>{titleCasePotential(entry.targetPotential)}</span> : null}
+                                {entry.range ? <span>{entry.range}</span> : null}
+                                {entry.protectionMax ? <span>{entry.protectionMax} Protection</span> : null}
+                            </div>
+
+                            {entry.properties.length > 0 ? (
+                                <div className={styles.catalogPropertyList}>
+                                    {entry.properties.map((property) => (
+                                        <span key={property} className={styles.propPill}>{property}</span>
+                                    ))}
+                                </div>
+                            ) : null}
+                        </article>
+                    ))}
+
+                    {filteredCatalog.length === 0 ? (
+                        <div className={styles.emptyState}>No catalog items match that search.</div>
+                    ) : null}
+                </div>
+            </div>
+        </Sidebar>
+    );
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function InventoryPanel({ inventory, onChange }: InventoryPanelProps) {
     const [view, setView] = useState<InventoryView>("equipped");
@@ -286,6 +737,7 @@ export default function InventoryPanel({ inventory, onChange }: InventoryPanelPr
     const [newItemName, setNewItemName] = useState("");
     const [newContainerName, setNewContainerName] = useState("");
     const [newCurrencyName, setNewCurrencyName] = useState("");
+    const [catalogOpen, setCatalogOpen] = useState(false);
 
     // Sidebar state
     const [sidebarItemId, setSidebarItemId] = useState<string | null>(null);
@@ -328,6 +780,17 @@ export default function InventoryPanel({ inventory, onChange }: InventoryPanelPr
         if (!name) return;
         applyCommand(addItemCommand(inventory, name));
         setNewItemName("");
+        setView("items");
+    }
+
+    function addCatalogItem(entry: EquipmentCatalogEntry) {
+        applyCommand({
+            ...inventory,
+            items: [
+                ...inventory.items,
+                createInventoryItemFromCatalogEntry(entry),
+            ],
+        });
         setView("items");
     }
 
@@ -402,6 +865,18 @@ export default function InventoryPanel({ inventory, onChange }: InventoryPanelPr
                                 onKeyDown={(e) => e.key === "Enter" && addItem()}
                             />
                             <button type="button" className={styles.addBtn} onClick={addItem}>+ Add</button>
+                            <button
+                                type="button"
+                                className={styles.searchBtn}
+                                onClick={() => {
+                                    setSidebarItemId(null);
+                                    setSidebarContainerId(null);
+                                    setCatalogOpen(true);
+                                }}
+                            >
+                                <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
+                                <span>Search</span>
+                            </button>
                         </>
                     )}
                     {view === "containers" && (
@@ -706,6 +1181,12 @@ export default function InventoryPanel({ inventory, onChange }: InventoryPanelPr
                     />
                 )}
             </Sidebar>
+
+            <EquipmentCatalogTray
+                open={catalogOpen}
+                onClose={() => setCatalogOpen(false)}
+                onAdd={addCatalogItem}
+            />
         </section>
     );
 }

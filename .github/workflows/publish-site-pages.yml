@@ -1,0 +1,161 @@
+name: Publish Sunder Site Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "sunder-platform/apps/site/**"
+      - ".github/workflows/publish-site-pages.yml"
+  workflow_dispatch:
+    inputs:
+      force_publish:
+        description: "Publish even if no relevant app files changed."
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-site-pages
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect Sunder Site changes
+    runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.detect.outputs.should_publish }}
+
+    steps:
+      - name: Detect relevant changes
+        id: detect
+        shell: bash
+        env:
+          FORCE_PUBLISH: ${{ github.event_name == 'workflow_dispatch' && inputs.force_publish }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+
+          if [ "$FORCE_PUBLISH" = "true" ]; then
+            echo "Manual force publish requested."
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          node <<'NODE' > /tmp/site-changed-files.txt
+          const fs = require("node:fs");
+          const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
+          const files = new Set();
+
+          for (const commit of event.commits ?? []) {
+            for (const key of ["added", "modified", "removed"]) {
+              for (const file of commit[key] ?? []) {
+                files.add(file);
+              }
+            }
+          }
+
+          for (const file of files) {
+            console.log(file);
+          }
+          NODE
+
+          cat /tmp/site-changed-files.txt
+
+          if [ "$EVENT_NAME" = "push" ] && [ ! -s /tmp/site-changed-files.txt ]; then
+            echo "No changed files were available in the push payload; publishing to avoid missing a site deploy."
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          SHOULD_PUBLISH=false
+          while IFS= read -r file; do
+            case "$file" in
+              sunder-platform/apps/site/*|.github/workflows/publish-site-pages.yml)
+                SHOULD_PUBLISH=true
+                break
+                ;;
+            esac
+          done < /tmp/site-changed-files.txt
+
+          echo "should_publish=$SHOULD_PUBLISH" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Build and publish Sunder Site
+    needs: changes
+    if: needs.changes.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Compute Sunder version from tags
+        id: version
+        working-directory: sunder-platform/apps/site
+        run: |
+          set -euo pipefail
+
+          TAG=$(git describe --tags --match "v[0-9]*.[0-9]*.[0-9]*" --abbrev=0)
+          echo "Base tag: ${TAG}"
+
+          BASE=${TAG#v}
+          PATCH=$(git rev-list "${TAG}..HEAD" --count)
+          MAJOR=$(echo "$BASE" | cut -d. -f1)
+          MINOR=$(echo "$BASE" | cut -d. -f2)
+          VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+          echo "Computed Sunder version: ${VERSION}"
+          sed -i "s/^\(\s*sunder_version:\s*\).*/\1\"${VERSION}\"/" mkdocs.yml
+          grep "sunder_version:" mkdocs.yml
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag_full=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "tag_version=${BASE}" >> "$GITHUB_OUTPUT"
+          echo "tag_patch=${PATCH}" >> "$GITHUB_OUTPUT"
+          echo "tag_feature=v${MAJOR}.${MINOR}.0" >> "$GITHUB_OUTPUT"
+
+      - name: Install MkDocs dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            mkdocs \
+            mkdocs-material \
+            pymdown-extensions \
+            mkdocs-obsidian-support-plugin \
+            mkdocs-roamlinks-plugin \
+            pyyaml
+
+      - name: Build chatbot knowledge bundle
+        working-directory: sunder-platform/apps/site
+        run: python tools/chatbot/build_chatbot_index.py
+
+      - name: Build MkDocs site
+        working-directory: sunder-platform/apps/site
+        run: mkdocs build --clean
+
+      - name: Publish public GitHub Pages
+        uses: ./.github/actions/publish-public-gh-pages
+        with:
+          app-name: site
+          publish-dir: sunder-platform/apps/site/site
+          external-repository: Tsindwr/site
+          deploy-key: ${{ secrets.SITE_PAGES_DEPLOY_KEY }}
+
+      - name: Announce release notes
+        uses: ./.github/actions/announce-release
+        with:
+          app-name: site
+          notes-file: sunder-platform/apps/site/public/release-notes/${{ steps.version.outputs.tag_feature }}.json
+          function-url: ${{ secrets.SUPABASE_RELEASE_FUNCTION_URL }}
+          shared-secret: ${{ secrets.SUPABASE_POST_UPDATE_SECRET }}

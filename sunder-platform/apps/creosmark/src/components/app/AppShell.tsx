@@ -8,13 +8,20 @@ type AppShellProps = {
     children: React.ReactNode;
     aside?: React.ReactNode;
     activePath?: string;
+    bodyClassName?: string;
+    mainClassName?: string;
 };
 
 export default function AppShell({
     children,
     aside,
     activePath = routes.home(),
+    bodyClassName,
+    mainClassName,
 }: AppShellProps) {
+    const bodyClasses = [styles.body, bodyClassName].filter(Boolean).join(" ");
+    const mainClasses = [styles.main, mainClassName].filter(Boolean).join(" ");
+
     return (
         <div className={`${styles.page}`}>
             <NavBar
@@ -22,8 +29,8 @@ export default function AppShell({
                 authSlot={<AuthStatus />}
             />
 
-            <div className={styles.body}>
-                <main className={styles.main}>{children}</main>
+            <div className={bodyClasses}>
+                <main className={mainClasses}>{children}</main>
                 {aside ? <aside className={styles.aside}>{aside}</aside> : null}
             </div>
         </div>

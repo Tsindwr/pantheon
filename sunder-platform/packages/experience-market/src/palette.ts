@@ -1425,7 +1425,12 @@ function resolveIncreaseRiskinessCost(
 }
 
 export function resolveModifierData(data: ModifierData): ModifierData {
-    if (!data.optionPoolId) return data;
+    if (!data.optionPoolId) {
+        return {
+            ...data,
+            description: data.descriptionOverride ?? data.description,
+        };
+    }
 
     const pool = getModifierOptionPool(data.optionPoolId);
     if (!pool || pool.options.length === 0) return data;
@@ -1451,7 +1456,7 @@ export function resolveModifierData(data: ModifierData): ModifierData {
         selectionValues: data.selectionValues ?? {},
         selectedOptionId: option.id,
         label: option.resolvedLabel ?? `${data.label} · ${option.label}`,
-        description: option.description,
+        description: data.descriptionOverride ?? option.description,
         cost: resolvedCost,
     };
 }
@@ -1689,7 +1694,11 @@ const MODIFIER_CARD_LABEL_OVERRIDES: Record<string, ModifierCardLabelResolver> =
             : "+1 Riskiness";
     },
     "caveatType:prerequisite": ({ data }) => {
-        const title = data.selectionValues?.prerequisiteAbilityTitle?.trim();
+        const title =
+            data.selectionValues?.prerequisiteOriginTitle?.trim() ??
+            data.selectionValues?.prerequisiteAbilityTitle?.trim() ??
+            data.selectionValues?.prerequisiteArchetypeId?.trim() ??
+            data.selectionValues?.prerequisiteArchetype?.trim();
         if (title) return `requires ${title}`;
 
         return "prerequisite";

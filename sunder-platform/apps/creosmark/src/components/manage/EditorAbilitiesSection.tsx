@@ -75,6 +75,7 @@ function toFallbackAbilityEntry(abilityId: string): AbilityReferenceEntry {
     return {
         kind: "ability",
         id: abilityId,
+        ownerId: "",
         title: `Unknown Ability ${abilityId.slice(0, 8)}`,
         author: "Unavailable",
         abilityKind: "unknown",
@@ -86,6 +87,7 @@ function toFallbackAbilityEntry(abilityId: string): AbilityReferenceEntry {
         descriptionText: "Ability metadata unavailable.",
         prerequisiteAbilityIds: [],
         directArchetypeIds: [],
+        directOriginSelectionIds: [],
     };
 }
 
@@ -206,6 +208,18 @@ export default function EditorAbilitiesSection({
     );
 
     const assignedAbilityIds = useMemo(() => new Set(sheet.abilityIds), [sheet.abilityIds]);
+    const characterOriginSelectionIds = useMemo(() => {
+        const ids = new Set<string>();
+        const selections = sheet.originSelections;
+        if (!selections) return ids;
+
+        for (const facet of Object.values(selections)) {
+            const originSelectionId = facet?.originSelectionId?.trim();
+            if (originSelectionId) ids.add(originSelectionId);
+        }
+
+        return ids;
+    }, [sheet.originSelections]);
 
     const archetypesByAbilityId = useMemo(() => {
         const memo = new Map<string, ArchetypeId[]>();
@@ -234,6 +248,10 @@ export default function EditorAbilitiesSection({
                 return [];
             }
 
+            if (row.directOriginSelectionIds.some((id) => !characterOriginSelectionIds.has(id))) {
+                return [];
+            }
+
             if (
                 searchWords.length > 0 &&
                 !includesAllWords(
@@ -256,6 +274,7 @@ export default function EditorAbilitiesSection({
         assignedAbilityIds,
         archetypesByAbilityId,
         characterArchetypeIds,
+        characterOriginSelectionIds,
         searchWords,
     ]);
 

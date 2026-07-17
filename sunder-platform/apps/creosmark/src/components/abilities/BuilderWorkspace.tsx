@@ -29,6 +29,10 @@ export default function BuilderWorkspace() {
         setSelectedEdgeId,
         cardState,
         setCardState,
+        canUndo,
+        canRedo,
+        onUndo,
+        onRedo,
         summary,
         canPublish,
         hasInvalidState,
@@ -77,6 +81,23 @@ export default function BuilderWorkspace() {
                 )}
 
                 <div className={styles.toolbarActions}>
+                    <button
+                        type="button"
+                        className={styles.secondaryButton}
+                        onClick={onUndo}
+                        disabled={!canUndo}
+                    >
+                        Undo
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.secondaryButton}
+                        onClick={onRedo}
+                        disabled={!canRedo}
+                    >
+                        Redo
+                    </button>
+
                     {builderView === "card" ? (
                         <button
                             type={"button"}
@@ -107,11 +128,11 @@ export default function BuilderWorkspace() {
                                     : "Send to cloud"
                         }
                     >
-                        {isPublishing ? "Sending..." : "Send to Cloud"}
+                        {isPublishing ? "Sending..." : "Upload"}
                     </button>
 
                     <button type={"button"} className={styles.exportButton} onClick={onExportJson}>
-                        Export JSON
+                        Export
                     </button>
 
                     <button
@@ -119,7 +140,7 @@ export default function BuilderWorkspace() {
                         className={styles.exportButton}
                         onClick={() => importInputRef.current?.click()}
                     >
-                        Import JSON
+                        Import
                     </button>
 
                     <input
@@ -183,8 +204,20 @@ export default function BuilderWorkspace() {
                     defaultEdgeOptions={{ markerEnd: { type: "arrowclosed" } }}
                 >
                     <Background gap={24} size={1} />
-                    <MiniMap pannable zoomable />
-                    <Controls />
+                    <MiniMap
+                        pannable
+                        zoomable
+                        bgColor="rgba(15, 18, 30, 0.94)"
+                        maskColor="rgba(6, 8, 14, 0.58)"
+                        nodeColor={(node) => {
+                            if (node.type === "marketModifier") return "rgba(210, 178, 76, 0.72)";
+                            if (node.type === "freeformText") return "rgba(101, 160, 255, 0.62)";
+                            return "rgba(139, 124, 243, 0.74)";
+                        }}
+                        nodeStrokeColor={() => "rgba(244, 242, 235, 0.46)"}
+                        nodeBorderRadius={6}
+                    />
+                    <Controls showInteractive={false} />
                 </ReactFlow>
             ) : (
                 <AbilityCardCanvas
@@ -193,6 +226,10 @@ export default function BuilderWorkspace() {
                     title={cardState.titleOverride || summary.root?.data.title || "Untitled Ability"}
                     subtitle={cardState.subtitleOverride || summary.root?.data.summary || ""}
                     onCardStateChange={setCardState}
+                    canUndo={canUndo}
+                    canRedo={canRedo}
+                    onUndo={onUndo}
+                    onRedo={onRedo}
                 />
             )}
         </section>

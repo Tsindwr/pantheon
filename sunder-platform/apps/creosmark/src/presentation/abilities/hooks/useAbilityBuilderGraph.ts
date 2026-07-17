@@ -1,10 +1,12 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
     addEdge,
     useEdgesState,
     useNodesState,
     type Connection,
     type Edge,
+    type EdgeChange,
+    type NodeChange,
 } from "@xyflow/react";
 import type {
     AbilityBuilderNode,
@@ -20,6 +22,7 @@ import {
     buildBlankSurgePreset,
     deriveActivationProfile,
     getModifierOptionPool,
+    isActivationProfileModifier,
     resolveModifierData,
 } from "../../../domain";
 import { createNodeFromTemplate } from "../../../application";
@@ -33,6 +36,98 @@ function getNodeLane(node: AbilityBuilderNode | undefined): AbilityLane | null {
         return node.data.lane;
     }
     return null;
+}
+
+function isGeneratesOptionsModifier(node: AbilityBuilderNode | undefined): boolean {
+    if (!node || node.type !== "marketModifier") return false;
+
+    const resolved = resolveModifierData(node.data);
+    return (
+        resolved.label === "Generates Options" ||
+        resolved.selectedOptionId === "generatesOptions" ||
+        (
+            resolved.optionPoolId === "specialModifier" &&
+            resolved.selectedOptionId === "generatesOptions"
+        )
+    );
+}
+
+function isActivationTypeModifier(
+    node: AbilityBuilderNode,
+): node is ModifierNodeType {
+    if (node.type !== "marketModifier") return false;
+
+    const resolved = resolveModifierData(node.data);
+    return (
+        resolved.optionPoolId === "activationType" ||
+        resolved.label.startsWith("Activation ·") ||
+        resolved.label.startsWith("Activate ·")
+    );
+}
+
+function isSplitActionOptionId(optionId: string): boolean {
+    return (
+        optionId === "action" ||
+        optionId === "twoActions" ||
+        optionId === "minute" ||
+        optionId === "ritual"
+    );
+}
+
+function normalizeContentLaneForActionProfile(
+    lane: AbilityLane,
+    isSplitActionCard: boolean,
+): AbilityLane {
+    if (lane === "option") return lane;
+
+    if (isSplitActionCard) {
+        return lane === "body" ? "focus" : lane;
+    }
+
+    return lane === "focus" || lane === "flipside" ? "body" : lane;
+}
+
+function normalizeContentLanesForActionProfile(
+    nodes: AbilityBuilderNode[],
+    isSplitActionCard: boolean,
+): AbilityBuilderNode[] {
+    return nodes.map((node): AbilityBuilderNode => {
+        if (node.type === "marketModifier") {
+            if (isActivationProfileModifier(node)) return node;
+
+            const nextLane = normalizeContentLaneForActionProfile(
+                node.data.lane,
+                isSplitActionCard,
+            );
+            if (nextLane === node.data.lane) return node;
+
+            return {
+                ...node,
+                data: {
+                    ...node.data,
+                    lane: nextLane,
+                },
+            };
+        }
+
+        if (node.type === "freeformText") {
+            const nextLane = normalizeContentLaneForActionProfile(
+                node.data.lane,
+                isSplitActionCard,
+            );
+            if (nextLane === node.data.lane) return node;
+
+            return {
+                ...node,
+                data: {
+                    ...node.data,
+                    lane: nextLane,
+                },
+            };
+        }
+
+        return node;
+    });
 }
 
 function applyLaneToNodeTree(
@@ -129,17 +224,78 @@ function applyActivationHandleLanes(
     return nextNodes;
 }
 
+function applyGeneratedOptionLanes(
+    nodes: AbilityBuilderNode[],
+    edges: Edge[],
+): AbilityBuilderNode[] {
+    let nextNodes = nodes;
+
+    for (const edge of edges) {
+        const sourceNode = nextNodes.find((node) => node.id === edge.source);
+        if (!isGeneratesOptionsModifier(sourceNode) || !edge.target) continue;
+
+        nextNodes = applyLaneToNodeTree(nextNodes, edges, edge.target, "option");
+    }
+
+    return nextNodes;
+}
+
+function normalizeGraphLaneRules(
+    nodes: AbilityBuilderNode[],
+    edges: Edge[],
+): { nodes: AbilityBuilderNode[]; edges: Edge[] } {
+    const profile = deriveActivationProfile(nodes);
+    let normalizedNodes = normalizeContentLanesForActionProfile(
+        nodes,
+        profile.isSplitActionCard,
+    );
+
+    if (profile.isSplitActionCard) {
+        const activationNode = normalizedNodes.find(isActivationTypeModifier);
+        if (activationNode) {
+            normalizedNodes = applyActivationHandleLanes(
+                normalizedNodes,
+                edges,
+                activationNode.id,
+                activationNode.data,
+            );
+        }
+    }
+
+    return {
+        nodes: applyGeneratedOptionLanes(normalizedNodes, edges),
+        edges,
+    };
+}
+
 function isActionCardFromNodes(nodes: AbilityBuilderNode[]): boolean {
     const profile = deriveActivationProfile(nodes);
     return profile.isSplitActionCard;
 }
 
-export function useAbilityBuilderGraph() {
-    const initial = useMemo(() => buildBlankActionPreset(), []);
-    const [nodes, setNodes, onNodesChange] = useNodesState<AbilityBuilderNode>(initial.nodes);
-    const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
+type AbilityBuilderGraphOptions = {
+    onBeforeChange?: () => void;
+};
+
+function isTrackableNodeChange(change: NodeChange<AbilityBuilderNode>): boolean {
+    return change.type !== "select" && change.type !== "dimensions";
+}
+
+function isTrackableEdgeChange(change: EdgeChange<Edge>): boolean {
+    return change.type !== "select";
+}
+
+export function useAbilityBuilderGraph(options: AbilityBuilderGraphOptions = {}) {
+    const { onBeforeChange } = options;
+    const initial = useMemo(() => {
+        const preset = buildBlankActionPreset();
+        return normalizeGraphLaneRules(preset.nodes, preset.edges as Edge[]);
+    }, []);
+    const [nodes, setNodes, applyNodeChanges] = useNodesState<AbilityBuilderNode>(initial.nodes);
+    const [edges, setEdges, applyEdgeChanges] = useEdgesState(initial.edges);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(initial.nodes[0]?.id ?? null);
     const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(initial.edges[0]?.id ?? null);
+    const nodeDragChangeActiveRef = useRef(false);
 
     const isActionCard = useMemo(() => isActionCardFromNodes(nodes), [nodes]);
 
@@ -163,18 +319,63 @@ export function useAbilityBuilderGraph() {
         [selectedNode],
     );
 
+    const recordChange = useCallback(() => {
+        onBeforeChange?.();
+    }, [onBeforeChange]);
+
+    const onNodesChange = useCallback((changes: NodeChange<AbilityBuilderNode>[]) => {
+        const trackableChanges = changes.filter(isTrackableNodeChange);
+
+        if (trackableChanges.length > 0) {
+            const hasDraggingPosition = trackableChanges.some(
+                (change) => change.type === "position" && change.dragging,
+            );
+            const hasFinishedPosition = trackableChanges.some(
+                (change) => change.type === "position" && change.dragging === false,
+            );
+            const hasNonPositionChange = trackableChanges.some(
+                (change) => change.type !== "position",
+            );
+
+            if (hasDraggingPosition) {
+                if (!nodeDragChangeActiveRef.current) {
+                    recordChange();
+                    nodeDragChangeActiveRef.current = true;
+                }
+            } else if (hasFinishedPosition && nodeDragChangeActiveRef.current) {
+                nodeDragChangeActiveRef.current = false;
+            } else if (hasFinishedPosition || hasNonPositionChange) {
+                recordChange();
+            }
+        }
+
+        applyNodeChanges(changes);
+    }, [applyNodeChanges, recordChange]);
+
+    const onEdgesChange = useCallback((changes: EdgeChange<Edge>[]) => {
+        if (changes.some(isTrackableEdgeChange)) {
+            recordChange();
+        }
+
+        applyEdgeChanges(changes);
+    }, [applyEdgeChanges, recordChange]);
+
     const onConnect = useCallback(
         (connection: Connection) => {
             const sourceNode = nodes.find((node) => node.id === connection.source);
             let sourceLane = getNodeLane(sourceNode);
 
-            if (
+            if (isGeneratesOptionsModifier(sourceNode)) {
+                sourceLane = "option";
+            } else if (
                 isActionCard &&
                 sourceNode?.type === "marketModifier" &&
                 sourceNode.data.optionPoolId === "activationType"
             ) {
                 sourceLane = getActivationHandleLane(sourceNode.data, connection.sourceHandle);
             }
+
+            recordChange();
 
             const nextEdges = addEdge(
                 {
@@ -193,7 +394,7 @@ export function useAbilityBuilderGraph() {
                 );
             }
         },
-        [nodes, edges, setEdges, setNodes, isActionCard],
+        [nodes, edges, setEdges, setNodes, isActionCard, recordChange],
     );
 
     function updateSelectedModifier(
@@ -201,6 +402,7 @@ export function useAbilityBuilderGraph() {
     ) {
         if (!selectedNodeId) return;
 
+        recordChange();
         setNodes((current) =>
             current.map((node): AbilityBuilderNode => {
                 if (node.id !== selectedNodeId || node.type !== "marketModifier") return node;
@@ -214,6 +416,7 @@ export function useAbilityBuilderGraph() {
     ) {
         if (!selectedNodeId) return;
 
+        recordChange();
         setNodes((current) =>
             current.map((node): AbilityBuilderNode => {
                 if (node.id !== selectedNodeId || node.type !== "freeformText") return node;
@@ -227,6 +430,7 @@ export function useAbilityBuilderGraph() {
     ) {
         if (!selectedNodeId) return;
 
+        recordChange();
         setNodes((current) =>
             current.map((node): AbilityBuilderNode => {
                 if (node.id !== selectedNodeId || node.type !== "abilityRoot") return node;
@@ -237,10 +441,18 @@ export function useAbilityBuilderGraph() {
 
     function updateModifierSelection(selectionId: string, value: string) {
         if (!selectedNodeId) return;
+        updateModifierSelectionByNodeId(selectedNodeId, selectionId, value);
+    }
 
+    function updateModifierSelectionByNodeId(
+        modifierNodeId: string,
+        selectionId: string,
+        value: string,
+    ) {
+        recordChange();
         setNodes((current) => {
             const withSelection = current.map((node): AbilityBuilderNode => {
-                if (node.id !== selectedNodeId || node.type !== "marketModifier") return node;
+                if (node.id !== modifierNodeId || node.type !== "marketModifier") return node;
 
                 return {
                     ...node,
@@ -256,7 +468,7 @@ export function useAbilityBuilderGraph() {
 
             const updatedNode = withSelection.find(
                 (node): node is ModifierNodeType =>
-                    node.id === selectedNodeId && node.type === "marketModifier",
+                    node.id === modifierNodeId && node.type === "marketModifier",
             );
 
             if (!updatedNode) return withSelection;
@@ -265,13 +477,77 @@ export function useAbilityBuilderGraph() {
                 return applyActivationHandleLanes(
                     withSelection,
                     edges,
-                    selectedNodeId,
+                    modifierNodeId,
                     updatedNode.data,
                 );
             }
 
             return withSelection;
         });
+    }
+
+    function updateModifierOption(modifierNodeId: string, optionId: string) {
+        recordChange();
+        setNodes((current) => {
+            const withOption = current.map((node): AbilityBuilderNode => {
+                if (node.id !== modifierNodeId || node.type !== "marketModifier") return node;
+                return {
+                    ...node,
+                    data: {
+                        ...node.data,
+                        selectedOptionId: optionId,
+                    },
+                };
+            });
+
+            const updatedNode = withOption.find(
+                (node): node is ModifierNodeType =>
+                    node.id === modifierNodeId && node.type === "marketModifier",
+            );
+
+            if (!updatedNode) return withOption;
+
+            let nextNodes = withOption;
+
+            if (updatedNode.data.optionPoolId === "activationType") {
+                const isSplitActionCard = isSplitActionOptionId(optionId);
+                nextNodes = normalizeContentLanesForActionProfile(nextNodes, isSplitActionCard);
+
+                if (isSplitActionCard) {
+                    nextNodes = applyActivationHandleLanes(
+                        nextNodes,
+                        edges,
+                        modifierNodeId,
+                        updatedNode.data,
+                    );
+                }
+            }
+
+            if (isGeneratesOptionsModifier(updatedNode)) {
+                nextNodes = applyGeneratedOptionLanes(nextNodes, edges);
+            }
+
+            return nextNodes;
+        });
+    }
+
+    function updateModifierSelectionValues(
+        modifierNodeId: string,
+        updater: (selectionValues: Record<string, string>) => Record<string, string>,
+    ) {
+        recordChange();
+        setNodes((current) =>
+            current.map((node): AbilityBuilderNode => {
+                if (node.id !== modifierNodeId || node.type !== "marketModifier") return node;
+                return {
+                    ...node,
+                    data: {
+                        ...node.data,
+                        selectionValues: updater(node.data.selectionValues ?? {}),
+                    },
+                };
+            }),
+        );
     }
 
     function onDragStart(event: React.DragEvent, template: PaletteTemplate) {
@@ -281,18 +557,32 @@ export function useAbilityBuilderGraph() {
 
     function createDroppedNode(template: PaletteTemplate, position: { x: number; y: number }) {
         const newNode = createNodeFromTemplate(template, position);
-        setNodes((current) => [...current, newNode]);
-        setSelectedNodeId(newNode.id);
+        const normalizedNode = normalizeContentLanesForActionProfile(
+            [newNode],
+            isActionCard,
+        )[0] ?? newNode;
+        recordChange();
+        setNodes((current) => [...current, normalizedNode]);
+        setSelectedNodeId(normalizedNode.id);
     }
 
     function loadPreset(kind: "action" | "surge") {
-        const next = kind === "surge" ? buildBlankSurgePreset() : buildBlankActionPreset();
+        const preset = kind === "surge" ? buildBlankSurgePreset() : buildBlankActionPreset();
+        const next = normalizeGraphLaneRules(preset.nodes, preset.edges as Edge[]);
+        recordChange();
         setNodes(next.nodes);
         setEdges(next.edges);
         setSelectedNodeId(next.nodes[0]?.id ?? null);
     }
 
     function loadGraph(nextNodes: AbilityBuilderNode[], nextEdges: Edge[]) {
+        const next = normalizeGraphLaneRules(nextNodes, nextEdges);
+        recordChange();
+        restoreGraph(next.nodes, next.edges);
+        return next;
+    }
+
+    function restoreGraph(nextNodes: AbilityBuilderNode[], nextEdges: Edge[]) {
         setNodes(nextNodes);
         setEdges(nextEdges);
         setSelectedNodeId(nextNodes[0]?.id ?? null);
@@ -300,6 +590,7 @@ export function useAbilityBuilderGraph() {
     }
 
     function deleteNodeById(nodeId: string) {
+        recordChange();
         setEdges((current) =>
             current.filter((edge) => edge.source !== nodeId && edge.target !== nodeId),
         );
@@ -308,6 +599,7 @@ export function useAbilityBuilderGraph() {
     }
 
     function deleteEdgeById(edgeId: string) {
+        recordChange();
         setEdges((current) => current.filter((edge) => edge.id !== edgeId));
         setSelectedEdgeId((current) => (current === edgeId ? null : current));
     }
@@ -317,8 +609,6 @@ export function useAbilityBuilderGraph() {
         edges,
         onNodesChange,
         onEdgesChange,
-        setNodes,
-        setEdges,
         selectedNodeId,
         selectedEdgeId,
         setSelectedNodeId,
@@ -334,8 +624,12 @@ export function useAbilityBuilderGraph() {
         updateSelectedFreeform,
         updateSelectedAbilityRoot,
         updateModifierSelection,
+        updateModifierSelectionByNodeId,
+        updateModifierSelectionValues,
+        updateModifierOption,
         loadPreset,
         loadGraph,
+        restoreGraph,
         deleteNodeById,
         deleteEdgeById,
     };
