@@ -1,6 +1,8 @@
 import React from "react";
+import AppShell from "../app/AppShell";
 import AuthGate from "../auth/AuthGate";
 import SignInScreen from "../auth/SignInScreen";
+import { routes } from "../../lib/routing.ts";
 import CampaignRosterFromDb from "./CampaignRosterFromDb";
 
 type CampaignRosterPageEntryProps = {
@@ -9,10 +11,12 @@ type CampaignRosterPageEntryProps = {
 
 export default function CampaignRosterPageEntry({
                                                     campaignId,
-                                                }: CampaignRosterPageEntryProps) {
+}: CampaignRosterPageEntryProps) {
     return (
-        <AuthGate fallback={<SignInScreen />}>
-            <CampaignRosterFromDb campaignId={campaignId} />
-        </AuthGate>
+        <AppShell activePath={routes.campaignHome()}>
+            <AuthGate fallback={<SignInScreen />}>
+                <CampaignRosterFromDb campaignId={campaignId} />
+            </AuthGate>
+        </AppShell>
     );
 }

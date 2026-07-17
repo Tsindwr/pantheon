@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import type { CampaignAssignment, RollFeedItem } from "../../types/roll-feed";
 import styles from "./RollHistoryDrawer.module.css";
 import { supabaseLibraryCampaignService } from "../../infrastructure/library/supabase-library-campaign-service.ts";
+import SideTray from "../common/SideTray";
 
 type RollHistoryDrawerProps = {
     open: boolean;
@@ -68,32 +69,19 @@ export default function RollHistoryDrawer({
     if (!open) return null;
 
     return (
-        <div className={styles.overlay}>
-            <button
-                type="button"
-                className={styles.scrim}
-                aria-label="Close roll history"
-                onClick={onClose}
-            />
+        <SideTray
+            open={open}
+            onClose={onClose}
+            title={campaign ? campaign.name : "Campaign Rolls"}
+            eyebrow="Roll Feed"
+            side="left"
+            width="min(420px, 94vw)"
+            ariaLabel="Roll history"
+        >
+            {loading ? <div className={styles.state}>Loading…</div> : null}
+            {errorText ? <div className={styles.state}>Error: {errorText}</div> : null}
 
-            <aside className={styles.drawer}>
-                <header className={styles.header}>
-                    <div>
-                        <div className={styles.eyebrow}>Roll Feed</div>
-                        <h2 className={styles.title}>
-                            {campaign ? campaign.name : "Campaign Rolls"}
-                        </h2>
-                    </div>
-
-                    <button type="button" className={styles.close} onClick={onClose}>
-                        ✕
-                    </button>
-                </header>
-
-                {loading ? <div className={styles.state}>Loading…</div> : null}
-                {errorText ? <div className={styles.state}>Error: {errorText}</div> : null}
-
-                <div className={styles.feed}>
+            <div className={styles.feed}>
                     {items.map((item) => (
                         <article key={item.id} className={styles.card}>
                             <div className={styles.cardTop}>
@@ -117,7 +105,11 @@ export default function RollHistoryDrawer({
                   {formatSuccess(item.finalSuccessLevel)}
                 </span>
                                 <span className={styles.visibilityBadge}>
-                  {item.visibility === "gm" ? "GM only" : "Everyone"}
+                  {item.visibility === "self"
+                      ? "Self"
+                      : item.visibility === "gm"
+                          ? "GM only"
+                          : "Everyone"}
                 </span>
                             </div>
                         </article>
@@ -127,7 +119,6 @@ export default function RollHistoryDrawer({
                         <div className={styles.state}>No rolls yet.</div>
                     ) : null}
                 </div>
-            </aside>
-        </div>
+        </SideTray>
     );
 }

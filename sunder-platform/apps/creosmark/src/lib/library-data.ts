@@ -101,7 +101,9 @@ export const CAMPAIGNS: CampaignSummary[] = [
         name: "Ashwake Company",
         gmName: "Tobi",
         pitch: "A ruin-crawl campaign through storm-worn dragon keeps.",
+        joinCode: "ASHWAKE8",
         characterIds: ["lyra-vale", "morrow-sable"],
+        viewerRole: "gm",
         updatedLabel: "Active this week",
     },
     {
@@ -109,7 +111,9 @@ export const CAMPAIGNS: CampaignSummary[] = [
         name: "Moon-Thread Pilgrims",
         gmName: "Tobi",
         pitch: "A mystic road campaign about prophecy, debt, and old roads.",
+        joinCode: "MOONROAD",
         characterIds: ["serin-ash"],
+        viewerRole: "gm",
         updatedLabel: "Planning stage",
     },
 ];

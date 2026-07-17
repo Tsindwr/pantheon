@@ -35,6 +35,24 @@ export default function BuilderPotentialRoller({
     const [total, setTotal] = useState<number | null>(null);
 
     useEffect(() => {
+        if (open && request) return;
+
+        try {
+            diceBoxRef.current?.clear();
+        } catch {
+            // DiceBox has no public dispose API; stale instances are discarded on close.
+        }
+
+        diceBoxRef.current = null;
+        setBoxReady(false);
+        setPhase("idle");
+        setErrorText(null);
+        setRolls([]);
+        setDropped(null);
+        setTotal(null);
+    }, [open, request]);
+
+    useEffect(() => {
         let cancelled = false;
 
         async function initBox() {

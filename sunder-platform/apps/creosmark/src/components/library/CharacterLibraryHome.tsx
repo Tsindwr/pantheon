@@ -1,17 +1,18 @@
-import React, { useState } from "react";
-import type { CampaignRecord, CharacterSheetSummary } from "../../types/library";
+import React from "react";
+import type { CharacterSheetSummary } from "../../types/library";
 import CharacterSheetCard from "./CharacterSheetCard";
-import CampaignCard from "./CampaignCard";
 import styles from "./LibraryHome.module.css";
-
-type HomeTab = "characters" | "campaigns" | "abilities";
 
 type LibraryHomeProps = {
     characters: CharacterSheetSummary[];
+    onRequestDelete?: (character: CharacterSheetSummary) => void;
+    deletingCharacterId?: string | null;
 };
 
 export default function CharacterLibraryHome({
     characters,
+    onRequestDelete,
+    deletingCharacterId = null,
 }: LibraryHomeProps) {
     return (
         <section className={styles.page}>
@@ -19,7 +20,12 @@ export default function CharacterLibraryHome({
             <section className={styles.grid}>
                 {characters.length > 0 ? (
                     characters.map((character) => (
-                        <CharacterSheetCard key={character.id} character={character} />
+                        <CharacterSheetCard
+                            key={character.id}
+                            character={character}
+                            onRequestDelete={onRequestDelete}
+                            deleting={deletingCharacterId === character.id}
+                        />
                     ))
                 ) : (
                     <div className={styles.emptyState}>

@@ -1,6 +1,8 @@
 import type { CharacterSheetState } from "./sheet.ts";
 import type {ArchetypeData} from "../lib/sheet-data.ts";
 
+export type CampaignViewerRole = "gm" | "player";
+
 export type CharacterSheetSummary = {
     id: string;
     name: string;
@@ -17,7 +19,9 @@ export type CampaignSummary = {
     name: string;
     gmName?: string;
     pitch?: string;
+    joinCode?: string;
     characterIds: string[];
+    viewerRole?: CampaignViewerRole;
     updatedLabel?: string;
 };
 

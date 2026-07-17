@@ -5,13 +5,35 @@ import MarksTracker from "../trackers/MarksTracker.tsx";
 import ExperienceTracker from "../trackers/ExperienceTracker.tsx";
 import TokenTracker from "../trackers/TokenTracker.tsx";
 import ArmorProtectionTracker from "../trackers/ArmorProtectionTracker.tsx";
+import {
+  experienceFacade,
+  type ExperienceDenomination,
+} from "../../application/experience/experience-facade.ts";
+import type { CampaignLoomState } from "../../lib/campaign-loom.ts";
+import { getCampaignLoomMetrics } from "../../lib/campaign-loom.ts";
 
 type OverviewSectionProps = {
   sheet: CharacterSheetState;
   onChange: (next: CharacterSheetState) => void;
+  campaignLoom?: CampaignLoomState | null;
+  onCampaignSpiritChange?: (nextCurrent: number) => void;
+  onExplicitExperienceGain?: (
+    denomination: ExperienceDenomination,
+    amount: number,
+  ) => void;
 };
 
-export default function OverviewSection({ sheet, onChange }: OverviewSectionProps) {
+export default function OverviewSection({
+  sheet,
+  onChange,
+  campaignLoom = null,
+  onCampaignSpiritChange,
+  onExplicitExperienceGain,
+}: OverviewSectionProps) {
+  const campaignLoomMetrics = campaignLoom
+    ? getCampaignLoomMetrics(campaignLoom)
+    : null;
+
   return (
     <section className={styles.layout}>
       <div className={styles.marks}>
@@ -21,7 +43,10 @@ export default function OverviewSection({ sheet, onChange }: OverviewSectionProp
       <div className={styles.experience}>
         <ExperienceTracker
           value={sheet.experience}
-          onChange={(experience) => onChange({ ...sheet, experience })}
+          onAdjust={(denomination, amount) => {
+            onChange(experienceFacade.adjust(sheet, { [denomination]: amount }));
+            onExplicitExperienceGain?.(denomination, amount);
+          }}
         />
       </div>
 
@@ -29,20 +54,20 @@ export default function OverviewSection({ sheet, onChange }: OverviewSectionProp
         <TokenTracker
           pools={sheet.tokens}
           onChange={(tokens) => onChange({ ...sheet, tokens })}
-          onConvertFlavorToSpirit={() => {
-            const flavor = sheet.tokens.find((pool) => pool.id === "flavor");
-            const spirit = sheet.tokens.find((pool) => pool.id === "spirit");
-            if (!flavor || !spirit || flavor.current <= 0 || spirit.current >= spirit.max) return;
-
-            onChange({
-              ...sheet,
-              tokens: sheet.tokens.map((pool) => {
-                if (pool.id === "flavor") return { ...pool, current: pool.current - 1 };
-                if (pool.id === "spirit") return { ...pool, current: pool.current + 1 };
-                return pool;
-              }),
-            });
-          }}
+          campaignSpiritPool={
+            campaignLoom && campaignLoomMetrics
+              ? {
+                  id: "spirit",
+                  label: "Spirit",
+                  current: campaignLoom.spiritTokens,
+                  max: campaignLoomMetrics.spiritTokenMax,
+                  tone: "purple",
+                  communal: true,
+                  description: "Shared campaign Loom pool.",
+                }
+              : null
+          }
+          onCampaignSpiritChange={onCampaignSpiritChange}
         />
       </div>
 

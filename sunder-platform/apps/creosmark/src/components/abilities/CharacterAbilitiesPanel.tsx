@@ -15,12 +15,22 @@ import {
     listAbilityPlayCardsByIds,
     type AbilityPlayCard,
 } from "../../infrastructure";
+import type { RecollectSurgeAssignment } from "../../application/character-sheet/commands.ts";
+import { getAllowedPerkFaces } from "../../domain/character-sheet/invariants.ts";
+import type { AssignedPerk, PerkId } from "../../lib/rolling/types.ts";
+import type { PotentialState, RecollectSurgeState } from "../../types/sheet.ts";
 import AbilityCardFrame from "../../presentation/abilities/cards/AbilityCardFrame.tsx";
 import AbilityCardModuleRenderer from "../../presentation/abilities/cards/AbilityCardModuleRenderer.tsx";
 import styles from "./CharacterAbilitiesPanel.module.css";
 
 type CharacterAbilitiesPanelProps = {
     abilityIds: string[];
+    potentials: PotentialState[];
+    recollectSurges?: RecollectSurgeState[];
+    onActivateRecollect?: (
+        surgeId: string,
+        assignments: RecollectSurgeAssignment[],
+    ) => void;
 };
 
 type PlaymatCardKind = "action" | "surge" | "trait";
@@ -30,8 +40,9 @@ type PlaymatCard = {
     title: string;
     subtitle: string;
     kind: PlaymatCardKind;
-    source: "custom" | "default";
+    source: "custom" | "default" | "temporary";
     document: AbilityPublishDocument;
+    recollectSurge?: RecollectSurgeState;
 };
 
 type CardSpotlightState = {
@@ -40,6 +51,17 @@ type CardSpotlightState = {
     originRect: DOMRectInit | null;
     isClosing: boolean;
 }
+
+type RecollectModalState = {
+    surge: RecollectSurgeState;
+    assignments: Record<string, string>;
+};
+
+type RecollectPerkEntry = {
+    previousFace: number;
+    perkId: PerkId;
+    perk: AssignedPerk;
+};
 
 type HandFanProps = {
     title: string;
@@ -192,6 +214,61 @@ function createDefaultActionCardDocument(definition: {
     };
 }
 
+function createRecollectSurgeCardDocument(surge: RecollectSurgeState): AbilityPublishDocument {
+    const faceId = `${surge.id}-single`;
+    const text =
+        `Use this temporary Surge to reassign Perks from your previous ${surge.potentialTitle} d${surge.previousDieMax} ` +
+        `onto its new d${surge.newDieMax}. You have ${surge.perkSlots} Special Beats for this action. ` +
+        "This use is tied to the Volatility Die that exploded.";
+
+    return {
+        version: 2,
+        abilityId: surge.id,
+        title: "Recollect",
+        abilityKind: "surge",
+        activationProfile: {
+            actionEconomyId: "surge",
+            resetConditionId: "conditional",
+        },
+        graph: {
+            nodes: [],
+            edges: [],
+        },
+        card: {
+            version: 2,
+            format: "surge",
+            titleOverride: "",
+            subtitleOverride: `${surge.potentialTitle} Recollection`,
+            ignoredModifierNodeIds: [],
+            faces: [
+                {
+                    id: faceId,
+                    faceKind: "single",
+                    modules: [
+                        {
+                            id: `${faceId}-rules`,
+                            type: "rules_text",
+                            runs: [{ id: `${faceId}-text`, kind: "text", text }],
+                        },
+                    ],
+                },
+            ],
+        },
+        computed: {
+            total: { strings: 0, beats: 0, enhancements: 0 },
+            paid: { strings: 0, beats: 0, enhancements: 0 },
+            focus: { strings: 0, beats: 0, enhancements: 0 },
+            flipside: { strings: 0, beats: 0, enhancements: 0 },
+            body: { strings: 0, beats: 0, enhancements: 0 },
+            isAction: false,
+            flipsideBudgetStrings: 0,
+            flipsideBudgetEnhancements: 0,
+            warnings: [],
+            notes: ["Temporary Recollect use from an exploded Volatility Die."],
+        },
+    };
+}
+
 function classifyAbilityKind(document: AbilityPublishDocument): PlaymatCardKind {
     const economy = document.activationProfile.actionEconomyId;
     if (economy === "trait") return "trait";
@@ -219,6 +296,135 @@ function preferredFaceIndex(card: PlaymatCard): number {
     if (card.kind !== "action") return 0;
     const directIndex = card.document.card.faces.findIndex((face) => face.faceKind === "direct");
     return directIndex >= 0 ? directIndex : 0;
+}
+
+function getRecollectPerkEntries(surge: RecollectSurgeState): RecollectPerkEntry[] {
+    const sourceEntries = surge.recordedPerks?.length
+        ? surge.recordedPerks.map((entry) => [entry.previousFace, entry.perk] as const)
+        : Object.entries(surge.previousPerks ?? {}).map(
+            ([face, perk]) => [Number(face), perk] as const,
+        );
+    const usedPerkIds = new Set<PerkId>();
+
+    return sourceEntries
+        .filter((entry): entry is readonly [number, AssignedPerk] =>
+            Number.isInteger(entry[0]) &&
+            Boolean(entry[1]?.id) &&
+            entry[1]?.id !== "charge",
+        )
+        .sort(([leftFace], [rightFace]) => leftFace - rightFace)
+        .flatMap(([previousFace, perk]) => {
+            const perkId = perk.id as PerkId;
+            if (usedPerkIds.has(perkId)) return [];
+            usedPerkIds.add(perkId);
+            return [{
+                previousFace,
+                perkId,
+                perk,
+            }];
+        });
+}
+
+function parseFaceValue(value?: string): number | null {
+    if (!value) return null;
+    const parsed = Number(value);
+    return Number.isInteger(parsed) ? parsed : null;
+}
+
+function getAssignedPerkLocation(
+    potentials: PotentialState[],
+    perkId: PerkId,
+): { potentialTitle: string; face: number } | null {
+    for (const potential of potentials) {
+        for (const [face, perk] of Object.entries(potential.resolverPerks ?? {})) {
+            if ((perk as AssignedPerk | undefined)?.id !== perkId) continue;
+            const parsedFace = Number(face);
+            if (!Number.isInteger(parsedFace)) continue;
+            return {
+                potentialTitle: potential.title,
+                face: parsedFace,
+            };
+        }
+    }
+
+    return null;
+}
+
+function getSelectedRecollectFaces(
+    potential: PotentialState,
+    assignments: Record<string, string>,
+    currentPerkId: PerkId,
+): Set<number> {
+    const occupiedFaces = new Set<number>(
+        Object.keys(potential.resolverPerks ?? {})
+            .map((face) => Number(face))
+            .filter((face) => Number.isInteger(face)),
+    );
+
+    for (const [perkId, value] of Object.entries(assignments)) {
+        if (perkId === currentPerkId) continue;
+        const parsedFace = parseFaceValue(value);
+        if (parsedFace !== null) occupiedFaces.add(parsedFace);
+    }
+
+    return occupiedFaces;
+}
+
+function getRecollectFaceOptions(
+    potential: PotentialState,
+    entry: RecollectPerkEntry,
+    assignments: Record<string, string>,
+): number[] {
+    const currentFace = parseFaceValue(assignments[entry.perkId]);
+    const occupiedFaces = getSelectedRecollectFaces(
+        potential,
+        assignments,
+        entry.perkId,
+    );
+
+    return getAllowedPerkFaces(
+        potential,
+        entry.perkId,
+        occupiedFaces,
+        currentFace ?? undefined,
+    );
+}
+
+function createInitialRecollectAssignments(
+    surge: RecollectSurgeState,
+    potentials: PotentialState[],
+): Record<string, string> {
+    const targetPotential = potentials.find((potential) => potential.key === surge.potentialKey);
+    const entries = getRecollectPerkEntries(surge);
+    const assignments: Record<string, string> = {};
+    if (!targetPotential) return assignments;
+
+    const occupiedFaces = new Set<number>(
+        Object.keys(targetPotential.resolverPerks ?? {})
+            .map((face) => Number(face))
+            .filter((face) => Number.isInteger(face)),
+    );
+
+    for (const entry of entries) {
+        if (getAssignedPerkLocation(potentials, entry.perkId)) {
+            assignments[entry.perkId] = "";
+            continue;
+        }
+
+        const allowedFaces = getAllowedPerkFaces(
+            targetPotential,
+            entry.perkId,
+            occupiedFaces,
+        );
+        const selectedFace = allowedFaces.includes(entry.previousFace)
+            ? entry.previousFace
+            : allowedFaces[0];
+
+        assignments[entry.perkId] = selectedFace ? String(selectedFace) : "";
+        if (selectedFace) occupiedFaces.add(selectedFace);
+    }
+
+    return assignments;
 }
 
 function resolveNextFaceIndex(
@@ -562,6 +768,9 @@ function HandFan({
 
 export default function CharacterAbilitiesPanel({
     abilityIds,
+    potentials,
+    recollectSurges = [],
+    onActivateRecollect,
 }: CharacterAbilitiesPanelProps) {
     const [cards, setCards] = useState<PlaymatCard[]>([]);
     const [loading, setLoading] = useState(false);
@@ -571,6 +780,7 @@ export default function CharacterAbilitiesPanel({
     const [flippingCardIds, setFlippingCardIds] = useState<Record<string, boolean>>({});
 
     const [spotlight, setSpotlight] = useState<CardSpotlightState | null>(null);
+    const [recollectModal, setRecollectModal] = useState<RecollectModalState | null>(null);
     const spotlightCloseTimerRef = useRef<number | null>(null);
 
     const flipTimerByCardIdRef = useRef<Record<string, number>>({});
@@ -689,6 +899,43 @@ export default function CharacterAbilitiesPanel({
         });
     };
 
+    const openRecollectModal = useCallback((surge: RecollectSurgeState) => {
+        setSpotlight(null);
+        setRecollectModal({
+            surge,
+            assignments: createInitialRecollectAssignments(surge, potentials),
+        });
+    }, [potentials]);
+
+    const closeRecollectModal = useCallback(() => {
+        setRecollectModal(null);
+    }, []);
+
+    const updateRecollectAssignment = useCallback((perkId: PerkId, value: string) => {
+        setRecollectModal((current) => current
+            ? {
+                ...current,
+                assignments: {
+                    ...current.assignments,
+                    [perkId]: value,
+                },
+            }
+            : current,
+        );
+    }, []);
+
+    const applyRecollectModal = useCallback(() => {
+        if (!recollectModal || !onActivateRecollect) return;
+
+        const assignments = getRecollectPerkEntries(recollectModal.surge).map((entry) => ({
+            perkId: entry.perkId,
+            face: parseFaceValue(recollectModal.assignments[entry.perkId]),
+        }));
+
+        onActivateRecollect(recollectModal.surge.id, assignments);
+        setRecollectModal(null);
+    }, [onActivateRecollect, recollectModal]);
+
     const toggleSpotlightFace = (
         event: React.MouseEvent<HTMLElement>,
         card: PlaymatCard,
@@ -768,14 +1015,32 @@ export default function CharacterAbilitiesPanel({
             })),
         [],
     );
+    const temporaryRecollectCards = useMemo<PlaymatCard[]>(
+        () =>
+            recollectSurges
+                .filter((surge) => surge.usesRemaining > 0)
+                .map((surge) => ({
+                    id: surge.id,
+                    title: "Recollect",
+                    subtitle: "Temporary Surge",
+                    kind: "surge",
+                    source: "temporary",
+                    document: createRecollectSurgeCardDocument(surge),
+                    recollectSurge: surge,
+                })),
+        [recollectSurges],
+    );
 
     const traitCards = useMemo(
         () => cards.filter((card) => card.kind === "trait"),
         [cards],
     );
     const surgeCards = useMemo(
-        () => cards.filter((card) => card.kind === "surge"),
-        [cards],
+        () => [
+            ...temporaryRecollectCards,
+            ...cards.filter((card) => card.kind === "surge"),
+        ],
+        [cards, temporaryRecollectCards],
     );
     const actionCards = useMemo(
         () => cards.filter((card) => card.kind === "action"),
@@ -786,6 +1051,12 @@ export default function CharacterAbilitiesPanel({
         spotlight?.card.document.card.faces[spotlight?.faceIndex] ??
         spotlight?.card.document.card.faces[0] ??
         null;
+    const recollectEntries = recollectModal
+        ? getRecollectPerkEntries(recollectModal.surge)
+        : [];
+    const recollectPotential = recollectModal
+        ? potentials.find((potential) => potential.key === recollectModal.surge.potentialKey)
+        : null;
 
     return (
         <section className={styles.playmat}>
@@ -922,6 +1193,145 @@ export default function CharacterAbilitiesPanel({
                                 }
                             />
                         ) : null}
+                    </div>
+
+                    {spotlight.card.recollectSurge ? (
+                        <div
+                            className={styles.spotlightActions}
+                            onClick={(event) => event.stopPropagation()}
+                        >
+                            <button
+                                type="button"
+                                className={styles.spotlightActivate}
+                                onClick={() => openRecollectModal(spotlight.card.recollectSurge!)}
+                            >
+                                Activate
+                            </button>
+                        </div>
+                    ) : null}
+                </div>
+            ) : null}
+
+            {recollectModal ? (
+                <div
+                    className={styles.recollectOverlay}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="recollect-title"
+                >
+                    <button
+                        type="button"
+                        className={styles.recollectScrim}
+                        aria-label="Close Recollect"
+                        onClick={closeRecollectModal}
+                    />
+
+                    <div className={styles.recollectPanel}>
+                        <header className={styles.recollectHeader}>
+                            <div>
+                                <div className={styles.eyebrow}>Temporary Surge</div>
+                                <h3 id="recollect-title">Recollect</h3>
+                            </div>
+
+                            <button
+                                type="button"
+                                className={styles.recollectClose}
+                                aria-label="Close Recollect"
+                                onClick={closeRecollectModal}
+                            >
+                                ×
+                            </button>
+                        </header>
+
+                        <div className={styles.recollectSummary}>
+                            <span>{recollectModal.surge.potentialTitle}</span>
+                            <span>{`d${recollectModal.surge.previousDieMax} to d${recollectModal.surge.newDieMax}`}</span>
+                            <span>{`${recollectModal.surge.perkSlots} Special Beats`}</span>
+                        </div>
+
+                        {!recollectPotential ? (
+                            <div className={styles.recollectEmpty}>
+                                This Potential is no longer on the sheet.
+                            </div>
+                        ) : recollectEntries.length === 0 ? (
+                            <div className={styles.recollectEmpty}>
+                                No regular Perks were recorded for this Recollect.
+                            </div>
+                        ) : (
+                            <div className={styles.recollectRows}>
+                                {recollectEntries.map((entry) => {
+                                    const assignedLocation = getAssignedPerkLocation(
+                                        potentials,
+                                        entry.perkId,
+                                    );
+                                    const faceOptions = assignedLocation
+                                        ? []
+                                        : getRecollectFaceOptions(
+                                            recollectPotential,
+                                            entry,
+                                            recollectModal.assignments,
+                                        );
+
+                                    return (
+                                        <div key={entry.perkId} className={styles.recollectRow}>
+                                            <div className={styles.recollectPerkText}>
+                                                <div className={styles.recollectPerkTitle}>
+                                                    <span>{entry.perk.name}</span>
+                                                    <small>{`Previous face ${entry.previousFace}`}</small>
+                                                </div>
+                                                <p>{entry.perk.description}</p>
+                                                {assignedLocation ? (
+                                                    <small className={styles.recollectWarning}>
+                                                        {`Already assigned to ${assignedLocation.potentialTitle} face ${assignedLocation.face}.`}
+                                                    </small>
+                                                ) : null}
+                                            </div>
+
+                                            <label className={styles.recollectSelectLabel}>
+                                                <span>New face</span>
+                                                <select
+                                                    className={styles.recollectSelect}
+                                                    value={recollectModal.assignments[entry.perkId] ?? ""}
+                                                    onChange={(event) =>
+                                                        updateRecollectAssignment(
+                                                            entry.perkId,
+                                                            event.currentTarget.value,
+                                                        )
+                                                    }
+                                                    disabled={Boolean(assignedLocation)}
+                                                >
+                                                    <option value="">None</option>
+                                                    {faceOptions.map((face) => (
+                                                        <option key={face} value={face}>
+                                                            {`Face ${face}`}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </label>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        <footer className={styles.recollectFooter}>
+                            <button
+                                type="button"
+                                className={styles.recollectSecondary}
+                                onClick={closeRecollectModal}
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                type="button"
+                                className={styles.recollectApply}
+                                onClick={applyRecollectModal}
+                                disabled={!recollectPotential || !onActivateRecollect}
+                            >
+                                Apply Recollect
+                            </button>
+                        </footer>
                     </div>
                 </div>
             ) : null}

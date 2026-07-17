@@ -175,6 +175,59 @@
     gap: 0.5rem;
 }
 
+.recoveryField {
+    display: grid;
+    gap: 0.4rem;
+    max-width: 22rem;
+}
+
+.recoveryField span {
+    color: rgba(255, 255, 255, 0.64);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.recoveryField select {
+    width: 100%;
+    min-height: 2.5rem;
+    border: 1px solid rgba(210, 178, 76, 0.32);
+    border-radius: 0.55rem;
+    background: rgba(255, 255, 255, 0.07);
+    color: white;
+    padding: 0.5rem 0.65rem;
+    font: inherit;
+    font-weight: 700;
+}
+
+.recoveryField select option {
+    background: #11151d;
+    color: white;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.apply {
+    min-height: 2.6rem;
+    border: 1px solid rgba(210, 178, 76, 0.72);
+    border-radius: 0.7rem;
+    background: var(--sunder-gold, #d2b24c);
+    color: #11151d;
+    padding: 0.65rem 1rem;
+    font: inherit;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.apply:hover,
+.apply:focus-visible {
+    background: #e1c461;
+    outline: none;
+}
+
 .flag {
     background: rgba(255, 255, 255, 0.08);
 }
@@ -219,6 +272,11 @@
     }
 
     .close {
+        width: 100%;
+    }
+
+    .actions,
+    .apply {
         width: 100%;
     }
 }

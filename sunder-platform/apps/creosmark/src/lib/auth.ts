@@ -67,7 +67,6 @@ function saveUserInfo(user: any | null) {
     if (!isBrowser()) return;
 
     if (!user) {
-        window.localStorage.removeItem(USER_STORAGE_KEY);
         return;
     }
 
@@ -115,6 +114,12 @@ function saveUserInfo(user: any | null) {
     }
 }
 
+function clearUserInfo() {
+    if (!isBrowser()) return;
+
+    window.localStorage.removeItem(USER_STORAGE_KEY);
+}
+
 export function getCachedUserInfo(): CachedUserInfo | null {
     if (!isBrowser()) return null;
 
@@ -143,7 +148,9 @@ export async function getCurrentSession() {
         return null;
     }
 
-    saveUserInfo(session?.user ?? null);
+    if (session?.user) {
+        saveUserInfo(session.user);
+    }
     if (shouldClearAuthHash) {
         clearAuthReturnHash();
     }
@@ -181,15 +188,19 @@ export async function signInWithDiscord() {
 export async function signOut() {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
-    saveUserInfo(null);
+    clearUserInfo();
 }
 
 export function onAuthStateChange(
     callback: (user: any | null) => void,
 ) {
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
         const user = session?.user ?? null;
-        saveUserInfo(user);
+        if (user) {
+            saveUserInfo(user);
+        } else if (event === "SIGNED_OUT") {
+            clearUserInfo();
+        }
         callback(user);
     });
 

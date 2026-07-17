@@ -1,10 +1,12 @@
-.rows {
+.grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(4.25rem, auto);
   gap: 0.5rem;
+  align-items: stretch;
 }
 
 .row {
+  position: relative;
   display: grid;
   gap: 0.35rem;
   padding: 0.55rem 0.65rem;
@@ -14,10 +16,9 @@
 }
 
 .heading {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.4rem;
-  align-items: baseline;
+  display: block;
+  min-height: 2.2rem;
+  padding-right: 2.15rem;
 }
 
 .label {
@@ -32,9 +33,17 @@
 }
 
 .value {
+  position: absolute;
+  top: 0.62rem;
+  right: 0.82rem;
   color: var(--sunder-gold, #d2b24c);
   font-size: 1rem;
   font-weight: 800;
+}
+
+.pips {
+  width: calc(90px + 1.8rem);
+  max-width: 100%;
 }
 
 .controls {
@@ -42,7 +51,8 @@
   gap: 0.35rem;
 }
 
-.button {
+.button,
+.zenithButton {
   width: 1.65rem;
   height: 1.65rem;
   border-radius: 0.55rem;
@@ -55,13 +65,60 @@
 }
 
 .button:hover,
-.button:focus-visible {
+.button:focus-visible,
+.zenithButton:hover,
+.zenithButton:focus-visible {
   outline: none;
   background: rgba(210, 178, 76, 0.12);
 }
 
+.zenith {
+  display: grid;
+  grid-template-rows: auto auto minmax(2rem, 1fr) auto;
+  justify-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 0.58rem;
+  border-radius: 0.85rem;
+  background:
+    linear-gradient(180deg, rgba(210, 178, 76, 0.08), rgba(139, 124, 243, 0.08)),
+    rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(210, 178, 76, 0.12);
+}
+
+.zenithLabel {
+  color: #f5dea0;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.zenithValue {
+  min-width: 2.4rem;
+  display: grid;
+  place-items: center;
+  color: var(--sunder-gold, #d2b24c);
+  font-size: 1.45rem;
+  font-weight: 900;
+}
+
+.zenithButton {
+  color: #f5dea0;
+  font-size: 0.78rem;
+}
+
 @media (max-width: 600px) {
-  .rows {
+  .grid {
     grid-template-columns: 1fr;
+  }
+
+  .zenith {
+    grid-template-rows: none;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    align-items: center;
+    justify-items: stretch;
+  }
+
+  .zenithValue,
+  .zenithButton {
+    justify-self: end;
   }
 }

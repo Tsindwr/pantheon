@@ -2,6 +2,11 @@ import type { CharacterSheetState } from "../../types/sheet.ts";
 import type { CampaignRecord, CharacterSheetSummary } from "../../types/library.ts";
 import type { CampaignAssignment, RollFeedItem } from "../../types/roll-feed.ts";
 import type { TestResult } from "../../lib/rolling/types.ts";
+import type {
+  CampaignGmTools,
+  CampaignLoomPatch,
+  CampaignLoomState,
+} from "../../lib/campaign-loom.ts";
 
 export type StoredCharacterSheet = {
   id: string;
@@ -20,6 +25,7 @@ export type LibraryCampaignRepository = {
   getMyCharacterSheet(id: string): Promise<StoredCharacterSheet | null>;
   createCharacterSheet(sheet: CharacterSheetState): Promise<StoredCharacterSheet>;
   updateCharacterSheet(id: string, sheet: CharacterSheetState): Promise<void>;
+  deleteCharacterSheet(id: string): Promise<void>;
   listMyCampaigns(): Promise<CampaignRecord[]>;
   createCampaignWithMembership(input: {
     name: string;
@@ -29,6 +35,13 @@ export type LibraryCampaignRepository = {
   joinCampaignByCode(joinCode: string): Promise<{ id: string; name: string }>;
   getCampaignForCharacter(characterSheetId: string): Promise<CampaignAssignment | null>;
   getCampaignRoster(campaignId: string): Promise<CampaignRecord | null>;
+  addCharacterToCampaign(campaignId: string, characterSheetId: string): Promise<void>;
+  getCampaignLoom(campaignId: string): Promise<CampaignLoomState>;
+  updateCampaignLoom(campaignId: string, patch: CampaignLoomPatch): Promise<CampaignLoomState>;
+  subscribeToCampaignLoom(campaignId: string, onChange: () => void): () => void;
+  getCampaignGmTools(campaignId: string): Promise<CampaignGmTools>;
+  updateCampaignGmTools(campaignId: string, tools: CampaignGmTools): Promise<CampaignGmTools>;
+  subscribeToCampaignGmTools(campaignId: string, onChange: () => void): () => void;
   publishRollEvent(input: {
     campaignId: string;
     characterSheetId: string;

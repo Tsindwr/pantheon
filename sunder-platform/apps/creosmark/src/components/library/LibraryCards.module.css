@@ -73,6 +73,43 @@
     font-size: 0.98rem;
 }
 
+.cardFooter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    margin-top: auto;
+}
+
+.joinCodeBlock {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.52rem;
+    min-width: 0;
+    padding: 0.43rem 0.62rem;
+    border-radius: 0.72rem;
+    border: 1px solid rgba(210, 178, 76, 0.22);
+    background: rgba(210, 178, 76, 0.08);
+}
+
+.joinCodeBlock span {
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.64rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.joinCodeBlock strong {
+    color: #f5dea0;
+    font-size: 0.96rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+}
+
 .actions {
     display: flex;
     flex-wrap: wrap;
@@ -80,11 +117,17 @@
     margin-top: auto;
 }
 
+.cardFooter .actions {
+    margin-top: 0;
+}
+
 .actionLink,
-.actionLinkSecondary {
+.actionLinkSecondary,
+.deleteAction {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 0.4rem;
     min-height: 2.2rem;
     padding: 0.5rem 0.85rem;
     border-radius: 0.8rem;
@@ -98,8 +141,36 @@
         border-color 140ms ease;
 }
 
+.actionLinkSecondary[data-copy-status] {
+    gap: 0.4rem;
+    min-width: 5.9rem;
+}
+
+.actionLinkSecondary[data-copy-status] i {
+    color: rgba(245, 222, 160, 0.88);
+    font-size: 0.88rem;
+}
+
+.actionLinkSecondary[data-copy-status="success"] {
+    border-color: rgba(210, 178, 76, 0.46);
+    background:
+        linear-gradient(135deg, rgba(139, 124, 243, 0.22), rgba(210, 178, 76, 0.16)),
+        rgba(255, 255, 255, 0.05);
+    color: #f5dea0;
+}
+
+.actionLinkSecondary[data-copy-status="success"] i {
+    color: var(--sunder-gold, #d2b24c);
+}
+
+.actionLinkSecondary[data-copy-status="error"] {
+    border-color: rgba(255, 118, 118, 0.48);
+    color: #ffc1c1;
+}
+
 .actionLink:hover,
-.actionLinkSecondary:hover {
+.actionLinkSecondary:hover,
+.deleteAction:hover {
     transform: translateY(-1px);
 }
 
@@ -113,4 +184,21 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     background: rgba(255, 255, 255, 0.05);
     color: white;
+}
+
+.deleteAction {
+    border: 1px solid rgba(255, 118, 118, 0.34);
+    background: rgba(255, 118, 118, 0.08);
+    color: #ffc1c1;
+}
+
+.deleteAction i {
+    font-size: 0.86rem;
+}
+
+.actionLinkSecondary:disabled,
+.deleteAction:disabled {
+    cursor: not-allowed;
+    opacity: 0.52;
+    transform: none;
 }

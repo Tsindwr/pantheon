@@ -18,13 +18,13 @@
 .drawer {
   position: fixed;
   right: 1.25rem;
-  bottom: 6.25rem;
+  bottom: 1.25rem;
   z-index: 29;
-  width: min(470px, calc(100vw - 2rem));
-  max-height: min(82vh, 900px);
+  width: min(430px, calc(100vw - 2rem));
+  max-height: min(88vh, 900px);
   overflow: auto;
   display: grid;
-  gap: 1rem;
+  gap: 0.8rem;
   padding: 1rem;
   border-radius: 1rem;
   border: 1px solid rgba(210, 178, 76, 0.22);
@@ -32,46 +32,48 @@
   box-shadow: 0 20px 44px rgba(0, 0, 0, 0.42);
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
+.drawerBody {
+  position: relative;
+  padding-top: 1.1rem;
 }
 
-.eyebrow {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--sunder-purple, #8b7cf3);
-  font-weight: 700;
-}
-
-.title {
-  margin: 0.2rem 0 0;
-  font-size: 1rem;
-  color: white;
-}
-
-.close {
-  width: 2rem;
-  height: 2rem;
+.cornerButton {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  z-index: 2;
+  width: 2.05rem;
+  height: 2.05rem;
+  display: inline-grid;
+  place-items: center;
   border-radius: 0.6rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(8, 10, 16, 0.78);
   color: white;
   cursor: pointer;
 }
 
-.block,
-.rowField {
-  display: grid;
-  gap: 0.7rem;
+.cornerButtonActive {
+  border-color: rgba(210, 178, 76, 0.48);
+  background: rgba(210, 178, 76, 0.16);
+  color: #ffe27a;
 }
 
-.rowBlock {
+.cornerButton:hover,
+.cornerButton:focus-visible,
+.iconButton:hover:not(:disabled),
+.iconButton:focus-visible,
+.sidePotential:hover,
+.sidePotential:focus-visible {
+  border-color: rgba(210, 178, 76, 0.58);
+  background: rgba(210, 178, 76, 0.14);
+  outline: none;
+}
+
+.block,
+.selectField {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.9rem;
+  gap: 0.5rem;
 }
 
 .blockLabel {
@@ -82,42 +84,309 @@
   font-weight: 700;
 }
 
-.optionGrid {
+.campaignPanel {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.65rem;
+  gap: 0.85rem;
 }
 
-.circleButton {
-  aspect-ratio: 1;
+.campaignHero {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem 3.1rem 0.9rem 0.9rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(210, 178, 76, 0.18);
+  background:
+    radial-gradient(circle at 18% 20%, rgba(139, 124, 243, 0.17), transparent 32%),
+    rgba(255, 255, 255, 0.035);
+}
+
+.campaignTitle {
+  margin: 0.18rem 0 0;
+  color: white;
+  font-size: 1.15rem;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.campaignLink {
+  min-height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  padding: 0.45rem 0.72rem;
+  border-radius: 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.055);
+  color: white;
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.campaignLink:hover,
+.campaignLink:focus-visible {
+  border-color: rgba(210, 178, 76, 0.58);
+  background: rgba(210, 178, 76, 0.13);
+  outline: none;
+}
+
+.broadcastSegmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.broadcastSegment {
+  min-width: 0;
+  min-height: 2.45rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
   color: white;
   font: inherit;
-  display: grid;
-  place-items: center;
-  gap: 0.15rem;
+  font-size: 0.82rem;
+  font-weight: 850;
   cursor: pointer;
 }
 
-.circleButton span {
+.broadcastSegment:disabled {
+  cursor: default;
+  opacity: 0.68;
+}
+
+.broadcastSegment:not(.broadcastSegmentActive):hover:not(:disabled),
+.broadcastSegment:not(.broadcastSegmentActive):focus-visible {
+  border-color: rgba(210, 178, 76, 0.55);
+  background: rgba(210, 178, 76, 0.1);
+  outline: none;
+}
+
+.broadcastSegmentActive {
+  border-color: rgba(255, 226, 122, 0.78);
+  background:
+    radial-gradient(circle at 28% 18%, rgba(255, 226, 122, 0.24), transparent 34%),
+    linear-gradient(145deg, rgba(90, 45, 130, 0.72), rgba(13, 17, 28, 0.94));
+  color: #ffe27a;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 226, 122, 0.2),
+    0 0 0 2px rgba(255, 226, 122, 0.14);
+}
+
+.historyHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.historyStatus {
+  color: rgba(255, 255, 255, 0.54);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.chatFeed {
+  display: grid;
+  gap: 0.72rem;
+}
+
+.chatMessage {
+  max-width: 82%;
+  display: grid;
+  gap: 0.24rem;
+}
+
+.chatMessageExternal {
+  justify-self: start;
+}
+
+.chatMessageSent {
+  justify-self: end;
+  justify-items: end;
+}
+
+.messageEyebrow,
+.sentMeta {
+  max-width: 100%;
+  padding: 0 0.38rem;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.messageBubble {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.58rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  color: white;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.18);
+}
+
+.chatMessageExternal .messageBubble {
+  border-radius: 0.25rem 0.85rem 0.85rem 0.85rem;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.chatMessageSent .messageBubble {
+  border-color: rgba(255, 226, 122, 0.54);
+  border-radius: 0.85rem 0.25rem 0.85rem 0.85rem;
+  background:
+    radial-gradient(circle at 22% 16%, rgba(255, 226, 122, 0.22), transparent 36%),
+    linear-gradient(145deg, rgba(90, 45, 130, 0.78), rgba(13, 17, 28, 0.96));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 226, 122, 0.16),
+    0 12px 24px rgba(0, 0, 0, 0.26),
+    0 0 18px rgba(139, 124, 243, 0.16);
+}
+
+.messageTest {
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.84rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.messageResult {
+  flex: none;
+  color: white;
+  font-size: 1rem;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.chatMessageSent .messageResult {
+  color: #ffe27a;
+}
+
+.historyState {
+  padding: 0.9rem;
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.64);
+}
+
+.potentialCarousel {
+  display: grid;
+  grid-template-columns: 2.2rem 3.35rem minmax(7.5rem, 1fr) 3.35rem 2.2rem;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 7.8rem;
+}
+
+.iconButton,
+.sidePotential,
+.mainPotential,
+.sidePotentialPlaceholder {
+  border-radius: 999px;
+}
+
+.iconButton,
+.sidePotential,
+.mainPotential {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: white;
+}
+
+.iconButton {
+  width: 2.2rem;
+  height: 2.2rem;
+  cursor: pointer;
+}
+
+.iconButton:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.sidePotential,
+.sidePotentialPlaceholder {
+  width: 3.35rem;
+  aspect-ratio: 1;
+}
+
+.sidePotential {
+  font: inherit;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.05rem;
+  cursor: pointer;
+  opacity: 0.76;
+}
+
+.sidePotential span {
   font-weight: 900;
-  letter-spacing: 0.06rem;
+  font-size: 0.76rem;
+  letter-spacing: 0.03rem;
 }
 
-.circleButton small {
+.sidePotential small {
   color: rgba(255, 255, 255, 0.62);
+  font-size: 0.7rem;
 }
 
-.circleButtonActive,
+.mainPotential {
+  width: 7.5rem;
+  height: 7.5rem;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.2rem;
+  text-align: center;
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.16), transparent 30%),
+    linear-gradient(145deg, rgba(90, 45, 130, 0.68), rgba(13, 17, 28, 0.94));
+  border-color: rgba(210, 178, 76, 0.58);
+  box-shadow:
+    inset 0 0 0 1px rgba(210, 178, 76, 0.16),
+    0 14px 28px rgba(0, 0, 0, 0.32);
+}
+
+.mainPotential span {
+  color: var(--sunder-gold, #d2b24c);
+  font-size: 1.38rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.05rem;
+}
+
+.mainPotential strong {
+  max-width: 6rem;
+  color: white;
+  font-size: 0.9rem;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.mainPotential small {
+  max-width: 6rem;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.72rem;
+  line-height: 1.15;
+}
+
 .skillButtonActive,
-.segmentActive,
 .pillActive,
 .tagActive {
-  border-color: rgba(210, 178, 76, 0.7);
-  background: rgba(210, 178, 76, 0.16);
-  box-shadow: inset 0 0 0 1px rgba(210, 178, 76, 0.18);
+  border-color: rgba(255, 226, 122, 0.96);
+  background:
+    radial-gradient(circle at 28% 18%, rgba(255, 226, 122, 0.28), transparent 34%),
+    linear-gradient(145deg, rgba(90, 45, 130, 0.8), rgba(13, 17, 28, 0.96));
+  color: #ffe27a;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 226, 122, 0.24),
+    0 0 0 2px rgba(255, 226, 122, 0.2),
+    0 12px 24px rgba(0, 0, 0, 0.28),
+    0 0 18px rgba(139, 124, 243, 0.2);
 }
 
 .skillGrid {
@@ -127,6 +396,7 @@
 }
 
 .skillButton {
+  position: relative;
   min-height: 72px;
   border-radius: 0.85rem;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -138,6 +408,36 @@
   cursor: pointer;
   display: grid;
   gap: 0.25rem;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease,
+    box-shadow 0.14s ease,
+    color 0.14s ease,
+    transform 0.14s ease;
+}
+
+.skillButton:not(.skillButtonActive):hover,
+.skillButton:not(.skillButtonActive):focus-visible,
+.tag:not(.tagActive):hover,
+.tag:not(.tagActive):focus-visible {
+  border-color: rgba(210, 178, 76, 0.55);
+  background: rgba(210, 178, 76, 0.1);
+}
+
+.skillButtonActive::before {
+  content: "";
+  position: absolute;
+  inset: 0.45rem auto 0.45rem 0.45rem;
+  width: 0.18rem;
+  border-radius: 999px;
+  background: #ffe27a;
+  box-shadow: 0 0 10px rgba(255, 226, 122, 0.68);
+}
+
+.skillButtonActive strong {
+  color: #ffe27a;
+  font-weight: 900;
+  text-shadow: 0 0 12px rgba(255, 226, 122, 0.34);
 }
 
 .skillButton span {
@@ -145,16 +445,11 @@
   font-size: 0.78rem;
 }
 
-.segmented {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  border-radius: 0.8rem;
-  padding: 0.2rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.skillButtonActive span {
+  color: rgba(245, 247, 251, 0.78);
+  font-weight: 800;
 }
 
-.segment,
 .pill,
 .tag,
 .stepButton {
@@ -165,19 +460,78 @@
   cursor: pointer;
 }
 
-.segment {
-  border: none;
-  padding: 0.7rem 0.8rem;
-  border-radius: 0.65rem;
-  font-weight: 700;
+.tag {
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease,
+    box-shadow 0.14s ease,
+    color 0.14s ease;
 }
 
-.riskGrid,
+.compactControls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.65rem;
+}
+
+.selectShell {
+  min-width: 0;
+  min-height: 2.65rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0 0.65rem;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: white;
+}
+
+.selectShell i:first-child {
+  color: var(--sunder-gold, #d2b24c);
+}
+
+.selectShell select {
+  min-width: 0;
+  width: 100%;
+  border: none;
+  appearance: none;
+  background: transparent;
+  color: white;
+  padding: 0.62rem 0;
+  cursor: pointer;
+  outline: none;
+}
+
+.selectShell select option {
+  color: #11151d;
+  background: #f5f7fb;
+}
+
+.selectShell select:focus-visible {
+  outline: none;
+}
+
+.selectShell:focus-within {
+  border-color: rgba(210, 178, 76, 0.72);
+  box-shadow: 0 0 0 3px rgba(210, 178, 76, 0.16);
+}
+
+.volatilityBlock {
+  min-height: 3.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+}
+
 .counterControls,
 .tagList {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.55rem;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .pill,
@@ -186,16 +540,26 @@
   border-radius: 999px;
 }
 
-.counterHeader {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: center;
+.tagActive {
+  color: #ffe27a;
+  font-weight: 900;
+  text-shadow: 0 0 10px rgba(255, 226, 122, 0.28);
+}
+
+.skillButtonActive:hover,
+.skillButtonActive:focus-visible,
+.tagActive:hover,
+.tagActive:focus-visible {
+  border-color: rgba(255, 226, 122, 0.96);
+  background:
+    radial-gradient(circle at 28% 18%, rgba(255, 226, 122, 0.28), transparent 34%),
+    linear-gradient(145deg, rgba(90, 45, 130, 0.8), rgba(13, 17, 28, 0.96));
+  color: #ffe27a;
 }
 
 .counterValue {
-  min-width: 2.5rem;
-  height: 2.5rem;
+  min-width: 2.35rem;
+  height: 2.35rem;
   display: grid;
   place-items: center;
   border-radius: 999px;
@@ -204,36 +568,11 @@
   font-weight: 900;
 }
 
-.helper {
-  margin: 0.2rem 0 0;
-  color: rgba(255, 255, 255, 0.58);
-  font-size: 0.8rem;
-}
-
 .stepButton {
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.35rem;
+  height: 2.35rem;
   border-radius: 999px;
   font-size: 1.1rem;
-}
-
-.preview {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-  padding: 0.8rem;
-  border-radius: 0.8rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.previewLabel {
-  display: block;
-  margin-bottom: 0.2rem;
-  color: rgba(255, 255, 255, 0.56);
-  font-size: 0.73rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
 .rollButton {
@@ -247,19 +586,12 @@
   cursor: pointer;
 }
 
-@media (min-width: 760px) {
-  .rowBlock {
-    grid-template-columns: 1.05fr 1fr;
-  }
-}
-
 @media (max-width: 759px) {
   .drawer {
     right: 0.5rem;
-    bottom: 5.5rem;
+    bottom: 0.75rem;
   }
 
-  .optionGrid,
   .skillGrid {
     display: grid;
     grid-auto-flow: column;
@@ -269,15 +601,43 @@
     scroll-snap-type: x proximity;
   }
 
-  .cirlceButton,
   .skillButton {
     scroll-snap-align: center;
   }
+
   .skillButton {
     min-height: 86px;
   }
 
-  .preview {
+  .compactControls {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 420px) {
+  .potentialCarousel {
+    grid-template-columns: 2rem 2.75rem minmax(6.8rem, 1fr) 2.75rem 2rem;
+    gap: 0.35rem;
+    min-height: 7rem;
+  }
+
+  .iconButton {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .sidePotential,
+  .sidePotentialPlaceholder {
+    width: 2.75rem;
+  }
+
+  .mainPotential {
+    width: 6.8rem;
+    height: 6.8rem;
+  }
+
+  .mainPotential strong,
+  .mainPotential small {
+    max-width: 5.4rem;
   }
 }

@@ -37,12 +37,76 @@
     font-size: clamp(2rem, 4vw, 3rem);
 }
 
-.status {
+.statusButton {
+    position: relative;
+    min-width: 6.5rem;
     padding: 0.55rem 0.85rem;
     border-radius: 999px;
     border: 1px solid rgba(255,255,255,0.1);
     background: rgba(255,255,255,0.05);
+    color: var(--sunder-text);
+    font: inherit;
     font-weight: 800;
+    cursor: pointer;
+    transition:
+            border-color 160ms ease,
+            background 160ms ease,
+            box-shadow 160ms ease,
+            color 160ms ease;
+}
+
+.statusButton:hover,
+.statusButton:focus-visible {
+    border-color: rgba(210, 178, 76, 0.62);
+    background: rgba(210, 178, 76, 0.18);
+    box-shadow: 0 0 0 3px rgba(210, 178, 76, 0.16);
+    color: white;
+}
+
+.statusButton:disabled {
+    cursor: default;
+    opacity: 0.72;
+}
+
+.statusButton:disabled:hover,
+.statusButton:disabled:focus-visible {
+    border-color: rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05);
+    box-shadow: none;
+}
+
+.statusText,
+.statusHoverText {
+    display: block;
+    transition: opacity 120ms ease;
+}
+
+.statusHoverText {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    opacity: 0;
+}
+
+.statusButton:hover .statusText,
+.statusButton:focus-visible .statusText {
+    opacity: 0;
+}
+
+.statusButton:hover .statusHoverText,
+.statusButton:focus-visible .statusHoverText {
+    opacity: 1;
+}
+
+.statusButton:disabled:hover .statusText,
+.statusButton:disabled:focus-visible .statusText {
+    opacity: 1;
+}
+
+.statusButton:disabled:hover .statusHoverText,
+.statusButton:disabled:focus-visible .statusHoverText {
+    opacity: 0;
 }
 
 .steps {

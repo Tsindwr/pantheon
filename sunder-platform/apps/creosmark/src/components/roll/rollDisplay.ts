@@ -1,3 +1,4 @@
+import { hydrateAssignedPerks } from "@sunderttrpg/core";
 import type {TestResult, SuccessLevelKey, VolatilityDieType, TestState} from "../../lib/rolling/types";
 import type {
     CharacterSheetState,
@@ -10,7 +11,7 @@ export type DisplayRollMeta = {
     potentialKey: PotentialKey;
     potentialLabel: string;
     skillName: string;
-    riskiness: string;
+    riskiness: RollComposerDraft["riskiness"];
     rollMode: string;
     volatilityDie: VolatilityDieType;
     stress: number;
@@ -115,9 +116,7 @@ export function buildTestStateFromDraft(
         riskinessLevel: draft.riskiness,
         rollMode: draft.mode,
         extraVolatility: draft.extraVolatility,
-        perks:
-            potential.resolverPerks ??
-            {},
+        perks: hydrateAssignedPerks(potential.resolverPerks),
         charged: Boolean(potential.charged),
         dV: potential.volatilityDieMax,
     } as TestState;
@@ -141,7 +140,7 @@ export function buildDisplayRollMeta(
         potentialValue: potential.score,
         domainLabels: sheet.domains
             .filter((entry) => draft.selectedDomains.includes(entry.id))
-            .map((entry) => entry.name),
+            .map((entry) => entry.label),
         knackLabels: sheet.knacks
             .filter((entry) => draft.selectedKnacks.includes(entry.id))
             .map((entry) => entry.name),

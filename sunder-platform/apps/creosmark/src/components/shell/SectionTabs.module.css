@@ -3,6 +3,7 @@
   top: 0.4rem;
   z-index: 10;
   display: flex;
+  align-items: center;
   gap: 0.45rem;
   flex-wrap: wrap;
   padding: 0.5rem;
@@ -10,6 +11,21 @@
   background: rgba(8, 10, 16, 0.82);
   backdrop-filter: blur(14px);
   border: 1px solid rgba(210, 178, 76, 0.16);
+}
+
+.tabList {
+  flex: 1 1 auto;
+  min-width: min(100%, 22rem);
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
 }
 
 .tab {
@@ -24,9 +40,13 @@
   cursor: pointer;
 }
 
-.tab:hover,
 .tab:focus-visible {
-  outline: none;
+  outline: 2px solid rgba(210, 178, 76, 0.45);
+  outline-offset: 2px;
+}
+
+.tab:not(.active):hover,
+.tab:not(.active):focus-visible {
   background: rgba(210, 178, 76, 0.12);
 }
 
@@ -34,4 +54,10 @@
   color: #0d1017;
   background: var(--sunder-gold, #d2b24c);
   border-color: color-mix(in srgb, var(--sunder-gold, #d2b24c) 82%, white 18%);
+}
+
+@media (max-width: 620px) {
+  .actions {
+    margin-left: 0;
+  }
 }

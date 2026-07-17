@@ -1,0 +1,1 @@
+{"version":3,"file":"presets.d.ts","sourceRoot":"","sources":["../src/presets.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,kBAAkB,EAAE,iBAAiB,EAAE,MAAM,YAAY,CAAC;AAMxE,MAAM,MAAM,aAAa,GAAG;IACxB,KAAK,EAAE,kBAAkB,EAAE,CAAC;IAC5B,KAAK,EAAE,iBAAiB,EAAE,CAAC;CAC9B,CAAC;AAIF,wBAAgB,sBAAsB,IAAI,aAAa,CA0FtD;AAID,wBAAgB,qBAAqB,IAAI,aAAa,CAmDrD"}

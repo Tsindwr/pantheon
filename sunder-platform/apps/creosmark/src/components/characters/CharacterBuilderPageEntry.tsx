@@ -3,7 +3,9 @@ import AuthGate from '../auth/AuthGate';
 import SignInScreen from "../auth/SignInScreen.tsx";
 import CharacterBuilderShell from "../builder/CharacterBuilderShell.tsx";
 import type { CharacterSheetState } from "../../types/sheet.ts";
-import { supabaseLibraryCampaignService } from "../../infrastructure/library/supabase-library-campaign-service.ts";
+import { supabaseLibraryCampaignService } from "../../infrastructure/library/supabase-library-campaign-service";
+import { normalizeFeatureDrivenSheetState } from "../../application/character-sheet/commands";
+import { routes } from "../../lib/routing.ts";
 
 type CharacterBuilderPageEntryProps = {
     characterId: string;
@@ -26,11 +28,15 @@ function InnerBuilder({ characterId }: CharacterBuilderPageEntryProps) {
                 setErrorText(null);
 
                 const row = await supabaseLibraryCampaignService.getMyCharacterSheet(characterId);
-                if (!row) throw new Error('Character sheet not found.');
+                if (!row) {
+                    setErrorText('Character sheet not found.');
+                    return;
+                }
 
                 if (cancelled) return;
-                setSheet(row.sheet);
-                lastSavedJsonRef.current = JSON.stringify(row.sheet);
+                const normalizedSheet = normalizeFeatureDrivenSheetState(row.sheet);
+                setSheet(normalizedSheet);
+                lastSavedJsonRef.current = JSON.stringify(normalizedSheet);
                 loadedRef.current = true;
             } catch (error) {
                 if (cancelled) return;
@@ -74,10 +80,40 @@ function InnerBuilder({ characterId }: CharacterBuilderPageEntryProps) {
         };
     }, [sheet, characterId]);
 
+    async function viewCharacterSheet() {
+        if (!sheet) return;
+
+        const nextJson = JSON.stringify(sheet);
+        if (nextJson !== lastSavedJsonRef.current) {
+            try {
+                setSaveState('saving');
+                await supabaseLibraryCampaignService.updateCharacterSheet(characterId, sheet);
+                lastSavedJsonRef.current = nextJson;
+                setSaveState('saved');
+            } catch (error) {
+                console.error(error);
+                setSaveState('error');
+                return;
+            }
+        }
+
+        window.location.href = routes.characterView(characterId);
+    }
+
     if (loading) return <main style={{ padding: '1.5rem' }}>Loading builder...</main>;
     if (errorText || !sheet) return <main style={{ padding: '1.5rem' }}>Error: {errorText ?? "Unknown error."}</main>
 
-    return <CharacterBuilderShell sheet={sheet} onChange={setSheet} saveState={saveState} />;
+    return (
+        <CharacterBuilderShell
+            sheet={sheet}
+            onChange={setSheet}
+            saveState={saveState}
+            characterId={characterId}
+            onRequestView={() => {
+                void viewCharacterSheet();
+            }}
+        />
+    );
 }
 
 export default function CharacterBuilderPageEntry({ characterId }: CharacterBuilderPageEntryProps) {

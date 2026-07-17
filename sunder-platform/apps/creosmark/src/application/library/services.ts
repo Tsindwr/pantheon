@@ -18,6 +18,9 @@ export function createLibraryCampaignService(repository: LibraryCampaignReposito
     updateCharacterSheet(characterId: string, sheet: CharacterSheetState) {
       return repository.updateCharacterSheet(characterId, sheet);
     },
+    deleteCharacterSheet(characterId: string) {
+      return repository.deleteCharacterSheet(characterId);
+    },
     listMyCampaigns() {
       return repository.listMyCampaigns();
     },
@@ -32,6 +35,39 @@ export function createLibraryCampaignService(repository: LibraryCampaignReposito
     },
     getCampaignRoster(campaignId: string) {
       return repository.getCampaignRoster(campaignId);
+    },
+    addCharacterToCampaign(campaignId: string, characterSheetId: string) {
+      return repository.addCharacterToCampaign(campaignId, characterSheetId);
+    },
+    getCampaignLoom(campaignId: string) {
+      return repository.getCampaignLoom(campaignId);
+    },
+    updateCampaignLoom(
+      campaignId: string,
+      patch: Parameters<LibraryCampaignRepository["updateCampaignLoom"]>[1],
+    ) {
+      return repository.updateCampaignLoom(campaignId, patch);
+    },
+    subscribeToCampaignLoom(
+      campaignId: string,
+      onChange: Parameters<LibraryCampaignRepository["subscribeToCampaignLoom"]>[1],
+    ) {
+      return repository.subscribeToCampaignLoom(campaignId, onChange);
+    },
+    getCampaignGmTools(campaignId: string) {
+      return repository.getCampaignGmTools(campaignId);
+    },
+    updateCampaignGmTools(
+      campaignId: string,
+      tools: Parameters<LibraryCampaignRepository["updateCampaignGmTools"]>[1],
+    ) {
+      return repository.updateCampaignGmTools(campaignId, tools);
+    },
+    subscribeToCampaignGmTools(
+      campaignId: string,
+      onChange: Parameters<LibraryCampaignRepository["subscribeToCampaignGmTools"]>[1],
+    ) {
+      return repository.subscribeToCampaignGmTools(campaignId, onChange);
     },
     publishRollEvent(
       input: Parameters<LibraryCampaignRepository["publishRollEvent"]>[0],

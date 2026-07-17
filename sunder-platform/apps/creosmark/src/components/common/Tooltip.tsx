@@ -13,6 +13,13 @@ type TooltipProps = {
   children: React.ReactElement;
 };
 
+type TooltipChildProps = {
+  onMouseEnter?: (event: React.MouseEvent) => void;
+  onMouseLeave?: (event: React.MouseEvent) => void;
+  onFocus?: (event: React.FocusEvent) => void;
+  onBlur?: (event: React.FocusEvent) => void;
+};
+
 /**
  * Speech-bubble tooltip with configurable hover delay.
  * Wrap any inline element to give it a tooltip on hover/focus.
@@ -37,22 +44,24 @@ export default function Tooltip({
     setVisible(false);
   }, []);
 
-  const childWithHandlers = cloneElement(children, {
+  const child = children as React.ReactElement<TooltipChildProps>;
+
+  const childWithHandlers = cloneElement<TooltipChildProps>(child, {
     onMouseEnter: (e: React.MouseEvent) => {
       show();
-      children.props.onMouseEnter?.(e);
+      child.props.onMouseEnter?.(e);
     },
     onMouseLeave: (e: React.MouseEvent) => {
       hide();
-      children.props.onMouseLeave?.(e);
+      child.props.onMouseLeave?.(e);
     },
     onFocus: (e: React.FocusEvent) => {
       show();
-      children.props.onFocus?.(e);
+      child.props.onFocus?.(e);
     },
     onBlur: (e: React.FocusEvent) => {
       hide();
-      children.props.onBlur?.(e);
+      child.props.onBlur?.(e);
     },
   });
 

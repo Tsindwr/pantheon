@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import PotentialWidget from "./PotentialWidget.tsx";
 import type { CharacterSheetState } from "../../types/sheet.ts";
 import styles from "./PotentialsSection.module.css";
+import { getPerkMarksFromAssignedPerks } from "../../lib/volatility.ts";
 
 type Props = {
   sheet: CharacterSheetState;
@@ -49,7 +50,7 @@ export default function PotentialsSection({ sheet }: Props) {
                 resistance={potential.resistance}
                 volatilityDieMax={potential.volatilityDieMax}
                 charged={potential.charged}
-                volatilityPerks={potential.perks}
+                volatilityPerks={getPerkMarksFromAssignedPerks(potential.resolverPerks, potential.perks)}
                 potentialCap={12}
                 volatilityCap={12}
                 onChange={(next) => {

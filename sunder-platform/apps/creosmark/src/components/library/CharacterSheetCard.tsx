@@ -2,14 +2,17 @@ import React from 'react';
 import type { CharacterSheetSummary } from "../../types/library.ts";
 import styles from './LibraryCards.module.css';
 import {routes} from "../../lib/routing.ts";
-import {getCharacterLevelFromSummary, getTotalCharacterLevels} from "../../lib/library-data.ts";
 
 type CharacterSheetCardProps = {
     character: CharacterSheetSummary;
+    onRequestDelete?: (character: CharacterSheetSummary) => void;
+    deleting?: boolean;
 };
 
 export default function CharacterSheetCard({
     character,
+    onRequestDelete,
+    deleting = false,
 }: CharacterSheetCardProps) {
     return (
         <article className={styles.card}>
@@ -39,6 +42,17 @@ export default function CharacterSheetCard({
                 <a className={styles.actionLinkSecondary} href={routes.characterEdit(character.id)}>
                     Edit
                 </a>
+                {onRequestDelete ? (
+                    <button
+                        type="button"
+                        className={styles.deleteAction}
+                        onClick={() => onRequestDelete(character)}
+                        disabled={deleting}
+                    >
+                        <i className="fa-solid fa-trash" aria-hidden="true" />
+                        <span>{deleting ? "Deleting..." : "Delete"}</span>
+                    </button>
+                ) : null}
             </div>
         </article>
     );

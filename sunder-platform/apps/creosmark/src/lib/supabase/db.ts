@@ -1,6 +1,27 @@
 import { supabase } from "./client";
 import type { CharacterSheetState } from "../../types/sheet";
-import type { CampaignRecord, CampaignSummary, CharacterSheetSummary } from "../../types/library";
+import type {
+    CampaignRecord,
+    CampaignSummary,
+    CampaignViewerRole,
+    CharacterSheetSummary,
+} from "../../types/library";
+import { normalizeConditionTrack } from "../conditions";
+import {
+    clampCampaignLoomState,
+    clampLoomNumber,
+    getDefaultCampaignGmTools,
+    getInitialSpiritTokens,
+    getSpiritTokenMax,
+    getStoryPointRequirement,
+    normalizeCampaignGmTools,
+    normalizeLoomBoons,
+    normalizePartyLevel,
+    normalizePlayerCount,
+    type CampaignGmTools,
+    type CampaignLoomPatch,
+    type CampaignLoomState,
+} from "../campaign-loom";
 
 export type CharacterSheetRow = {
     id: string;
@@ -22,6 +43,7 @@ export type CampaignRow = {
     name: string;
     gm_name: string | null;
     pitch: string | null;
+    join_code: string;
     created_at: string;
     updated_at: string;
 };
@@ -30,6 +52,23 @@ export type CampaignCharacterSheetRow = {
     campaign_id: string;
     character_sheet_id: string;
     created_at: string;
+};
+
+export type CampaignLoomRow = {
+    campaign_id: string;
+    party_level: number;
+    story_points: number;
+    spirit_tokens: number;
+    loom_boons: unknown;
+    created_at: string;
+    updated_at: string;
+};
+
+export type CampaignGmToolsRow = {
+    campaign_id: string;
+    tools: unknown;
+    created_at: string;
+    updated_at: string;
 };
 
 export type ArchetypeData = {
@@ -101,6 +140,10 @@ function normalizeCharacterSheetState(
     return {
         ...sheet,
         abilityIds: Array.from(abilityIds),
+        conditions: normalizeConditionTrack(sheet.conditions),
+        recollectSurges: Array.isArray(sheet.recollectSurges)
+            ? sheet.recollectSurges
+            : [],
     };
 }
 
@@ -266,15 +309,56 @@ export async function deleteCharacterSheet(id: string): Promise<void> {
 export async function listMyCampaigns(): Promise<CampaignRecord[]> {
     const userId = await requireUserId();
 
-    const { data: campaigns, error: campaignsError } = await supabase
+    const { data: memberships, error: membershipsError } = await supabase
+        .from("campaign_members")
+        .select("campaign_id, role")
+        .eq("user_id", userId);
+
+    if (membershipsError) throw membershipsError;
+
+    const memberCampaignIds = Array.from(
+        new Set(
+            ((memberships ?? []) as Array<{ campaign_id: string; role?: CampaignViewerRole }>)
+                .map((membership) => membership.campaign_id)
+                .filter(Boolean),
+        ),
+    );
+    const roleByCampaignId = new Map(
+        ((memberships ?? []) as Array<{
+            campaign_id: string;
+            role?: CampaignViewerRole;
+        }>).map((membership) => [membership.campaign_id, membership.role]),
+    );
+
+    const { data: ownedCampaigns, error: ownedCampaignsError } = await supabase
         .from("campaigns")
         .select("*")
         .eq("owner_id", userId)
         .order("updated_at", { ascending: false });
 
-    if (campaignsError) throw campaignsError;
+    if (ownedCampaignsError) throw ownedCampaignsError;
 
-    const campaignRows = (campaigns as CampaignRow[]) ?? [];
+    const { data: memberCampaigns, error: memberCampaignsError } =
+        memberCampaignIds.length > 0
+            ? await supabase
+                .from("campaigns")
+                .select("*")
+                .in("id", memberCampaignIds)
+            : { data: [], error: null };
+
+    if (memberCampaignsError) throw memberCampaignsError;
+
+    const campaignRows = Array.from(
+        new Map(
+            [
+                ...((ownedCampaigns as CampaignRow[]) ?? []),
+                ...((memberCampaigns as CampaignRow[]) ?? []),
+            ].map((campaign) => [campaign.id, campaign]),
+        ).values(),
+    ).sort(
+        (a, b) =>
+            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+    );
     if (campaignRows.length === 0) return [];
 
     const campaignIds = campaignRows.map((row) => row.id);
@@ -286,10 +370,21 @@ export async function listMyCampaigns(): Promise<CampaignRecord[]> {
 
     if (linksError) throw linksError;
 
-    const { data: sheets, error: sheetsError } = await supabase
-        .from("character_sheets")
-        .select("*")
-        .eq("owner_id", userId);
+    const linkedCharacterIds = Array.from(
+        new Set(
+            ((links as CampaignCharacterSheetRow[]) ?? [])
+                .map((link) => link.character_sheet_id)
+                .filter(Boolean),
+        ),
+    );
+
+    const { data: sheets, error: sheetsError } =
+        linkedCharacterIds.length > 0
+            ? await supabase
+                .from("character_sheets")
+                .select("*")
+                .in("id", linkedCharacterIds)
+            : { data: [], error: null };
 
     if (sheetsError) throw sheetsError;
 
@@ -315,8 +410,13 @@ export async function listMyCampaigns(): Promise<CampaignRecord[]> {
             name: campaign.name,
             gmName: campaign.gm_name ?? undefined,
             pitch: campaign.pitch ?? undefined,
+            joinCode: campaign.join_code,
             characterIds,
             characters,
+            viewerRole:
+                campaign.owner_id === userId
+                    ? "gm"
+                    : roleByCampaignId.get(campaign.id),
             updatedLabel: new Date(campaign.updated_at).toLocaleString(),
         };
     });
@@ -349,7 +449,9 @@ export async function createCampaign(input: {
         name: row.name,
         gmName: row.gm_name ?? undefined,
         pitch: row.pitch ?? undefined,
+        joinCode: row.join_code,
         characterIds: [],
+        viewerRole: "gm",
         updatedLabel: new Date(row.updated_at).toLocaleString(),
     };
 }
@@ -400,6 +502,7 @@ export async function addCharacterToCampaign(
             character_sheet_id: characterSheetId,
         });
 
+    if (error && error.code === "23505") return;
     if (error) throw error;
 }
 
@@ -414,6 +517,246 @@ export async function removeCharacterFromCampaign(
         .eq("character_sheet_id", characterSheetId);
 
     if (error) throw error;
+}
+
+async function getCampaignPlayerCount(campaignId: string): Promise<number> {
+    const { data, error } = await supabase
+        .from("campaign_character_sheets")
+        .select("character_sheet_id")
+        .eq("campaign_id", campaignId);
+
+    if (error) throw error;
+
+    return normalizePlayerCount((data ?? []).length);
+}
+
+function toCampaignLoomState(
+    row: CampaignLoomRow,
+    playerCount: number,
+): CampaignLoomState {
+    return clampCampaignLoomState({
+        campaignId: row.campaign_id,
+        partyLevel: row.party_level,
+        storyPoints: row.story_points,
+        spiritTokens: row.spirit_tokens,
+        loomBoons: normalizeLoomBoons(row.loom_boons),
+        playerCount,
+        updatedAt: row.updated_at,
+    });
+}
+
+async function createDefaultCampaignLoom(
+    campaignId: string,
+    playerCount: number,
+): Promise<CampaignLoomRow> {
+    const partyLevel = 0;
+    const { data, error } = await supabase
+        .from("campaign_looms")
+        .insert({
+            campaign_id: campaignId,
+            party_level: partyLevel,
+            story_points: 0,
+            spirit_tokens: getInitialSpiritTokens(partyLevel, playerCount),
+            loom_boons: [],
+        })
+        .select()
+        .single();
+
+    if (error) {
+        if (error.code === "23505") {
+            const { data: existing, error: existingError } = await supabase
+                .from("campaign_looms")
+                .select("*")
+                .eq("campaign_id", campaignId)
+                .single();
+
+            if (existingError) throw existingError;
+            return existing as CampaignLoomRow;
+        }
+
+        throw error;
+    }
+
+    return data as CampaignLoomRow;
+}
+
+export async function getCampaignLoom(
+    campaignId: string,
+): Promise<CampaignLoomState> {
+    const playerCount = await getCampaignPlayerCount(campaignId);
+
+    const { data, error } = await supabase
+        .from("campaign_looms")
+        .select("*")
+        .eq("campaign_id", campaignId)
+        .maybeSingle();
+
+    if (error) throw error;
+
+    const row = data
+        ? (data as CampaignLoomRow)
+        : await createDefaultCampaignLoom(campaignId, playerCount);
+
+    return toCampaignLoomState(row, playerCount);
+}
+
+export async function updateCampaignLoom(
+    campaignId: string,
+    patch: CampaignLoomPatch,
+): Promise<CampaignLoomState> {
+    const current = await getCampaignLoom(campaignId);
+    const playerCount = current.playerCount;
+    const partyLevel = normalizePartyLevel(patch.partyLevel ?? current.partyLevel);
+    const levelUpRequirement = getStoryPointRequirement(partyLevel, playerCount);
+    const spiritTokenMax = getSpiritTokenMax(partyLevel, playerCount);
+    const nextStoryPoints = clampLoomNumber(
+        patch.storyPoints ?? current.storyPoints,
+        levelUpRequirement,
+    );
+    const nextSpiritTokens = clampLoomNumber(
+        patch.spiritTokens ?? current.spiritTokens,
+        spiritTokenMax,
+    );
+    const nextLoomBoons =
+        patch.loomBoons !== undefined
+            ? normalizeLoomBoons(patch.loomBoons)
+            : current.loomBoons;
+
+    const { data, error } = await supabase
+        .from("campaign_looms")
+        .update({
+            party_level: partyLevel,
+            story_points: nextStoryPoints,
+            spirit_tokens: nextSpiritTokens,
+            loom_boons: nextLoomBoons,
+        })
+        .eq("campaign_id", campaignId)
+        .select()
+        .single();
+
+    if (error) throw error;
+
+    return toCampaignLoomState(data as CampaignLoomRow, playerCount);
+}
+
+export function subscribeToCampaignLoom(
+    campaignId: string,
+    onChange: () => void,
+) {
+    const channel = supabase
+        .channel(`campaign-loom:${campaignId}`)
+        .on(
+            "postgres_changes",
+            {
+                event: "*",
+                schema: "public",
+                table: "campaign_looms",
+                filter: `campaign_id=eq.${campaignId}`,
+            },
+            () => onChange(),
+        )
+        .subscribe();
+
+    return () => {
+        supabase.removeChannel(channel);
+    };
+}
+
+function toCampaignGmTools(row: CampaignGmToolsRow): CampaignGmTools {
+    return normalizeCampaignGmTools(row.tools);
+}
+
+async function createDefaultCampaignGmTools(
+    campaignId: string,
+): Promise<CampaignGmToolsRow> {
+    const { data, error } = await supabase
+        .from("campaign_gm_tools")
+        .insert({
+            campaign_id: campaignId,
+            tools: getDefaultCampaignGmTools(),
+        })
+        .select()
+        .single();
+
+    if (error) {
+        if (error.code === "23505") {
+            const { data: existing, error: existingError } = await supabase
+                .from("campaign_gm_tools")
+                .select("*")
+                .eq("campaign_id", campaignId)
+                .single();
+
+            if (existingError) throw existingError;
+            return existing as CampaignGmToolsRow;
+        }
+
+        throw error;
+    }
+
+    return data as CampaignGmToolsRow;
+}
+
+export async function getCampaignGmTools(
+    campaignId: string,
+): Promise<CampaignGmTools> {
+    const { data, error } = await supabase
+        .from("campaign_gm_tools")
+        .select("*")
+        .eq("campaign_id", campaignId)
+        .maybeSingle();
+
+    if (error) throw error;
+
+    const row = data
+        ? (data as CampaignGmToolsRow)
+        : await createDefaultCampaignGmTools(campaignId);
+
+    return toCampaignGmTools(row);
+}
+
+export async function updateCampaignGmTools(
+    campaignId: string,
+    tools: CampaignGmTools,
+): Promise<CampaignGmTools> {
+    const nextTools = normalizeCampaignGmTools(tools);
+    const { data, error } = await supabase
+        .from("campaign_gm_tools")
+        .upsert(
+            {
+                campaign_id: campaignId,
+                tools: nextTools,
+            },
+            { onConflict: "campaign_id" },
+        )
+        .select()
+        .single();
+
+    if (error) throw error;
+
+    return toCampaignGmTools(data as CampaignGmToolsRow);
+}
+
+export function subscribeToCampaignGmTools(
+    campaignId: string,
+    onChange: () => void,
+) {
+    const channel = supabase
+        .channel(`campaign-gm-tools:${campaignId}`)
+        .on(
+            "postgres_changes",
+            {
+                event: "*",
+                schema: "public",
+                table: "campaign_gm_tools",
+                filter: `campaign_id=eq.${campaignId}`,
+            },
+            () => onChange(),
+        )
+        .subscribe();
+
+    return () => {
+        supabase.removeChannel(channel);
+    };
 }
 
 export async function getCampaignForCharacter(
@@ -458,6 +801,8 @@ export async function getCampaignForCharacter(
 }
 
 export async function getCampaignRoster(campaignId: string): Promise<CampaignRecord | null> {
+    const userId = await requireUserId();
+
     const { data: campaign, error: campaignError } = await supabase
         .from("campaigns")
         .select("*")
@@ -493,13 +838,27 @@ export async function getCampaignRoster(campaignId: string): Promise<CampaignRec
 
     const row = campaign as CampaignRow;
 
+    const { data: membership, error: membershipError } = await supabase
+        .from("campaign_members")
+        .select("role")
+        .eq("campaign_id", campaignId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+    if (membershipError) throw membershipError;
+
     return {
         id: row.id,
         name: row.name,
         gmName: row.gm_name ?? undefined,
         pitch: row.pitch ?? undefined,
+        joinCode: row.join_code,
         characterIds,
         characters,
+        viewerRole:
+            row.owner_id === userId
+                ? "gm"
+                : ((membership?.role as CampaignViewerRole | undefined) ?? undefined),
         updatedLabel: new Date(row.updated_at).toLocaleString(),
     };
 }
@@ -511,10 +870,15 @@ export function createBlankSheet(): CharacterSheetState {
             archetypes: [],
             origin: "",
             playerName: "",
-            level: 1,
+            level: 0,
         },
-        marks: { total: 6, taken: 0 },
-        experience: { beats: 0, strings: 0, milestones: 0 },
+        marks: { total: 1, taken: 0 },
+        conditions: {
+            minor: [],
+            major: [],
+            exhaustion: 0,
+        },
+        experience: { beats: 0, strings: 0, milestones: 0, zeniths: 0 },
         tokens: [],
         armor: [],
         potentials: [
@@ -678,6 +1042,7 @@ export function createBlankSheet(): CharacterSheetState {
             },
         },
         abilityIds: [],
+        recollectSurges: [],
         archetypeLevels: [],
         firstArchetypeBoons: {
             domainId: "",
@@ -707,7 +1072,7 @@ export async function createCampaignWithMembership(input: {
 
     if (error) throw error;
 
-    const campaign = data as CampaignRow & { join_code?: string };
+    const campaign = data as CampaignRow;
 
     const { error: memberError } = await supabase
         .from("campaign_members")
@@ -725,6 +1090,7 @@ export async function createCampaignWithMembership(input: {
         gmName: campaign.gm_name ?? undefined,
         pitch: campaign.pitch ?? undefined,
         characterIds: [],
+        viewerRole: "gm",
         updatedLabel: new Date(campaign.updated_at).toLocaleString(),
         joinCode: campaign.join_code,
     };

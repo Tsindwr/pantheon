@@ -9,7 +9,7 @@ type RollEventRow = {
     author_user_id: string;
     character_name: string;
     skill_test_label: string;
-    visibility: "gm" | "everyone";
+    visibility: RollBroadcastMode;
     base_d20: number;
     volatility_results: number[] | null;
     final_success_level: string;
@@ -56,8 +56,6 @@ export async function publishRollEvent(input: {
     mode: RollBroadcastMode;
     result: TestResult;
 }): Promise<void> {
-    if (input.mode === "self") return;
-
     const authorUserId = await requireUserId();
 
     const { error } = await supabase.from("roll_events").insert({
@@ -66,7 +64,7 @@ export async function publishRollEvent(input: {
         author_user_id: authorUserId,
         character_name: input.characterName,
         skill_test_label: input.skillTestLabel,
-        visibility: input.mode === "gm" ? "gm" : "everyone",
+        visibility: input.mode,
         base_d20: input.result.d20Result.result,
         volatility_results: input.result.volatilityResults,
         final_success_level: input.result.finalSuccessLevel,
