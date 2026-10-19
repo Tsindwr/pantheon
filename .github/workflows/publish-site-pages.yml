@@ -68,7 +68,7 @@ jobs:
           )
           
           PATCH=$((BASE_PATCH + PATCH_DELTA))
-          VERSION="${MAJOR}>${MINOR}.${PATCH}"
+          VERSION="${MAJOR}.${MINOR}.${PATCH}"
           
           echo "Base version: ${BASE}"
           echo "Site commits since tag: ${PATCH_DELTA}"
@@ -83,7 +83,7 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag_full=${TAG}" >> "$GITHUB_OUTPUT"
           echo "tag_version=${BASE}" >> "$GITHUB_OUTPUT"
-          echo "tag_patch=${PATCH}" >> "GITHUB_OUTPUT"
+          echo "tag_patch=${PATCH}" >> "$GITHUB_OUTPUT"
           echo "tag_feature=v${MAJOR}.${MINOR}.0" >> "$GITHUB_OUTPUT"
 
       - name: Install MkDocs dependencies
@@ -111,7 +111,7 @@ jobs:
           set -euo pipefail
           mkdocs build --clean
 
-      - name: Validate GifHub Pages artifact
+      - name: Validate GitHub Pages artifact
         working-directory: sunder-platform/apps/site
         shell: bash
         run: |
