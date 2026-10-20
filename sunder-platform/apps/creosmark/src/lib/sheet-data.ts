@@ -114,6 +114,15 @@ export const DEMO_SHEET: CharacterSheetState = {
     milestones: 1,
     zeniths: 0,
   },
+  purchasedPerkIds: [
+    "anchor-point",
+    "refresh",
+    "cleave",
+    "drive",
+    "fracture",
+    "spite",
+  ],
+  perkAssignments: {},
   tokens: [
     {
       id: "flavor",

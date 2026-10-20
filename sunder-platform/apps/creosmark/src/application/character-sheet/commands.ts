@@ -174,6 +174,7 @@ function normalizeOptionalFace(face: number | null | undefined): number | null {
 
 export type RecollectSurgeAssignment = {
   perkId: PerkId;
+  previousFace?: number;
   face: number | null;
 };
 
@@ -195,34 +196,48 @@ export function applyRecollectSurge(
   if (!potential) return sheet;
 
   const recordedPerks = getRecollectRecordedPerks(surge);
-  const recordedPerkIds = new Set<PerkId>();
+  const recordedByPerk = new Map<PerkId, RecollectRecordedPerk[]>();
+  const recordedByKey = new Map<string, RecollectRecordedPerk>();
   for (const entry of recordedPerks) {
     if (!entry.perk?.id || entry.perk.id === "charge") continue;
-    recordedPerkIds.add(entry.perk.id as PerkId);
+    const perkId = entry.perk.id as PerkId;
+    recordedByPerk.set(perkId, [...(recordedByPerk.get(perkId) ?? []), entry]);
+    recordedByKey.set(`${perkId}:${entry.previousFace}`, entry);
   }
 
-  const assignmentsByPerk = new Map<PerkId, number | null>();
+  const assignmentsByEntry = new Map<string, number | null>();
   for (const assignment of input.assignments) {
     if (assignment.perkId === "charge") return sheet;
-    if (!recordedPerkIds.has(assignment.perkId)) return sheet;
-    if (assignmentsByPerk.has(assignment.perkId)) return sheet;
-    assignmentsByPerk.set(assignment.perkId, normalizeOptionalFace(assignment.face));
+    const recordedEntry =
+      assignment.previousFace === undefined
+        ? (() => {
+            const entries = recordedByPerk.get(assignment.perkId) ?? [];
+            return entries.length === 1 ? entries[0] : undefined;
+          })()
+        : recordedByKey.get(`${assignment.perkId}:${assignment.previousFace}`);
+    if (!recordedEntry) return sheet;
+
+    const assignmentKey = `${assignment.perkId}:${recordedEntry.previousFace}`;
+    if (assignmentsByEntry.has(assignmentKey)) return sheet;
+    assignmentsByEntry.set(assignmentKey, normalizeOptionalFace(assignment.face));
   }
 
-  const obtainedPerkIds = getObtainedPerkIds(sheet);
   const nextResolverPerks = getResolverPerkRecord(potential.resolverPerks);
   const assignedFaces = new Set<number>(
     Object.keys(nextResolverPerks).map((face) => Number(face)),
   );
+  const assignedDuringApply = new Map<PerkId, number>();
 
   for (const entry of recordedPerks) {
     const perkId = entry.perk.id as PerkId;
-    const assignedFace = assignmentsByPerk.get(perkId);
+    const assignedFace = assignmentsByEntry.get(`${perkId}:${entry.previousFace}`);
     if (assignedFace === undefined || assignedFace === null) continue;
 
     if (!Number.isInteger(assignedFace) || assignedFace < 2) return sheet;
-    if (!obtainedPerkIds.has(perkId)) return sheet;
-    if (isPerkAssigned(sheet, perkId)) return sheet;
+    const pendingAssignedCount = assignedDuringApply.get(perkId) ?? 0;
+    const obtainedCount = getObtainedPerkCounts(sheet).get(perkId) ?? 0;
+    const currentAssignedCount = getAssignedPerkCount(sheet, perkId);
+    if (currentAssignedCount + pendingAssignedCount >= obtainedCount) return sheet;
     if (assignedFaces.has(assignedFace)) return sheet;
 
     const allowedFaces = getAllowedPerkFaces(potential, perkId, assignedFaces);
@@ -233,6 +248,7 @@ export function applyRecollectSurge(
 
     nextResolverPerks[assignedFace] = perkDef;
     assignedFaces.add(assignedFace);
+    assignedDuringApply.set(perkId, pendingAssignedCount + 1);
   }
 
   const sheetWithAssignedPerks = mapPotential(sheet, surge.potentialKey, (current) => ({
@@ -399,38 +415,61 @@ function getResolverPerkRecord(
   return result;
 }
 
+function getObtainedPerkCounts(sheet: CharacterSheetState): Map<PerkId, number> {
+  const counts = new Map<PerkId, number>();
+  const add = (perkId: PerkId | null | undefined) => {
+    if (!perkId) return;
+    counts.set(perkId, (counts.get(perkId) ?? 0) + 1);
+  };
+
+  sheet.archetypeLevels
+    .filter((level) => level.rewardChoice === "perk")
+    .forEach((level) => add(level.perkId));
+
+  (sheet.purchasedPerkIds ?? []).forEach(add);
+
+  return counts;
+}
+
 function getObtainedPerkIds(sheet: CharacterSheetState): Set<PerkId> {
-  return new Set(
-    sheet.archetypeLevels
-      .filter((level) => level.rewardChoice === "perk")
-      .map((level) => level.perkId)
-      .filter((perkId): perkId is PerkId => Boolean(perkId)),
+  return new Set(getObtainedPerkCounts(sheet).keys());
+}
+
+function getAssignedPerkCount(
+  sheet: CharacterSheetState,
+  perkId: PerkId,
+  ignore?: { potentialKey: PotentialKey; face: number },
+): number {
+  return sheet.potentials.reduce(
+    (count, potential) =>
+      count +
+      Object.entries(potential.resolverPerks ?? {}).filter(([face, perk]) => {
+        if (
+          ignore &&
+          potential.key === ignore.potentialKey &&
+          Number(face) === ignore.face
+        ) {
+          return false;
+        }
+
+        return (perk as PerkDefinition | undefined)?.id === perkId;
+      }).length,
+    0,
   );
 }
 
-function isPerkAssigned(
+function hasAvailablePerkCopy(
   sheet: CharacterSheetState,
   perkId: PerkId,
   ignore?: { potentialKey: PotentialKey; face: number },
 ): boolean {
-  return sheet.potentials.some((potential) =>
-    Object.entries(potential.resolverPerks ?? {}).some(([face, perk]) => {
-      if (
-        ignore &&
-        potential.key === ignore.potentialKey &&
-        Number(face) === ignore.face
-      ) {
-        return false;
-      }
-
-      return (perk as PerkDefinition | undefined)?.id === perkId;
-    }),
-  );
+  if (perkId === "charge") return true;
+  return getAssignedPerkCount(sheet, perkId, ignore) < (getObtainedPerkCounts(sheet).get(perkId) ?? 0);
 }
 
 function syncObtainedPotentialPerks(sheet: CharacterSheetState): CharacterSheetState {
-  const obtainedPerkIds = getObtainedPerkIds(sheet);
-  const usedPerkIds = new Set<PerkId>();
+  const obtainedPerkCounts = getObtainedPerkCounts(sheet);
+  const usedPerkCounts = new Map<PerkId, number>();
 
   return {
     ...sheet,
@@ -444,10 +483,11 @@ function syncObtainedPotentialPerks(sheet: CharacterSheetState): CharacterSheetS
       for (const [face, perk] of entries) {
         if (!perk?.id) continue;
         const perkId = perk.id as PerkId;
-        if (!obtainedPerkIds.has(perkId) || usedPerkIds.has(perkId)) continue;
+        const usedCount = usedPerkCounts.get(perkId) ?? 0;
+        if (perkId !== "charge" && usedCount >= (obtainedPerkCounts.get(perkId) ?? 0)) continue;
 
         nextResolverPerks[face] = perk;
-        usedPerkIds.add(perkId);
+        usedPerkCounts.set(perkId, usedCount + 1);
       }
 
       return normalizePotentialState({
@@ -1016,8 +1056,7 @@ export function addPotentialPerk(
 ): CharacterSheetState {
   const potential = getPotential(sheet, potentialKey);
   if (!potential) return sheet;
-  if (!getObtainedPerkIds(sheet).has(perkId)) return sheet;
-  if (isPerkAssigned(sheet, perkId)) return sheet;
+  if (!hasAvailablePerkCopy(sheet, perkId)) return sheet;
 
   const occupiedFaces = new Set<number>(
     Object.keys(potential.resolverPerks ?? {}).map((face) => Number(face)),
@@ -1059,8 +1098,7 @@ export function setPotentialPerkFace(
 
   const perkDef = BASE_PERKS[perkId];
   if (!perkDef) return sheet;
-  if (!getObtainedPerkIds(sheet).has(perkId)) return sheet;
-  if (isPerkAssigned(sheet, perkId, { potentialKey, face })) return sheet;
+  if (perkId !== "charge" && !hasAvailablePerkCopy(sheet, perkId, { potentialKey, face })) return sheet;
 
   const occupiedFaces = new Set(Object.keys(nextResolverPerks).map((entry) => Number(entry)));
   const allowedFaces = getAllowedPerkFaces(potential, perkId, occupiedFaces);

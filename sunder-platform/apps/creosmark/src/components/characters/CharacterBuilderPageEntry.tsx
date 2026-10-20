@@ -29,15 +29,27 @@ function InnerBuilder({ characterId }: CharacterBuilderPageEntryProps) {
                 setLoading(true);
                 setErrorText(null);
 
-                const row = await supabaseLibraryCampaignService.getMyCharacterSheet(characterId);
+                const ownedRow = await supabaseLibraryCampaignService.getMyCharacterSheet(characterId);
+                const campaign = await supabaseLibraryCampaignService.getCampaignForCharacter(
+                    characterId,
+                );
+                const row =
+                    ownedRow ??
+                    (campaign?.role === "gm"
+                        ? await supabaseLibraryCampaignService.getViewableCharacterSheet(characterId)
+                        : null);
                 if (!row) {
+                    const viewableRow =
+                        await supabaseLibraryCampaignService.getViewableCharacterSheet(characterId);
+                    if (viewableRow) {
+                        window.location.href = routes.characterView(characterId);
+                        return;
+                    }
+
                     setErrorText('Character sheet not found.');
                     return;
                 }
 
-                const campaign = await supabaseLibraryCampaignService.getCampaignForCharacter(
-                    characterId,
-                );
                 if (cancelled) return;
                 const normalizedSheet = normalizeFeatureDrivenSheetState(row.sheet);
                 setSheet(normalizedSheet);

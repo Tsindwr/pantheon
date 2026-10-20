@@ -49,6 +49,7 @@ type CharacterSheetShellProps = {
     saveState?: 'idle' | 'saving' | 'saved' | 'error';
     characterId?: string;
     assignedCampaign?: CampaignAssignment | null;
+    canManage?: boolean;
 };
 
 function Placeholder({title, copy}: { title: string; copy: string }) {
@@ -70,6 +71,7 @@ export default function CharacterSheetShell({
     saveState = 'idle',
     characterId,
     assignedCampaign = null,
+    canManage = true,
 }: CharacterSheetShellProps) {
     const [sheet, setSheet] = useState(() => normalizeFeatureDrivenSheetState(initialSheet));
     const [activeTab, setActiveTab] = useState<SheetTabId>("overview");
@@ -244,16 +246,18 @@ export default function CharacterSheetShell({
                     <div className={styles.nameRow}>
                         <h1 className={styles.name}>{sheet.header.name}</h1>
 
-                        <button
-                            type={'button'}
-                            className={styles.manageButton}
-                            onClick={() => {
-                                if (!characterId) return;
-                                window.location.href = routes.characterEdit(characterId);
-                            }}
-                        >
-                            Manage
-                        </button>
+                        {canManage ? (
+                            <button
+                                type={'button'}
+                                className={styles.manageButton}
+                                onClick={() => {
+                                    if (!characterId) return;
+                                    window.location.href = routes.characterEdit(characterId);
+                                }}
+                            >
+                                Manage
+                            </button>
+                        ) : null}
                     </div>
 
                     <div className={styles.meta}>

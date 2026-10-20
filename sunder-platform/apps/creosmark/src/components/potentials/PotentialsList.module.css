@@ -3,6 +3,54 @@
   gap: 0.85rem;
 }
 
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.title {
+  margin: 0;
+  color: rgba(245, 247, 251, 0.94);
+  font-size: 1.08rem;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.infoButton {
+  width: 2.1rem;
+  height: 2.1rem;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.035);
+  color: rgba(245, 247, 251, 0.72);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.infoButton:hover,
+.infoButton:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(210, 178, 76, 0.58);
+  background: rgba(210, 178, 76, 0.12);
+  color: #f5dda0;
+  outline: none;
+}
+
+.infoButton i {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
 .group {
   display: grid;
   gap: 0.45rem;
@@ -23,6 +71,33 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.45rem;
+}
+
+.helpSection {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.helpSection h3 {
+  margin: 0;
+  color: #f5dda0;
+  font-size: 0.9rem;
+  line-height: 1.18;
+  letter-spacing: 0;
+}
+
+.helpSection p,
+.helpSection ul {
+  margin: 0;
+  color: rgba(245, 247, 251, 0.76);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.helpSection ul {
+  display: grid;
+  gap: 0.34rem;
+  padding-left: 1.1rem;
 }
 
 @media (max-width: 1100px) {

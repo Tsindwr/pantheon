@@ -143,6 +143,16 @@ export type PotentialState = {
   resolverPerks?: AssignedPerkMap;
 };
 
+export type PerkAssignmentSourceKind = "purchase" | "archetype-level" | "origin";
+
+export type PerkAssignmentSourceState = {
+  perkId: PerkId;
+  sourceKind: PerkAssignmentSourceKind;
+  sourceId: string;
+  sourceLabel: string;
+  assignmentPaid?: boolean;
+};
+
 export type RecollectRecordedPerk = {
   previousFace: number;
   perk: NonNullable<AssignedPerkMap[number]>;
@@ -322,6 +332,8 @@ export type CharacterSheetState = {
   marks: MarksState;
   conditions: ConditionTrackState;
   experience: ExperienceState;
+  purchasedPerkIds?: PerkId[];
+  perkAssignments?: Record<string, PerkAssignmentSourceState>;
   tokens: TokenPoolState[];
   armor: ArmorPieceState[];
   potentials: PotentialState[];

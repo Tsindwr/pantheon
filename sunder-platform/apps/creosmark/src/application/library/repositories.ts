@@ -23,6 +23,7 @@ export type LibraryCampaignRepository = {
   createBlankSheet(): CharacterSheetState;
   listMyCharacterSheets(): Promise<CharacterSheetSummary[]>;
   getMyCharacterSheet(id: string): Promise<StoredCharacterSheet | null>;
+  getViewableCharacterSheet(id: string): Promise<StoredCharacterSheet | null>;
   createCharacterSheet(sheet: CharacterSheetState): Promise<StoredCharacterSheet>;
   updateCharacterSheet(id: string, sheet: CharacterSheetState): Promise<void>;
   deleteCharacterSheet(id: string): Promise<void>;

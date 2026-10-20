@@ -70,8 +70,501 @@
 }
 
 .content {
+    display: grid;
+    gap: 0.7rem;
     min-width: 0;
     width: 100%;
+}
+
+.editorBreadcrumb {
+    position: sticky;
+    top: 0.75rem;
+    z-index: 8;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 0.3rem 0.75rem;
+    align-items: center;
+    padding: 0.62rem 0.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(210, 178, 76, 0.2);
+    background: rgba(10, 12, 18, 0.94);
+    box-shadow: 0 0.65rem 1.4rem rgba(0, 0, 0, 0.24);
+    backdrop-filter: blur(12px);
+}
+
+.breadcrumbKicker {
+    grid-column: 1 / -1;
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.breadcrumbPath {
+    display: flex;
+    min-width: 0;
+    gap: 0.35rem;
+    align-items: center;
+    flex-wrap: wrap;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.92rem;
+    font-weight: 800;
+}
+
+.breadcrumbPath strong {
+    color: var(--sunder-gold, #d2b24c);
+}
+
+.breadcrumbMeta {
+    justify-self: end;
+    padding: 0.24rem 0.52rem;
+    border-radius: 999px;
+    background: rgba(139, 124, 243, 0.16);
+    color: rgba(255, 255, 255, 0.76);
+    font-size: 0.74rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.breadcrumbCompletion {
+    justify-self: end;
+    padding: 0.24rem 0.52rem;
+    border-radius: 999px;
+    background: rgba(210, 178, 76, 0.14);
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.74rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.navButton {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem;
+}
+
+.navButtonText {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.navStatus {
+    flex: 0 0 auto;
+    min-width: 1.45rem;
+    height: 1.45rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.22rem;
+    padding: 0 0.32rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    font-size: 0.68rem;
+    font-weight: 900;
+}
+
+.navStatus i {
+    font-size: 0.78rem;
+    line-height: 1;
+    -webkit-text-stroke: 0.42px currentColor;
+    text-shadow: 0 0 7px color-mix(in srgb, currentColor 42%, transparent);
+}
+
+.navStatus span {
+    color: rgba(255, 255, 255, 0.94);
+    line-height: 1;
+}
+
+.navStatusComplete {
+    border-color: rgba(69, 234, 169, 0.38);
+    background: rgba(18, 89, 66, 0.74);
+    color: #45eaa9;
+}
+
+.navStatusMissing {
+    border-color: rgba(255, 209, 77, 0.42);
+    background: rgba(113, 80, 18, 0.76);
+    color: #ffd14d;
+}
+
+.navStatusBlocking {
+    border-color: rgba(255, 83, 83, 0.5);
+    background: rgba(116, 26, 34, 0.78);
+    color: #ff5353;
+}
+
+.summaryTrayToggle {
+    position: fixed;
+    top: 48%;
+    right: 0;
+    z-index: 32;
+    min-width: 2.55rem;
+    min-height: 3.2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.22rem;
+    padding: 0.48rem 0.42rem 0.48rem 0.52rem;
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-right: 0;
+    border-radius: 0.78rem 0 0 0.78rem;
+    background: rgba(12, 14, 20, 0.94);
+    color: white;
+    box-shadow: 0 0.8rem 1.6rem rgba(0, 0, 0, 0.28);
+    cursor: pointer;
+}
+
+.summaryTrayToggle:hover,
+.summaryTrayToggle:focus-visible {
+    border-color: rgba(210, 178, 76, 0.56);
+    outline: none;
+}
+
+.summaryTrayToggle strong {
+    min-width: 1.05rem;
+    height: 1.05rem;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    font-size: 0.66rem;
+    line-height: 1;
+}
+
+.summaryTrayToggleComplete {
+    color: #9fe6c8;
+}
+
+.summaryTrayToggleMissing {
+    color: var(--sunder-gold, #d2b24c);
+}
+
+.summaryTrayToggleBlocking {
+    color: #ff9a9a;
+}
+
+.summaryTrayBody,
+.summaryTraySectionList,
+.summaryTrayIssues {
+    display: grid;
+    gap: 0.65rem;
+    min-width: 0;
+}
+
+.summaryTrayOverview,
+.summaryTraySection {
+    border-radius: 0.82rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.summaryTrayOverview {
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.72rem;
+}
+
+.summaryTrayOverview strong {
+    color: white;
+}
+
+.summaryTrayOverview span,
+.summaryTraySectionHeader small,
+.summaryTrayEmpty {
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.75rem;
+    font-weight: 750;
+}
+
+.summaryTraySection {
+    display: grid;
+    gap: 0.45rem;
+    padding: 0.65rem;
+}
+
+.summaryTraySectionHeader,
+.summaryTrayIssueButton {
+    width: 100%;
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.55rem;
+    border: 0;
+    background: transparent;
+    color: white;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.summaryTraySectionHeader {
+    justify-content: space-between;
+    padding: 0;
+}
+
+.summaryTraySectionHeader > span:first-child {
+    display: grid;
+    gap: 0.12rem;
+    min-width: 0;
+}
+
+.summaryTraySectionHeader strong,
+.summaryTraySectionHeader small,
+.summaryTrayIssueButton span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.summaryTrayStatus {
+    flex: 0 0 auto;
+    min-width: 1.58rem;
+    height: 1.58rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0 0.38rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 900;
+}
+
+.summaryTrayStatusComplete {
+    background: rgba(62, 180, 137, 0.18);
+    color: #9fe6c8;
+}
+
+.summaryTrayStatusMissing {
+    background: rgba(210, 178, 76, 0.18);
+    color: var(--sunder-gold, #d2b24c);
+}
+
+.summaryTrayStatusBlocking {
+    background: rgba(244, 93, 93, 0.18);
+    color: #ff9a9a;
+}
+
+.summaryTrayIssueButton {
+    padding: 0.42rem 0.48rem;
+    border-radius: 0.62rem;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.8rem;
+    font-weight: 780;
+}
+
+.summaryTrayIssueButton i {
+    flex: 0 0 auto;
+    color: var(--sunder-gold, #d2b24c);
+}
+
+.summaryTrayIssueButton:hover,
+.summaryTrayIssueButton:focus-visible,
+.summaryTraySectionHeader:hover,
+.summaryTraySectionHeader:focus-visible {
+    color: var(--sunder-gold, #d2b24c);
+    outline: none;
+}
+
+.quickEditBlock {
+    display: grid;
+    gap: 0.52rem;
+    min-width: 0;
+}
+
+.quickEditChips {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 0.42rem;
+    min-width: 0;
+}
+
+.quickEditChip {
+    min-width: 0;
+    min-height: 2.65rem;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.42rem;
+    padding: 0.46rem 0.52rem;
+    border-radius: 0.58rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.045);
+    color: rgba(255, 255, 255, 0.86);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.quickEditChip i {
+    color: var(--sunder-gold, #d2b24c);
+    font-size: 0.82rem;
+}
+
+.quickEditChip span {
+    display: grid;
+    gap: 0.06rem;
+    min-width: 0;
+}
+
+.quickEditChip small,
+.quickEditChip strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.quickEditChip small {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.62rem;
+    font-weight: 850;
+    text-transform: uppercase;
+}
+
+.quickEditChip strong {
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 850;
+}
+
+.quickEditChipEmpty {
+    color: rgba(255, 255, 255, 0.52) !important;
+}
+
+.quickEditChip:hover,
+.quickEditChip:focus-visible,
+.quickEditChipActive {
+    border-color: rgba(210, 178, 76, 0.48);
+    background: rgba(210, 178, 76, 0.12);
+    outline: none;
+}
+
+.quickEditPanel {
+    display: grid;
+    gap: 0.58rem;
+    padding: 0.6rem;
+    border-radius: 0.68rem;
+    border: 1px solid rgba(210, 178, 76, 0.22);
+    background: rgba(10, 12, 18, 0.68);
+}
+
+.quickEditPanelHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem;
+}
+
+.quickEditPanelHeader strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.82rem;
+}
+
+.quickEditIconButton {
+    width: 2rem;
+    height: 2rem;
+    flex: 0 0 auto;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 0.55rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.055);
+    color: white;
+    font: inherit;
+    cursor: pointer;
+}
+
+.quickEditIconButton:hover,
+.quickEditIconButton:focus-visible {
+    border-color: rgba(210, 178, 76, 0.55);
+    background: rgba(210, 178, 76, 0.13);
+    outline: none;
+}
+
+.quickEditArchetypeGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.42rem;
+}
+
+.quickEditArchetypeRow {
+    display: grid;
+    gap: 0.36rem;
+    padding: 0.42rem;
+    border-radius: 0.62rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.quickEditArchetypeRowActive {
+    border-color: rgba(210, 178, 76, 0.3);
+    background: rgba(210, 178, 76, 0.08);
+}
+
+.quickEditArchetypeToggle {
+    min-width: 0;
+    min-height: 2.1rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.42rem;
+    padding: 0.42rem 0.5rem;
+    border-radius: 0.55rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    color: white;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.quickEditArchetypeToggle span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.quickEditArchetypeToggle strong {
+    min-width: 1.35rem;
+    height: 1.35rem;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--sunder-gold, #d2b24c);
+    font-size: 0.75rem;
+}
+
+.quickEditArchetypeToggle:hover,
+.quickEditArchetypeToggle:focus-visible {
+    border-color: rgba(210, 178, 76, 0.55);
+    outline: none;
+}
+
+.quickEditLevelStepper {
+    display: grid;
+    grid-template-columns: auto minmax(1.6rem, 1fr) auto;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.quickEditLevelStepper span {
+    justify-self: center;
+    color: rgba(255, 255, 255, 0.84);
+    font-size: 0.82rem;
+    font-weight: 900;
+}
+
+.content [data-editor-subsection] {
+    scroll-margin-top: 5.75rem;
 }
 
 .section {
@@ -113,6 +606,67 @@
     display: grid;
     gap: 0.45rem;
     padding: 0.7rem;
+}
+
+.advancedPanel {
+    display: grid;
+    gap: 0.55rem;
+    min-width: 0;
+}
+
+.advancedToggle {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.65rem;
+    align-items: center;
+    padding: 0.58rem 0;
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.09);
+    background: transparent;
+    color: white;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.advancedToggle:hover,
+.advancedToggle:focus-visible {
+    color: var(--sunder-gold, #d2b24c);
+    outline: none;
+}
+
+.advancedToggleText {
+    display: grid;
+    gap: 0.12rem;
+    min-width: 0;
+}
+
+.advancedToggleText strong {
+    font-size: 0.82rem;
+}
+
+.advancedToggleText span {
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.74rem;
+    font-weight: 700;
+}
+
+.advancedToggleAction {
+    flex: 0 0 auto;
+    padding: 0.2rem 0.48rem;
+    border-radius: 999px;
+    border: 1px solid rgba(210, 178, 76, 0.25);
+    background: rgba(210, 178, 76, 0.08);
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.72rem;
+    font-weight: 850;
+}
+
+.advancedPanelBody {
+    display: grid;
+    gap: 0.62rem;
+    min-width: 0;
 }
 
 .compactList {
@@ -193,6 +747,15 @@ textarea {
     font-weight: 800;
 }
 
+.smallButton,
+.secondaryButton,
+.removeButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.42rem;
+}
+
 .removeButton {
     padding: 0.48rem 0.7rem;
     border-radius: 0.7rem;
@@ -220,6 +783,361 @@ textarea {
 .addRow {
     display: grid;
     gap: 0.6rem;
+}
+
+.potentialEditorSection {
+    display: grid;
+    gap: 0.75rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.potentialEditorSection:first-of-type {
+    padding-top: 0;
+    border-top: none;
+}
+
+.potentialBand {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.65rem;
+    align-items: start;
+}
+
+.potentialRowGrid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.65rem;
+}
+
+.scorePotentialCard,
+.perkPotentialCard,
+.rollSetCard,
+.rollSlot,
+.purchasePanel,
+.perkInventoryPanel {
+    border-radius: 0.82rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.scorePotentialCard,
+.perkPotentialCard,
+.rollSlot,
+.purchasePanel,
+.perkInventoryPanel {
+    padding: 0.7rem;
+}
+
+.scorePotentialCard,
+.perkPotentialCard {
+    display: grid;
+    align-content: start;
+    gap: 0.6rem;
+}
+
+.potentialScoreHeader,
+.perkPotentialTitle {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    align-items: baseline;
+    min-width: 0;
+}
+
+.potentialScoreHeader span,
+.perkPotentialTitle span {
+    color: var(--sunder-gold, #d2b24c);
+    font-size: 0.78rem;
+    font-weight: 900;
+}
+
+.scoreControlGrid {
+    display: grid;
+    grid-template-columns: 4.7rem minmax(4.5rem, 0.75fr) minmax(6.5rem, 1fr);
+    gap: 0.5rem;
+    align-items: end;
+}
+
+.scorePotentialCard .totalBlock {
+    min-height: 4.05rem;
+    padding: 0.55rem 0.62rem;
+}
+
+.scorePotentialCard .totalValue {
+    font-size: 1.58rem;
+}
+
+.rollSetCard {
+    display: grid;
+    gap: 0.7rem;
+    padding: 0.75rem;
+}
+
+.rollSlotGrid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.65rem;
+}
+
+.rollSlot {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.rollSlotHeader,
+.rollSetFooter {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.55rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.rollResultBox {
+    display: grid;
+    gap: 0.1rem;
+    min-height: 5rem;
+    padding: 0.62rem 0.7rem;
+    border-radius: 0.76rem;
+    border: 1px solid rgba(210, 178, 76, 0.16);
+    background: rgba(8, 10, 16, 0.42);
+}
+
+.rollResultBox span,
+.purchaseSummary span {
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.rollResultBox strong {
+    color: white;
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.rollResultBox em {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.74rem;
+    font-style: normal;
+}
+
+.rollSetFooter {
+    justify-content: flex-end;
+    padding-top: 0.65rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.purchasePanel {
+    display: grid;
+    grid-template-columns: 10rem minmax(0, 1fr);
+    gap: 0.7rem;
+    align-items: start;
+}
+
+.purchaseSummary {
+    display: grid;
+    gap: 0.12rem;
+    padding: 0.65rem;
+    border-radius: 0.74rem;
+    border: 1px solid rgba(210, 178, 76, 0.16);
+    background: rgba(210, 178, 76, 0.06);
+}
+
+.purchaseSummary strong {
+    color: var(--sunder-gold, #d2b24c);
+    font-size: 1.1rem;
+}
+
+.purchaseGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 0.55rem;
+}
+
+.purchaseRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.55rem;
+    align-items: center;
+    padding: 0.62rem;
+    border-radius: 0.74rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.purchaseText,
+.assignedPerkText {
+    display: grid;
+    gap: 0.12rem;
+    min-width: 0;
+}
+
+.purchaseText span,
+.assignedPerkText span {
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 0.74rem;
+    line-height: 1.25;
+}
+
+.perkInventoryPanel {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.perkInventoryCount {
+    color: rgba(255, 255, 255, 0.64);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.perkInventoryGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 0.55rem;
+}
+
+.perkInventoryRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.55rem;
+    align-items: center;
+    padding: 0.62rem;
+    border-radius: 0.74rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(8, 10, 16, 0.32);
+}
+
+.perkInventoryText {
+    display: grid;
+    gap: 0.12rem;
+    min-width: 0;
+}
+
+.perkInventoryText span {
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 0.74rem;
+    line-height: 1.25;
+}
+
+.perkInventoryMeta {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.perkInventoryMeta span {
+    padding: 0.18rem 0.42rem;
+    border-radius: 999px;
+    background: rgba(139, 124, 243, 0.13);
+    color: rgba(255, 255, 255, 0.76);
+    font-size: 0.68rem;
+    font-weight: 800;
+}
+
+.perkNodeTrack {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.35rem;
+    padding: 0.45rem 0.2rem;
+}
+
+.perkNodeTrack::before {
+    content: "";
+    position: absolute;
+    left: 0.75rem;
+    right: 0.75rem;
+    top: 50%;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.14);
+    transform: translateY(-50%);
+}
+
+.perkNode {
+    position: relative;
+    z-index: 1;
+    width: 1.42rem;
+    height: 1.42rem;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    border: 1px solid rgba(210, 178, 76, 0.24);
+    background: rgb(18, 22, 31);
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.68rem;
+    font-weight: 900;
+}
+
+.perkNodeFilled {
+    background: var(--sunder-gold, #d2b24c);
+    color: #141821;
+}
+
+.perkNodeLocked {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.38);
+}
+
+.perkNodeCharged {
+    border-color: rgba(124, 217, 88, 0.72);
+    box-shadow: 0 0 0 3px rgba(124, 217, 88, 0.14);
+}
+
+.perkAssignPanel {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(8rem, 0.8fr) minmax(6.2rem, 0.6fr) auto;
+    gap: 0.5rem;
+    align-items: end;
+    padding: 0.6rem;
+    border-radius: 0.76rem;
+    border: 1px solid rgba(210, 178, 76, 0.16);
+    background: rgba(210, 178, 76, 0.06);
+}
+
+.perkAssignActions {
+    display: grid;
+    gap: 0.25rem;
+    justify-items: end;
+}
+
+.perkAssignActions span {
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 0.72rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.assignedPerkList {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.assignedPerkRow {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.52rem;
+    border-radius: 0.74rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(8, 10, 16, 0.32);
+}
+
+.perkFaceBadge {
+    width: 1.8rem;
+    height: 1.8rem;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(210, 178, 76, 0.16);
+    color: var(--sunder-gold, #d2b24c);
+    font-size: 0.78rem;
+    font-weight: 900;
 }
 
 .potentialGrid {
@@ -514,6 +1432,8 @@ textarea {
 
 .expandButton {
     width: 100%;
+    display: grid;
+    gap: 0.12rem;
     padding: 0.54rem 0.72rem;
     border-radius: 0.72rem;
     border: 1px solid rgba(210, 178, 76, 0.2);
@@ -521,7 +1441,14 @@ textarea {
     color: white;
     font: inherit;
     font-weight: 800;
+    text-align: left;
     cursor: pointer;
+}
+
+.expandButtonSummary {
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.72rem;
+    font-weight: 700;
 }
 
 .levelGrid {
@@ -696,7 +1623,8 @@ textarea {
 @media (max-width: 1100px) {
     .levelSummaryRow,
     .levelCardTop,
-    .levelGrid {
+    .levelGrid,
+    .purchasePanel {
         grid-template-columns: 1fr;
     }
 
@@ -719,15 +1647,54 @@ textarea {
     .skillEditor,
     .potentialTopRow,
     .perkSlotRow,
-    .knackRow {
+    .knackRow,
+    .scoreControlGrid,
+    .perkAssignPanel {
         grid-template-columns: 1fr;
+    }
+
+    .perkAssignActions {
+        justify-items: start;
+    }
+
+    .potentialRowGrid,
+    .rollSlotGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
 @media (max-width: 760px) {
+    .editorBreadcrumb {
+        top: 0.5rem;
+        grid-template-columns: 1fr;
+    }
+
+    .breadcrumbMeta {
+        justify-self: start;
+    }
+
+    .breadcrumbCompletion {
+        justify-self: start;
+    }
+
+    .summaryTrayToggle {
+        top: auto;
+        right: 0;
+        bottom: 1rem;
+    }
+
+    .advancedToggle {
+        align-items: flex-start;
+    }
+
     .skillsGrid,
     .domainGrid,
-    .potentialGrid {
+    .potentialGrid,
+    .potentialBand,
+    .potentialRowGrid,
+    .rollSlotGrid,
+    .purchaseRow,
+    .perkInventoryRow {
         grid-template-columns: 1fr;
     }
 

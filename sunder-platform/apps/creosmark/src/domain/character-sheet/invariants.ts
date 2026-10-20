@@ -126,13 +126,11 @@ export function normalizePotentialState(potential: PotentialState): PotentialSta
     .sort((a, b) => a[0] - b[0]);
 
   const usedFaces = new Set<number>();
-  const usedPerkIds = new Set<PerkId>();
   const nextResolverPerks: Record<number, PerkDefinition> = {};
 
   for (const [face, perk] of sourceEntries) {
     if (!perk?.id) continue;
     const perkId = perk.id as PerkId;
-    if (usedPerkIds.has(perkId)) continue;
 
     const occupiedFaces = new Set(usedFaces);
     if (face !== undefined) occupiedFaces.delete(face);
@@ -142,7 +140,6 @@ export function normalizePotentialState(potential: PotentialState): PotentialSta
 
     nextResolverPerks[face] = perk;
     usedFaces.add(face);
-    usedPerkIds.add(perkId);
   }
 
   const charged = nextResolverPerks[volatilityDieMax]?.id === "charge";

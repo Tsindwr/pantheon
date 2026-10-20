@@ -58,13 +58,20 @@ type RecollectModalState = {
 };
 
 type RecollectPerkEntry = {
+    entryKey: string;
     previousFace: number;
     perkId: PerkId;
     perk: AssignedPerk;
 };
 
+type PlaymatZoneStatus = "ready" | "conditional" | "passive";
+
 type HandFanProps = {
+    zoneId: string;
     title: string;
+    description: string;
+    status: PlaymatZoneStatus;
+    emptyText: string;
     cards: PlaymatCard[];
     side: "left" | "right";
     previewFaceIndexByCardId: Record<string, number>;
@@ -74,6 +81,26 @@ type HandFanProps = {
 };
 
 const NOOP_CARD_STATE_CHANGE = () => {};
+
+const PLAYMAT_STATUS_LABELS: Record<PlaymatZoneStatus, string> = {
+    ready: "Ready",
+    conditional: "Conditional",
+    passive: "Passive",
+};
+
+const PLAYMAT_TURN_LEGEND: Array<{
+    id: PlaymatZoneStatus;
+    label: string;
+    description: string;
+}> = [
+    { id: "passive", label: "Passive", description: "Always-on traits" },
+    { id: "ready", label: "Ready", description: "Available actions" },
+    { id: "conditional", label: "Conditional", description: "Trigger-based surges" },
+];
+
+function formatCardCount(count: number): string {
+    return count === 1 ? "1 card" : `${count} cards`;
+}
 
 const DEFAULT_ACTION_DEFINITIONS = [
     {
@@ -304,7 +331,6 @@ function getRecollectPerkEntries(surge: RecollectSurgeState): RecollectPerkEntry
         : Object.entries(surge.previousPerks ?? {}).map(
             ([face, perk]) => [Number(face), perk] as const,
         );
-    const usedPerkIds = new Set<PerkId>();
 
     return sourceEntries
         .filter((entry): entry is readonly [number, AssignedPerk] =>
@@ -315,9 +341,8 @@ function getRecollectPerkEntries(surge: RecollectSurgeState): RecollectPerkEntry
         .sort(([leftFace], [rightFace]) => leftFace - rightFace)
         .flatMap(([previousFace, perk]) => {
             const perkId = perk.id as PerkId;
-            if (usedPerkIds.has(perkId)) return [];
-            usedPerkIds.add(perkId);
             return [{
+                entryKey: `${perkId}:${previousFace}`,
                 previousFace,
                 perkId,
                 perk,
@@ -331,29 +356,10 @@ function parseFaceValue(value?: string): number | null {
     return Number.isInteger(parsed) ? parsed : null;
 }
 
-function getAssignedPerkLocation(
-    potentials: PotentialState[],
-    perkId: PerkId,
-): { potentialTitle: string; face: number } | null {
-    for (const potential of potentials) {
-        for (const [face, perk] of Object.entries(potential.resolverPerks ?? {})) {
-            if ((perk as AssignedPerk | undefined)?.id !== perkId) continue;
-            const parsedFace = Number(face);
-            if (!Number.isInteger(parsedFace)) continue;
-            return {
-                potentialTitle: potential.title,
-                face: parsedFace,
-            };
-        }
-    }
-
-    return null;
-}
-
 function getSelectedRecollectFaces(
     potential: PotentialState,
     assignments: Record<string, string>,
-    currentPerkId: PerkId,
+    currentEntryKey: string,
 ): Set<number> {
     const occupiedFaces = new Set<number>(
         Object.keys(potential.resolverPerks ?? {})
@@ -361,8 +367,8 @@ function getSelectedRecollectFaces(
             .filter((face) => Number.isInteger(face)),
     );
 
-    for (const [perkId, value] of Object.entries(assignments)) {
-        if (perkId === currentPerkId) continue;
+    for (const [entryKey, value] of Object.entries(assignments)) {
+        if (entryKey === currentEntryKey) continue;
         const parsedFace = parseFaceValue(value);
         if (parsedFace !== null) occupiedFaces.add(parsedFace);
     }
@@ -375,11 +381,11 @@ function getRecollectFaceOptions(
     entry: RecollectPerkEntry,
     assignments: Record<string, string>,
 ): number[] {
-    const currentFace = parseFaceValue(assignments[entry.perkId]);
+    const currentFace = parseFaceValue(assignments[entry.entryKey]);
     const occupiedFaces = getSelectedRecollectFaces(
         potential,
         assignments,
-        entry.perkId,
+        entry.entryKey,
     );
 
     return getAllowedPerkFaces(
@@ -406,11 +412,6 @@ function createInitialRecollectAssignments(
     );
 
     for (const entry of entries) {
-        if (getAssignedPerkLocation(potentials, entry.perkId)) {
-            assignments[entry.perkId] = "";
-            continue;
-        }
-
         const allowedFaces = getAllowedPerkFaces(
             targetPotential,
             entry.perkId,
@@ -420,7 +421,7 @@ function createInitialRecollectAssignments(
             ? entry.previousFace
             : allowedFaces[0];
 
-        assignments[entry.perkId] = selectedFace ? String(selectedFace) : "";
+        assignments[entry.entryKey] = selectedFace ? String(selectedFace) : "";
         if (selectedFace) occupiedFaces.add(selectedFace);
     }
 
@@ -617,7 +618,11 @@ function CardPreview(props: {
 }
 
 function HandFan({
+    zoneId,
     title,
+    description,
+    status,
+    emptyText,
     cards,
     side,
     previewFaceIndexByCardId,
@@ -711,57 +716,77 @@ function HandFan({
     }, [cards.length]);
 
     return (
-        <section className={`${styles.handZone} ${side === "right" ? styles.handZoneRight : styles.handZoneLeft}`}>
-            <header className={styles.handHeader}>
-                <span>{title}</span>
-                <small>{cards.length}</small>
+        <section
+            className={`${styles.handZone} ${side === "right" ? styles.handZoneRight : styles.handZoneLeft}`}
+            aria-labelledby={`${zoneId}-label`}
+            aria-describedby={`${zoneId}-summary ${zoneId}-count ${zoneId}-status`}
+        >
+            <header className={`${styles.zoneHeader} ${styles.handHeader}`}>
+                <div className={styles.zoneTitleBlock}>
+                    <span id={`${zoneId}-label`} className={styles.zoneLabel}>{title}</span>
+                    <small id={`${zoneId}-summary`} className={styles.zoneDescription}>
+                        {description}
+                    </small>
+                </div>
+                <div className={styles.zoneMeta}>
+                    <span id={`${zoneId}-count`} className={styles.zoneCount}>
+                        {formatCardCount(cards.length)}
+                    </span>
+                    <span id={`${zoneId}-status`} className={styles.zoneStatusBadge} data-status={status}>
+                        {PLAYMAT_STATUS_LABELS[status]}
+                    </span>
+                </div>
             </header>
 
-            <div
-                ref={railRef}
-                className={styles.handRail}
-                style={{ "--hand-step": `${cardStepPx.toFixed(2)}px` } as React.CSSProperties}
-                onMouseLeave={() => setHoveredIndex(null)}
-            >
-                {cards.map((card, index) => {
-                    const distance = hoveredIndex === null ? null : Math.abs(index - hoveredIndex);
-                    const baselineY = 172;
-                    const raisePx = distance === null ? 0 : Math.max(0, 175 - distance * 60);
-                    const translateY = baselineY - raisePx;
-                    const zIndex = distance === null
-                        ? 160 + index
-                        : distance === 0
-                            ? 600
-                            : 260 - distance;
-                    const faceIndex = previewFaceIndexByCardId[card.id] ?? preferredFaceIndex(card);
+            {cards.length === 0 ? (
+                <div className={styles.emptyZone}>{emptyText}</div>
+            ) : (
+                <div
+                    ref={railRef}
+                    className={styles.handRail}
+                    style={{ "--hand-step": `${cardStepPx.toFixed(2)}px` } as React.CSSProperties}
+                    onMouseLeave={() => setHoveredIndex(null)}
+                >
+                    {cards.map((card, index) => {
+                        const distance = hoveredIndex === null ? null : Math.abs(index - hoveredIndex);
+                        const baselineY = 172;
+                        const raisePx = distance === null ? 0 : Math.max(0, 175 - distance * 60);
+                        const translateY = baselineY - raisePx;
+                        const zIndex = distance === null
+                            ? 160 + index
+                            : distance === 0
+                                ? 600
+                                : 260 - distance;
+                        const faceIndex = previewFaceIndexByCardId[card.id] ?? preferredFaceIndex(card);
 
-                    return (
-                        <button
-                            key={card.id}
-                            type="button"
-                            data-hand-card="true"
-                            className={styles.handCardButton}
-                            onClick={(event) => onCardSelect(card, event.currentTarget)}
-                            style={
-                                {
-                                    "--hand-y": `${translateY.toFixed(2)}px`,
-                                    "--hand-z": `${zIndex}`,
-                                } as React.CSSProperties
-                            }
-                            title={card.title}
-                            onMouseEnter={() => setHoveredIndex(index)}
-                        >
-                            <CardPreview
-                                card={card}
-                                faceIndex={faceIndex}
-                                className={styles.handCardPreview}
-                                isFlipping={Boolean(flippingCardIds[card.id])}
-                                onFaceBadgeClick={(event) => onCardFaceToggle(event, card)}
-                            />
-                        </button>
-                    );
-                })}
-            </div>
+                        return (
+                            <button
+                                key={card.id}
+                                type="button"
+                                data-hand-card="true"
+                                className={styles.handCardButton}
+                                onClick={(event) => onCardSelect(card, event.currentTarget)}
+                                style={
+                                    {
+                                        "--hand-y": `${translateY.toFixed(2)}px`,
+                                        "--hand-z": `${zIndex}`,
+                                    } as React.CSSProperties
+                                }
+                                title={card.title}
+                                onMouseEnter={() => setHoveredIndex(index)}
+                            >
+                                <CardPreview
+                                    card={card}
+                                    faceIndex={faceIndex}
+                                    className={styles.handCardPreview}
+                                    isFlipping={Boolean(flippingCardIds[card.id])}
+                                    onFaceBadgeClick={(event) => onCardFaceToggle(event, card)}
+                                />
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
         </section>
     );
 }
@@ -911,13 +936,13 @@ export default function CharacterAbilitiesPanel({
         setRecollectModal(null);
     }, []);
 
-    const updateRecollectAssignment = useCallback((perkId: PerkId, value: string) => {
+    const updateRecollectAssignment = useCallback((entryKey: string, value: string) => {
         setRecollectModal((current) => current
             ? {
                 ...current,
                 assignments: {
                     ...current.assignments,
-                    [perkId]: value,
+                    [entryKey]: value,
                 },
             }
             : current,
@@ -929,7 +954,8 @@ export default function CharacterAbilitiesPanel({
 
         const assignments = getRecollectPerkEntries(recollectModal.surge).map((entry) => ({
             perkId: entry.perkId,
-            face: parseFaceValue(recollectModal.assignments[entry.perkId]),
+            previousFace: entry.previousFace,
+            face: parseFaceValue(recollectModal.assignments[entry.entryKey]),
         }));
 
         onActivateRecollect(recollectModal.surge.id, assignments);
@@ -1071,14 +1097,49 @@ export default function CharacterAbilitiesPanel({
                     <span>{`${surgeCards.length} Surges`}</span>
                     <span>{`${traitCards.length} Traits`}</span>
                 </div>
+
+                <div className={styles.turnLegend} aria-label="Turn priority legend">
+                    {PLAYMAT_TURN_LEGEND.map((entry) => (
+                        <span key={entry.id} className={styles.legendItem}>
+                            <span
+                                className={styles.legendDot}
+                                data-status={entry.id}
+                                aria-hidden="true"
+                            />
+                            <span>{entry.label}</span>
+                            <small>{entry.description}</small>
+                        </span>
+                    ))}
+                </div>
             </header>
 
             {errorText ? <div className={styles.state}>Error: {errorText}</div> : null}
             {loading ? <div className={styles.state}>Loading cards...</div> : null}
 
             <div className={styles.activeZone}>
-                <section className={styles.traitsColumn}>
-                    <div className={styles.zoneLabel}>Trait Cards</div>
+                <section
+                    className={styles.traitsColumn}
+                    aria-labelledby="playmat-traits-label"
+                    aria-describedby="playmat-traits-summary playmat-traits-count playmat-traits-status"
+                >
+                    <header className={styles.zoneHeader}>
+                        <div className={styles.zoneTitleBlock}>
+                            <span id="playmat-traits-label" className={styles.zoneLabel}>
+                                Trait Cards
+                            </span>
+                            <small id="playmat-traits-summary" className={styles.zoneDescription}>
+                                Always-on effects and passive features.
+                            </small>
+                        </div>
+                        <div className={styles.zoneMeta}>
+                            <span id="playmat-traits-count" className={styles.zoneCount}>
+                                {formatCardCount(traitCards.length)}
+                            </span>
+                            <span id="playmat-traits-status" className={styles.zoneStatusBadge} data-status="passive">
+                                Passive
+                            </span>
+                        </div>
+                    </header>
 
                     {traitCards.length === 0 ? (
                         <div className={styles.emptyZone}>No Trait cards assigned.</div>
@@ -1105,8 +1166,29 @@ export default function CharacterAbilitiesPanel({
                     )}
                 </section>
 
-                <section className={styles.surgeRow}>
-                    <div className={styles.zoneLabel}>Surge Cards</div>
+                <section
+                    className={styles.surgeRow}
+                    aria-labelledby="playmat-surges-label"
+                    aria-describedby="playmat-surges-summary playmat-surges-count playmat-surges-status"
+                >
+                    <header className={styles.zoneHeader}>
+                        <div className={styles.zoneTitleBlock}>
+                            <span id="playmat-surges-label" className={styles.zoneLabel}>
+                                Surge Cards
+                            </span>
+                            <small id="playmat-surges-summary" className={styles.zoneDescription}>
+                                Trigger-based options and Recollect surges.
+                            </small>
+                        </div>
+                        <div className={styles.zoneMeta}>
+                            <span id="playmat-surges-count" className={styles.zoneCount}>
+                                {formatCardCount(surgeCards.length)}
+                            </span>
+                            <span id="playmat-surges-status" className={styles.zoneStatusBadge} data-status="conditional">
+                                Conditional
+                            </span>
+                        </div>
+                    </header>
 
                     {surgeCards.length === 0 ? (
                         <div className={styles.emptyZone}>No Surge cards assigned.</div>
@@ -1135,7 +1217,11 @@ export default function CharacterAbilitiesPanel({
 
             <div className={styles.handDock}>
                 <HandFan
+                    zoneId="playmat-custom-actions"
                     title="Custom Action Hand"
+                    description="Character-specific actions ready for turn choices."
+                    status="ready"
+                    emptyText="No custom action cards assigned."
                     cards={actionCards}
                     side="left"
                     previewFaceIndexByCardId={previewFaceIndexByCardId}
@@ -1145,7 +1231,11 @@ export default function CharacterAbilitiesPanel({
                 />
 
                 <HandFan
+                    zoneId="playmat-default-actions"
                     title="Default Action Hand"
+                    description="Core actions available to every character."
+                    status="ready"
+                    emptyText="No default action cards available."
                     cards={defaultActionCards}
                     side="right"
                     previewFaceIndexByCardId={previewFaceIndexByCardId}
@@ -1260,45 +1350,33 @@ export default function CharacterAbilitiesPanel({
                         ) : (
                             <div className={styles.recollectRows}>
                                 {recollectEntries.map((entry) => {
-                                    const assignedLocation = getAssignedPerkLocation(
-                                        potentials,
-                                        entry.perkId,
+                                    const faceOptions = getRecollectFaceOptions(
+                                        recollectPotential,
+                                        entry,
+                                        recollectModal.assignments,
                                     );
-                                    const faceOptions = assignedLocation
-                                        ? []
-                                        : getRecollectFaceOptions(
-                                            recollectPotential,
-                                            entry,
-                                            recollectModal.assignments,
-                                        );
 
                                     return (
-                                        <div key={entry.perkId} className={styles.recollectRow}>
+                                        <div key={entry.entryKey} className={styles.recollectRow}>
                                             <div className={styles.recollectPerkText}>
                                                 <div className={styles.recollectPerkTitle}>
                                                     <span>{entry.perk.name}</span>
                                                     <small>{`Previous face ${entry.previousFace}`}</small>
                                                 </div>
                                                 <p>{entry.perk.description}</p>
-                                                {assignedLocation ? (
-                                                    <small className={styles.recollectWarning}>
-                                                        {`Already assigned to ${assignedLocation.potentialTitle} face ${assignedLocation.face}.`}
-                                                    </small>
-                                                ) : null}
                                             </div>
 
                                             <label className={styles.recollectSelectLabel}>
                                                 <span>New face</span>
                                                 <select
                                                     className={styles.recollectSelect}
-                                                    value={recollectModal.assignments[entry.perkId] ?? ""}
+                                                    value={recollectModal.assignments[entry.entryKey] ?? ""}
                                                     onChange={(event) =>
                                                         updateRecollectAssignment(
-                                                            entry.perkId,
+                                                            entry.entryKey,
                                                             event.currentTarget.value,
                                                         )
                                                     }
-                                                    disabled={Boolean(assignedLocation)}
                                                 >
                                                     <option value="">None</option>
                                                     {faceOptions.map((face) => (

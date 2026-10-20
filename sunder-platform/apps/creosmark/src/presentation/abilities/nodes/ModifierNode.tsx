@@ -15,6 +15,7 @@ import { ARCHETYPES } from "../../../lib/sheet-data.ts";
 import ModifierDetailControls from "../../../components/abilities/ModifierDetailControls";
 import { useAbilityBuilderContext } from "../../../components/abilities/AbilityBuilderContext";
 import NodeDeleteButton from "./NodeDeleteButton";
+import NodeValidationBadge from "./NodeValidationBadge";
 
 function LaneBadge({ lane }: { lane: AbilityLane }) {
     return <span className={styles.laneBadge}>{lane}</span>;
@@ -100,6 +101,7 @@ export default function ModifierNode(
             }`}
         >
             <NodeDeleteButton id={id} visible={selected} />
+            <NodeValidationBadge nodeId={id} />
             <Handle type={"target"} position={Position.Top} className={styles.handle} />
             <div className={styles.nodeHeader}>
                 <span className={styles.nodeEyebrow}>{data.family}</span>

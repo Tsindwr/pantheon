@@ -10,6 +10,7 @@ import {
   getCampaignForCharacter,
   getCampaignRoster,
   getMyCharacterSheet,
+  getViewableCharacterSheet,
   joinCampaignByCode,
   listMyCampaigns,
   listMyCharacterSheets,
@@ -32,6 +33,14 @@ export const supabaseLibraryCampaignRepository: LibraryCampaignRepository = {
   },
   async getMyCharacterSheet(id) {
     const row = await getMyCharacterSheet(id);
+    if (!row) return null;
+    return {
+      id: row.id,
+      sheet: row.sheet_json,
+    };
+  },
+  async getViewableCharacterSheet(id) {
+    const row = await getViewableCharacterSheet(id);
     if (!row) return null;
     return {
       id: row.id,

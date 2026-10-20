@@ -1,14 +1,12 @@
-import React, { useState } from 'react';
-import type {
-    CharacterSheetState,
-    PotentialKey,
-} from "../../types/sheet.ts";
-import EditorWorkspace from "../manage/EditorWorkspace.tsx";
-import BuilderPotentialRoller, {
-    type BuilderPotentialRollRequest,
-} from "./BuilderPotentialRoller.tsx";
+import React, { useMemo, useState } from 'react';
+import type { CharacterSheetState } from "../../types/sheet.ts";
+import EditorWorkspace, {
+    deriveEditorSectionSummaries,
+    getEditorSectionSummaryStatus,
+    getEditorTabStatusIcon,
+    type BuilderTabId,
+} from "../manage/EditorWorkspace.tsx";
 import styles from './CharacterBuilderShell.module.css';
-import { applyRolledPotentialBaseScore } from "../../application";
 import { routes } from "../../lib/routing.ts";
 import type { CampaignAssignment } from "../../types/roll-feed.ts";
 
@@ -42,12 +40,11 @@ export default function CharacterBuilderShell({
     assignedCampaign = null,
 }: CharacterBuilderShellProps) {
     const [step, setStep] = useState<BuilderStepId>('identity');
-    const [rollRequest, setRollRequest] =
-        useState<BuilderPotentialRollRequest | null>(null);
-
-    function applyRolledBaseScore(potentialKey: PotentialKey, total: number) {
-        onChange(applyRolledPotentialBaseScore(sheet, potentialKey, total));
-    }
+    const sectionSummaries = useMemo(() => deriveEditorSectionSummaries(sheet), [sheet]);
+    const summaryBySection = useMemo(
+        () => new Map(sectionSummaries.map((summary) => [summary.id, summary])),
+        [sectionSummaries],
+    );
 
     const statusText =
         saveState === 'saving'
@@ -66,6 +63,12 @@ export default function CharacterBuilderShell({
 
         if (!characterId) return;
         window.location.href = routes.characterView(characterId);
+    }
+
+    function requestBuilderStep(nextTab: BuilderTabId) {
+        if (BUILDER_STEPS.some((entry) => entry.id === nextTab)) {
+            setStep(nextTab as BuilderStepId);
+        }
     }
 
     return (
@@ -90,16 +93,37 @@ export default function CharacterBuilderShell({
             </header>
 
             <nav className={styles.steps}>
-                {BUILDER_STEPS.map((entry) => (
-                    <button
-                        key={entry.id}
-                        type={'button'}
-                        className={`${styles.step} ${step === entry.id ? styles.stepActive : ""}`}
-                        onClick={() => setStep(entry.id)}
-                    >
-                        {entry.label}
-                    </button>
-                ))}
+                {BUILDER_STEPS.map((entry) => {
+                    const summary = summaryBySection.get(entry.id);
+                    const status = getEditorSectionSummaryStatus(summary);
+                    const tabStatusIcon = getEditorTabStatusIcon(status);
+
+                    return (
+                        <button
+                            key={entry.id}
+                            type={'button'}
+                            className={`${styles.step} ${step === entry.id ? styles.stepActive : ""}`}
+                            onClick={() => setStep(entry.id)}
+                            aria-label={`${entry.label}. ${status.label}.`}
+                        >
+                            <span className={styles.stepText}>{entry.label}</span>
+                            <span
+                                className={`${styles.stepStatus} ${
+                                    status.severity === "blocking"
+                                        ? styles.stepStatusBlocking
+                                        : status.severity === "missing"
+                                          ? styles.stepStatusMissing
+                                          : styles.stepStatusComplete
+                                }`}
+                                title={status.label}
+                                aria-hidden="true"
+                            >
+                                <i className={`fa-solid fa-${tabStatusIcon}`} aria-hidden="true" />
+                                {status.count > 0 ? <span>{status.count}</span> : null}
+                            </span>
+                        </button>
+                    );
+                })}
             </nav>
 
             <main className={styles.content}>
@@ -109,24 +133,9 @@ export default function CharacterBuilderShell({
                     forcedTab={step}
                     hideNav
                     assignedCampaign={assignedCampaign}
-                    onRequestPotentialRoll={(potential) => {
-                        setRollRequest({
-                            potentialKey: potential.key,
-                            potentialLabel: potential.title,
-                        })
-                    }}
+                    onRequestTab={requestBuilderStep}
                 />
             </main>
-
-            <BuilderPotentialRoller
-                request={rollRequest}
-                open={Boolean(rollRequest)}
-                onClose={() => setRollRequest(null)}
-                onApply={({ potentialKey, total }) => {
-                    applyRolledBaseScore(potentialKey, total);
-                    setRollRequest(null);
-                }}
-            />
         </div>
     )
 }

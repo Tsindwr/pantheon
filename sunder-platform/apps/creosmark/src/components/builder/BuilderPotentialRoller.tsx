@@ -1,19 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
 import DiceBox from "@3d-dice/dice-box";
-import type {PotentialKey, PotentialState} from '../../types/sheet.ts';
 import styles from '../roll/SunderDiceBoxOverlay.module.css';
 import {routes} from "../../lib/routing.ts";
 
+const AUTO_APPLY_DELAY_MS = 650;
+
 export type BuilderPotentialRollRequest = {
-    potentialKey: PotentialKey;
-    potentialLabel: string;
+    id: string;
+    label: string;
 };
 
 type BuilderPotentialRollerProps = {
     request: BuilderPotentialRollRequest | null;
     open: boolean;
     onClose: () => void;
-    onApply: (result: { potentialKey: PotentialKey; total: number; rolls: number[] }) => void;
+    onApply: (result: {
+        requestId: string;
+        total: number;
+        rolls: number[];
+        dropped: number;
+    }) => void;
 };
 
 type Phase = "idle" | "rolling" | "resolved" | "error";
@@ -33,6 +39,7 @@ export default function BuilderPotentialRoller({
     const [rolls, setRolls] = useState<number[]>([]);
     const [dropped, setDropped] = useState<number | null>(null);
     const [total, setTotal] = useState<number | null>(null);
+    const appliedRequestIdRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (open && request) return;
@@ -50,6 +57,7 @@ export default function BuilderPotentialRoller({
         setRolls([]);
         setDropped(null);
         setTotal(null);
+        appliedRequestIdRef.current = null;
     }, [open, request]);
 
     useEffect(() => {
@@ -97,6 +105,28 @@ export default function BuilderPotentialRoller({
             cancelled = true;
         };
     }, [open, request, boxReady]);
+
+    useEffect(() => {
+        if (!open || !request || phase !== "resolved" || total === null || dropped === null) {
+            return;
+        }
+
+        if (appliedRequestIdRef.current === request.id) return;
+
+        const handle = window.setTimeout(() => {
+            appliedRequestIdRef.current = request.id;
+            onApply({
+                requestId: request.id,
+                total,
+                rolls,
+                dropped,
+            });
+        }, AUTO_APPLY_DELAY_MS);
+
+        return () => {
+            window.clearTimeout(handle);
+        };
+    }, [dropped, onApply, open, phase, request, rolls, total]);
 
     useEffect(() => {
         let cancelled = false;
@@ -196,7 +226,7 @@ export default function BuilderPotentialRoller({
                             <header className={styles.header}>
                                 <div>
                                     <div className={styles.eyebrow}>Potential roll</div>
-                                    <h2 className={styles.title}>{request.potentialLabel}</h2>
+                                    <h2 className={styles.title}>{request.label}</h2>
                                     <p className={styles.meta}>
                                         <span>3d4</span>
                                         <span>Drop highest</span>
@@ -236,21 +266,7 @@ export default function BuilderPotentialRoller({
                                 ))}
                             </div>
 
-                            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
-                                <button
-                                    type={'button'}
-                                    className={styles.close}
-                                    onClick={() => {
-                                        onApply({
-                                            potentialKey: request?.potentialKey,
-                                            total,
-                                            rolls,
-                                        })
-                                    }}
-                                    >
-                                    Apply {total}
-                                </button>
-                            </div>
+                            <div className={styles.footerLine}>Applying score...</div>
                         </>
                     ) : null}
                 </section>

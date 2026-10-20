@@ -7,12 +7,14 @@ type CharacterSheetCardProps = {
     character: CharacterSheetSummary;
     onRequestDelete?: (character: CharacterSheetSummary) => void;
     deleting?: boolean;
+    showEdit?: boolean;
 };
 
 export default function CharacterSheetCard({
     character,
     onRequestDelete,
     deleting = false,
+    showEdit = true,
 }: CharacterSheetCardProps) {
     return (
         <article className={styles.card}>
@@ -39,9 +41,11 @@ export default function CharacterSheetCard({
                 <a className={styles.actionLink} href={routes.characterView(character.id)}>
                     View
                 </a>
-                <a className={styles.actionLinkSecondary} href={routes.characterEdit(character.id)}>
-                    Edit
-                </a>
+                {showEdit ? (
+                    <a className={styles.actionLinkSecondary} href={routes.characterEdit(character.id)}>
+                        Edit
+                    </a>
+                ) : null}
                 {onRequestDelete ? (
                     <button
                         type="button"

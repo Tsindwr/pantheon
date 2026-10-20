@@ -1,23 +1,63 @@
 .page {
     display: grid;
-    grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+    grid-template-columns: minmax(240px, 300px) minmax(360px, 440px) minmax(0, 1fr);
     gap: 0.8rem;
-    min-height: 0;
+    min-height: calc(100dvh - 8.5rem);
+    min-width: 0;
 }
 
 .listPanel,
-.editorPanel {
-    display: grid;
-    align-content: start;
-    gap: 0.7rem;
+.reviewPanel,
+.previewPanel {
+    min-height: 0;
+    min-width: 0;
     border-radius: 0.9rem;
     border: 1px solid rgba(210, 178, 76, 0.16);
     background: rgba(255, 255, 255, 0.03);
+}
+
+.listPanel,
+.previewPanel {
+    display: grid;
+    align-content: start;
+    gap: 0.7rem;
     padding: 0.8rem;
 }
 
-.panelHeader h2 {
+.reviewPanel {
+    display: grid;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    gap: 0.7rem;
+    padding: 0.8rem;
+}
+
+.previewPanel {
+    overflow: hidden;
+}
+
+.previewPanel > :last-child {
+    min-height: 0;
+}
+
+.panelHeader h2,
+.reviewHeader h2,
+.jsonToolbar h3,
+.inspectorHeader h3 {
     margin: 0.2rem 0 0;
+}
+
+.reviewHeader {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 0.8rem;
+}
+
+.reviewHeader p {
+    margin: 0.28rem 0 0;
+    color: rgba(245, 247, 251, 0.68);
+    font-size: 0.82rem;
+    line-height: 1.32;
 }
 
 .eyebrow {
@@ -31,12 +71,13 @@
 .list {
     display: grid;
     gap: 0.45rem;
-    max-height: 72vh;
+    max-height: calc(100dvh - 13rem);
     overflow: auto;
     padding-right: 0.1rem;
 }
 
-.listRow {
+.listRow,
+.nodeRow {
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 0.7rem;
     background: rgba(255, 255, 255, 0.03);
@@ -49,63 +90,167 @@
     gap: 0.12rem;
 }
 
-.listRow strong {
-    font-size: 0.92rem;
+.listRow strong,
+.nodeRow strong {
+    font-size: 0.9rem;
+    line-height: 1.2;
 }
 
 .listRow span,
-.listRow small {
+.listRow small,
+.nodeRow span {
     color: rgba(255, 255, 255, 0.66);
-    font-size: 0.76rem;
+    font-size: 0.74rem;
+    line-height: 1.25;
 }
 
-.listRowActive {
+.listRowActive,
+.nodeRowActive {
     border-color: rgba(210, 178, 76, 0.42);
     background: rgba(210, 178, 76, 0.14);
 }
 
-.form {
+.metricGrid {
     display: grid;
-    gap: 0.65rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.45rem;
 }
 
-.field {
+.metric {
     display: grid;
-    gap: 0.24rem;
+    gap: 0.1rem;
+    border-radius: 0.72rem;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: rgba(8, 10, 16, 0.54);
+    padding: 0.52rem 0.6rem;
 }
 
-.field > span {
-    color: rgba(255, 255, 255, 0.66);
-    font-size: 0.7rem;
-    font-weight: 700;
+.metric span {
+    color: rgba(245, 247, 251, 0.62);
+    font-size: 0.65rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
+    font-weight: 800;
 }
 
-.field input,
-.field textarea {
-    width: 100%;
-    min-width: 0;
-    border-radius: 0.72rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(10, 10, 14, 0.85);
+.metric strong {
     color: white;
+    font-size: 0.84rem;
+    line-height: 1.2;
+}
+
+.tabRow {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.35rem;
+}
+
+.tabButton {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.68rem;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(245, 247, 251, 0.82);
+    cursor: pointer;
     font: inherit;
-    padding: 0.58rem 0.7rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    padding: 0.48rem 0.52rem;
 }
 
-.field textarea {
-    min-height: 420px;
-    resize: vertical;
-    font-family: Consolas, "Courier New", monospace;
-    font-size: 0.8rem;
+.tabButtonActive {
+    border-color: rgba(210, 178, 76, 0.36);
+    background: rgba(210, 178, 76, 0.14);
+    color: var(--sunder-gold, #d2b24c);
 }
 
+.reviewBody {
+    min-height: 0;
+    overflow: auto;
+    padding-right: 0.08rem;
+}
+
+.inputEditor {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 0.65rem;
+    min-height: 0;
+}
+
+.nodeList {
+    display: grid;
+    align-content: start;
+    gap: 0.42rem;
+    min-height: 0;
+    max-height: 52vh;
+    overflow: auto;
+    padding-right: 0.08rem;
+}
+
+.inspectorPanel {
+    display: grid;
+    align-content: start;
+    gap: 0.6rem;
+    min-width: 0;
+}
+
+.inspectorHeader {
+    display: grid;
+    gap: 0.08rem;
+}
+
+.inspectorHeader span {
+    color: rgba(245, 247, 251, 0.62);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 800;
+}
+
+.jsonPanel {
+    display: grid;
+    gap: 0.58rem;
+}
+
+.jsonToolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+}
+
+.jsonActions,
 .actions {
     display: flex;
     align-items: center;
-    gap: 0.55rem;
+    justify-content: flex-end;
+    gap: 0.5rem;
     flex-wrap: wrap;
+}
+
+.jsonTextarea {
+    width: 100%;
+    min-width: 0;
+    min-height: 46vh;
+    border-radius: 0.72rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(8, 10, 16, 0.88);
+    color: white;
+    font: 0.78rem/1.35 Consolas, "Courier New", monospace;
+    padding: 0.65rem 0.72rem;
+    resize: vertical;
+}
+
+.checksPanel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem;
+}
+
+.checkColumn {
+    display: grid;
+    align-content: start;
+    gap: 0.36rem;
+    min-width: 0;
 }
 
 .primary,
@@ -137,6 +282,7 @@
 }
 
 .saveState {
+    min-width: 4.2rem;
     font-size: 0.82rem;
     color: rgba(255, 255, 255, 0.72);
 }
@@ -146,13 +292,99 @@
     padding: 0.6rem 0;
 }
 
-.error {
-    color: #ffb0b0;
-    font-size: 0.84rem;
+.error,
+.pending,
+.warning,
+.okay,
+.note {
+    border-radius: 0.68rem;
+    font-size: 0.8rem;
+    line-height: 1.26;
+    padding: 0.5rem 0.58rem;
 }
 
-@media (max-width: 1080px) {
+.error {
+    color: #ffb0b0;
+    border: 1px solid rgba(217, 66, 66, 0.26);
+    background: rgba(217, 66, 66, 0.08);
+}
+
+.pending {
+    color: rgba(245, 247, 251, 0.78);
+    border: 1px solid rgba(210, 178, 76, 0.24);
+    background: rgba(210, 178, 76, 0.09);
+}
+
+.warning {
+    color: #ffd0d0;
+    background: rgba(255, 107, 107, 0.12);
+    border: 1px solid rgba(255, 107, 107, 0.24);
+}
+
+.okay {
+    color: #b7efc0;
+    background: rgba(120, 210, 150, 0.1);
+    border: 1px solid rgba(120, 210, 150, 0.2);
+}
+
+.note {
+    color: rgba(180, 210, 255, 0.9);
+    background: rgba(101, 160, 255, 0.1);
+    border: 1px solid rgba(101, 160, 255, 0.22);
+}
+
+.list::-webkit-scrollbar,
+.reviewBody::-webkit-scrollbar,
+.nodeList::-webkit-scrollbar {
+    width: 0.68rem;
+    height: 0.68rem;
+}
+
+.list::-webkit-scrollbar-track,
+.reviewBody::-webkit-scrollbar-track,
+.nodeList::-webkit-scrollbar-track {
+    background: rgba(8, 10, 16, 0.76);
+    border-radius: 999px;
+}
+
+.list::-webkit-scrollbar-thumb,
+.reviewBody::-webkit-scrollbar-thumb,
+.nodeList::-webkit-scrollbar-thumb {
+    min-height: 2.25rem;
+    border: 0.16rem solid rgba(8, 10, 16, 0.76);
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(210, 178, 76, 0.82), rgba(139, 124, 243, 0.62));
+}
+
+@media (max-width: 1320px) {
     .page {
+        grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    }
+
+    .previewPanel {
+        grid-column: 1 / -1;
+        min-height: 34rem;
+    }
+}
+
+@media (max-width: 920px) {
+    .page,
+    .inputEditor,
+    .checksPanel {
         grid-template-columns: 1fr;
+    }
+
+    .reviewHeader,
+    .jsonToolbar {
+        display: grid;
+        justify-content: stretch;
+    }
+
+    .metricGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .tabRow {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }

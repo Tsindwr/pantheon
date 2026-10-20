@@ -12,6 +12,9 @@ export function createLibraryCampaignService(repository: LibraryCampaignReposito
     getMyCharacterSheet(characterId: string) {
       return repository.getMyCharacterSheet(characterId);
     },
+    getViewableCharacterSheet(characterId: string) {
+      return repository.getViewableCharacterSheet(characterId);
+    },
     createCharacterSheet(sheet: CharacterSheetState) {
       return repository.createCharacterSheet(sheet);
     },

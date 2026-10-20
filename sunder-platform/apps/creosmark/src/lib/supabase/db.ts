@@ -140,6 +140,13 @@ function normalizeCharacterSheetState(
     return {
         ...sheet,
         abilityIds: Array.from(abilityIds),
+        purchasedPerkIds: Array.isArray(sheet.purchasedPerkIds)
+            ? sheet.purchasedPerkIds
+            : [],
+        perkAssignments:
+            sheet.perkAssignments && typeof sheet.perkAssignments === "object"
+                ? sheet.perkAssignments
+                : {},
         conditions: normalizeConditionTrack(sheet.conditions),
         recollectSurges: Array.isArray(sheet.recollectSurges)
             ? sheet.recollectSurges
@@ -252,6 +259,21 @@ export async function getMyCharacterSheet(id: string): Promise<CharacterSheetRow
     return hydrateCharacterSheetRow(data as CharacterSheetRow);
 }
 
+export async function getViewableCharacterSheet(id: string): Promise<CharacterSheetRow | null> {
+    await requireUserId();
+
+    const { data, error } = await supabase
+        .from("character_sheets")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return null;
+
+    return hydrateCharacterSheetRow(data as CharacterSheetRow);
+}
+
 export async function createCharacterSheet(
     sheet: CharacterSheetState,
 ): Promise<CharacterSheetRow> {
@@ -275,13 +297,12 @@ export async function updateCharacterSheet(
     id: string,
     sheet: CharacterSheetState,
 ): Promise<CharacterSheetRow> {
-    const userId = await requireUserId();
+    await requireUserId();
 
     const { data, error } = await supabase
         .from("character_sheets")
         .update(buildCharacterMutation(sheet))
         .eq("id", id)
-        .eq("owner_id", userId)
         .select()
         .single();
 
@@ -777,7 +798,7 @@ export async function getCampaignForCharacter(
 
     const { data: campaign, error: campaignError } = await supabase
         .from("campaigns")
-        .select("id, name")
+        .select("id, name, owner_id")
         .eq("id", campaignId)
         .maybeSingle();
 
@@ -796,7 +817,10 @@ export async function getCampaignForCharacter(
     return {
         id: campaign.id,
         name: campaign.name,
-        role: membership?.role ?? undefined,
+        role:
+            campaign.owner_id === userId
+                ? "gm"
+                : membership?.role ?? undefined,
     };
 }
 
@@ -879,6 +903,8 @@ export function createBlankSheet(): CharacterSheetState {
             exhaustion: 0,
         },
         experience: { beats: 0, strings: 0, milestones: 0, zeniths: 0 },
+        purchasedPerkIds: [],
+        perkAssignments: {},
         tokens: [],
         armor: [],
         potentials: [

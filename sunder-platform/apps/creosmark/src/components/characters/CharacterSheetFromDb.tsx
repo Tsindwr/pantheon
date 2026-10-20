@@ -19,6 +19,7 @@ export default function CharacterSheetFromDb({
     const [errorText, setErrorText] = useState<string | null>(null);
     const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
     const [assignedCampaign, setAssignedCampaign] = useState<CampaignAssignment | null>(null);
+    const [canManage, setCanManage] = useState(true);
 
     const loadedRef = useRef(false);
     const lastSavedJsonRef = useRef<string | null>(null);
@@ -31,7 +32,10 @@ export default function CharacterSheetFromDb({
                 setLoading(true);
                 setErrorText(null);
 
-                const row = await supabaseLibraryCampaignService.getMyCharacterSheet(characterId);
+                const ownedRow = await supabaseLibraryCampaignService.getMyCharacterSheet(characterId);
+                const row =
+                    ownedRow ??
+                    (await supabaseLibraryCampaignService.getViewableCharacterSheet(characterId));
                 if (!row) {
                     setErrorText("Character sheet not found.");
                     return;
@@ -43,6 +47,7 @@ export default function CharacterSheetFromDb({
                 const normalizedSheet = normalizeFeatureDrivenSheetState(row.sheet);
                 setSheet(normalizedSheet);
                 setAssignedCampaign(campaign);
+                setCanManage(Boolean(ownedRow) || campaign?.role === "gm");
 
                 loadedRef.current = true;
                 lastSavedJsonRef.current = JSON.stringify(normalizedSheet);
@@ -77,7 +82,7 @@ export default function CharacterSheetFromDb({
     }, [characterId]);
 
     useEffect(() => {
-        if (!loadedRef.current || !sheet) return;
+        if (!loadedRef.current || !sheet || !canManage) return;
 
         const nextJson = JSON.stringify(sheet);
         if (nextJson === lastSavedJsonRef.current) return;
@@ -102,7 +107,7 @@ export default function CharacterSheetFromDb({
         return () => {
             window.clearTimeout(handle);
         };
-    }, [sheet, characterId]);
+    }, [sheet, characterId, canManage]);
 
     if (loading) {
         return <main style={{ padding: "1.5rem" }}>Loading character sheet…</main>;
@@ -117,9 +122,10 @@ export default function CharacterSheetFromDb({
             initialSheet={sheet}
             initialMode={initialMode}
             saveState={saveState}
-            onSheetChange={setSheet}
+            onSheetChange={canManage ? setSheet : undefined}
             characterId={characterId}
             assignedCampaign={assignedCampaign}
+            canManage={canManage}
         />
     );
 }

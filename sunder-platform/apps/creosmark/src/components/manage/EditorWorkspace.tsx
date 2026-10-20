@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import styles from './EditorWorkspace.module.css';
 import {
     type CharacterSheetState,
@@ -6,19 +6,20 @@ import {
     type GoalState,
     type OriginFacetState,
     type PotentialKey,
+    type PerkAssignmentSourceKind,
     REWARD_FROM_GOAL,
     ARCHETYPE_MARKS,
+    ARCHETYPE_LABELS,
     type ArchetypeKey,
     type PurchasedArchetypeLevel,
 } from "../../types/sheet";
 import {
     ARCHETYPES,
     DOMAINS,
-    EDITOR_TABS,
     type EditorTabId,
 } from '../../lib/sheet-data';
 import { BASE_PERKS } from "../../domain";
-import type { PerkDefinition, PerkId } from "@sunderttrpg/core";
+import type { PerkDefinition, PerkId, VolatilityDieType } from "@sunderttrpg/core";
 import {
     applyOriginPotentialBonus as applyOriginPotentialBonusCommand,
     applyOriginSkillSelection as applyOriginSkillSelectionCommand,
@@ -50,8 +51,163 @@ import {
     type OriginSelectionSummary,
 } from "../../infrastructure";
 import type { CampaignAssignment } from "../../types/roll-feed.ts";
+import BuilderPotentialRoller, {
+    type BuilderPotentialRollRequest,
+} from "../builder/BuilderPotentialRoller.tsx";
+import SideTray from "../common/SideTray.tsx";
 
-type BuilderTabId = EditorTabId | "origin";
+export type BuilderTabId = EditorTabId | "origin";
+
+type EditorSubsectionDefinition = {
+    id: string;
+    label: string;
+};
+
+export type EditorSummaryIssueSeverity = "missing" | "blocking" | "info";
+
+export type EditorSummaryIssue = {
+    id: string;
+    label: string;
+    severity: EditorSummaryIssueSeverity;
+    sectionId: BuilderTabId;
+    subsectionId: string;
+};
+
+export type EditorSectionSummary = {
+    id: BuilderTabId;
+    label: string;
+    configuredCount: number;
+    totalCount: number;
+    missingCount: number;
+    blockingCount: number;
+    issues: EditorSummaryIssue[];
+    emptyText: string;
+};
+
+export type EditorSectionSummaryStatus = {
+    severity: "blocking" | "missing" | "complete" | "unknown";
+    icon: string;
+    label: string;
+    count: number;
+};
+
+type AdvancedEditorPanelProps = {
+    id: string;
+    title: string;
+    summary: string;
+    open: boolean;
+    onToggle: (id: string) => void;
+    children: React.ReactNode;
+};
+
+const EDITOR_SECTION_LABELS: Record<BuilderTabId, string> = {
+    identity: "Identity",
+    origin: "Origin",
+    levels: "Levels",
+    abilities: "Abilities",
+    potentials: "Potentials",
+    proficiencies: "Proficiencies",
+    goals: "Goals",
+    inventory: "Inventory",
+    attacks: "Attacks",
+};
+
+const EDITOR_WORKSPACE_NAV_ITEMS: Array<{ id: BuilderTabId; label: string }> = [
+    { id: "identity", label: "Identity" },
+    { id: "origin", label: "Origin" },
+    { id: "levels", label: "Levels" },
+    { id: "potentials", label: "Potentials" },
+    { id: "proficiencies", label: "Proficiencies" },
+    { id: "abilities", label: "Abilities" },
+    { id: "goals", label: "Goals" },
+    { id: "inventory", label: "Inventory" },
+    { id: "attacks", label: "Attacks" },
+];
+
+const EDITOR_SUBSECTIONS: Record<BuilderTabId, EditorSubsectionDefinition[]> = {
+    identity: [{ id: "basics", label: "Basics" }],
+    origin: [
+        { id: "origin-overview", label: "Overview" },
+        { id: "profession", label: "Profession" },
+        { id: "crux", label: "Crux" },
+        { id: "descent", label: "Descent" },
+        { id: "bloodline", label: "Bloodline" },
+    ],
+    levels: [
+        { id: "level-summary", label: "Summary" },
+        { id: "archetypes", label: "Archetypes" },
+    ],
+    abilities: [{ id: "assigned-abilities", label: "Assigned Abilities" }],
+    potentials: [
+        { id: "scores", label: "Scores and Volatility" },
+        { id: "rolls", label: "Rolls" },
+        { id: "perks", label: "Perks" },
+    ],
+    proficiencies: [
+        { id: "skills", label: "Skills" },
+        { id: "domains", label: "Domains" },
+        { id: "knacks", label: "Knacks" },
+    ],
+    goals: [
+        { id: "origin-linked-goals", label: "Origin-linked Goals" },
+        { id: "custom-goals", label: "Custom Goals" },
+    ],
+    inventory: [],
+    attacks: [],
+};
+
+const EDITOR_SUMMARY_SECTION_IDS: BuilderTabId[] = [
+    "identity",
+    "origin",
+    "levels",
+    "potentials",
+    "proficiencies",
+    "abilities",
+    "goals",
+];
+
+function AdvancedEditorPanel({
+    id,
+    title,
+    summary,
+    open,
+    onToggle,
+    children,
+}: AdvancedEditorPanelProps) {
+    const contentId = `${id}-content`;
+
+    return (
+        <section className={styles.advancedPanel}>
+            <button
+                type="button"
+                className={styles.advancedToggle}
+                aria-expanded={open}
+                aria-controls={contentId}
+                onClick={() => onToggle(id)}
+            >
+                <span className={styles.advancedToggleText}>
+                    <strong>{title}</strong>
+                    <span>{summary}</span>
+                </span>
+                <span className={styles.advancedToggleAction}>
+                    {open ? "Hide" : "Show"}
+                </span>
+            </button>
+
+            {open ? (
+                <div id={contentId} className={styles.advancedPanelBody}>
+                    {children}
+                </div>
+            ) : null}
+        </section>
+    );
+}
+
+function formatConfiguredSummary(configured: number, total: number): string {
+    const missing = Math.max(0, total - configured);
+    if (missing === 0) return `${total} configured`;
+    return `${configured}/${total} configured, ${missing} missing`;
+}
 
 const ORIGIN_PICKER_OWNER_FILTERS: Array<{
     id: OriginSelectionOwnerFilter;
@@ -62,6 +218,128 @@ const ORIGIN_PICKER_OWNER_FILTERS: Array<{
     { id: "personal", label: "Personal" },
     { id: "gm-shared", label: "GM Shared" },
 ];
+
+const PHYSICAL_POTENTIAL_KEYS: PotentialKey[] = ["might", "finesse", "nerve", "seep"];
+const MENTAL_POTENTIAL_KEYS: PotentialKey[] = ["instinct", "wit", "heart", "tether"];
+const VOLATILITY_DICE: VolatilityDieType[] = [4, 6, 8, 10, 12];
+const ROLL_SLOT_COUNT = 8;
+
+type PotentialRollSlot = {
+    id: string;
+    label: string;
+    rolls: number[];
+    dropped: number | null;
+    total: number | null;
+    assignedPotentialKey: PotentialKey | "";
+};
+
+type PerkAssignmentDraft = {
+    sourceId: string;
+    sourceKind: PerkAssignmentSourceKind;
+    sourceLabel: string;
+    potentialKey: PotentialKey | "";
+    perkId: PerkId;
+    face: number | "";
+};
+
+type PerkInventoryRow = {
+    sourceId: string;
+    sourceKind: PerkAssignmentSourceKind;
+    sourceLabel: string;
+    perkId: PerkId;
+    perk: PerkDefinition;
+    total: number;
+    assigned: number;
+    available: number;
+    assignmentCostBeats: number;
+};
+
+type OriginSkillFacetId = "profession" | "crux" | "descent";
+
+type QuickEditKey =
+    | "identity:name"
+    | "levels:archetypes"
+    | `origin:${OriginFacetId}:name`
+    | `origin:${OriginSkillFacetId}:skill`
+    | "origin:bloodline:ability";
+
+type QuickEditChipConfig = {
+    key: QuickEditKey;
+    label: string;
+    value: string;
+    icon: string;
+};
+
+const ORIGIN_FACET_QUICK_EDIT_IDS: OriginFacetId[] = [
+    "profession",
+    "crux",
+    "descent",
+    "bloodline",
+];
+const ORIGIN_SKILL_QUICK_EDIT_IDS: OriginSkillFacetId[] = [
+    "profession",
+    "crux",
+    "descent",
+];
+
+function createRollSlot(index: number): PotentialRollSlot {
+    return {
+        id:
+            typeof crypto !== "undefined" && "randomUUID" in crypto
+                ? crypto.randomUUID()
+                : `roll-slot-${Date.now()}-${index}`,
+        label: `Roll ${index + 1}`,
+        rolls: [],
+        dropped: null,
+        total: null,
+        assignedPotentialKey: "",
+    };
+}
+
+function createRollSession(): PotentialRollSlot[] {
+    return Array.from({ length: ROLL_SLOT_COUNT }, (_, index) => createRollSlot(index));
+}
+
+function isVolatilityDieAllowedForScore(die: VolatilityDieType, score: number): boolean {
+    return die === 4 || die <= score;
+}
+
+function getLegalVolatilityDice(score: number): VolatilityDieType[] {
+    return VOLATILITY_DICE.filter((die) => isVolatilityDieAllowedForScore(die, score));
+}
+
+function getVolatilityScoreCap(score: number): VolatilityDieType {
+    return (
+        [...VOLATILITY_DICE]
+            .reverse()
+            .find((die) => isVolatilityDieAllowedForScore(die, score)) ?? 4
+    );
+}
+
+function experienceToBeatTotal(experience: CharacterSheetState["experience"]): number {
+    return (
+        Math.max(0, Math.floor(experience.beats ?? 0)) +
+        Math.max(0, Math.floor(experience.strings ?? 0)) * 10 +
+        Math.max(0, Math.floor(experience.milestones ?? 0)) * 100 +
+        Math.max(0, Math.floor(experience.zeniths ?? 0)) * 1000
+    );
+}
+
+function beatTotalToExperience(total: number): CharacterSheetState["experience"] {
+    const normalized = Math.max(0, Math.floor(total));
+    const zeniths = Math.floor(normalized / 1000);
+    const afterZeniths = normalized % 1000;
+    const milestones = Math.floor(afterZeniths / 100);
+    const afterMilestones = afterZeniths % 100;
+    const strings = Math.floor(afterMilestones / 10);
+    const beats = afterMilestones % 10;
+
+    return { beats, strings, milestones, zeniths };
+}
+
+function getPerkAssignmentKey(potentialKey: PotentialKey, face: number): string {
+    return `${potentialKey}:${face}`;
+}
 
 function getSkillNameFromChoiceId(choiceId?: string): string | undefined {
     if (!choiceId) return undefined;
@@ -108,13 +386,183 @@ function getSelectedDomainIds(sheet: CharacterSheetState): Set<string> {
     );
 }
 
+function hasText(value?: string | null): boolean {
+    return Boolean(value?.trim());
+}
+
+function getOriginFacetName(facet?: OriginFacetState): string | undefined {
+    return facet?.name || facet?.originSelectionTitle;
+}
+
+export function deriveEditorSectionSummaries(sheet: CharacterSheetState): EditorSectionSummary[] {
+    const summaries = new Map<BuilderTabId, EditorSectionSummary>();
+
+    function getSummary(sectionId: BuilderTabId): EditorSectionSummary {
+        const existing = summaries.get(sectionId);
+        if (existing) return existing;
+
+        const summary: EditorSectionSummary = {
+            id: sectionId,
+            label: EDITOR_SECTION_LABELS[sectionId],
+            configuredCount: 0,
+            totalCount: 0,
+            missingCount: 0,
+            blockingCount: 0,
+            issues: [],
+            emptyText: "No data yet.",
+        };
+        summaries.set(sectionId, summary);
+        return summary;
+    }
+
+    function addCheck(
+        sectionId: BuilderTabId,
+        subsectionId: string,
+        label: string,
+        configured: boolean,
+        severity: EditorSummaryIssueSeverity = "missing",
+    ) {
+        const summary = getSummary(sectionId);
+        summary.totalCount += 1;
+
+        if (configured) {
+            summary.configuredCount += 1;
+            return;
+        }
+
+        if (severity === "blocking") {
+            summary.blockingCount += 1;
+        } else if (severity === "missing") {
+            summary.missingCount += 1;
+        }
+
+        summary.issues.push({
+            id: `${sectionId}:${subsectionId}:${label}`,
+            label,
+            severity,
+            sectionId,
+            subsectionId,
+        });
+    }
+
+    addCheck("identity", "basics", "Character name", hasText(sheet.header.name), "blocking");
+    addCheck("identity", "basics", "Player name", hasText(sheet.header.playerName));
+    addCheck("identity", "basics", "Origin summary", hasText(sheet.header.origin), "blocking");
+
+    addCheck("origin", "profession", "Profession choice", hasText(getOriginFacetName(sheet.originSelections?.profession)), "blocking");
+    addCheck("origin", "profession", "Profession skill", hasText(sheet.originSelections?.profession?.skillName));
+    addCheck("origin", "crux", "Crux choice", hasText(getOriginFacetName(sheet.originSelections?.crux)), "blocking");
+    addCheck("origin", "crux", "Crux skill", hasText(sheet.originSelections?.crux?.skillName));
+    addCheck("origin", "crux", "Crux potential", Boolean(sheet.originSelections?.crux?.potentialKey));
+    addCheck("origin", "descent", "Descent choice", hasText(getOriginFacetName(sheet.originSelections?.descent)), "blocking");
+    addCheck("origin", "descent", "Descent skill", hasText(sheet.originSelections?.descent?.skillName));
+    addCheck("origin", "descent", "Descent domain", Boolean(sheet.originSelections?.descent?.domainId));
+    addCheck("origin", "bloodline", "Bloodline choice", hasText(getOriginFacetName(sheet.originSelections?.bloodline)), "blocking");
+    addCheck("origin", "bloodline", "Bloodline potential", Boolean(sheet.originSelections?.bloodline?.potentialKey));
+    addCheck("origin", "bloodline", "Bloodline ability", Boolean(sheet.originSelections?.bloodline?.specialAbilityId));
+
+    addCheck("levels", "archetypes", "At least one archetype level", sheet.archetypeLevels.length > 0, "blocking");
+    if (sheet.archetypeLevels.length > 0) {
+        addCheck("levels", "archetypes", "First archetype skill 1", hasText(sheet.firstArchetypeBoons.skillIds[0]));
+        addCheck("levels", "archetypes", "First archetype skill 2", hasText(sheet.firstArchetypeBoons.skillIds[1]));
+        addCheck("levels", "archetypes", "First archetype domain", Boolean(sheet.firstArchetypeBoons.domainId));
+        addCheck("levels", "archetypes", "Heroic goal", hasText(sheet.firstArchetypeBoons.heroicGoalLabel));
+    }
+
+    if (sheet.potentials.length === 0) {
+        addCheck("potentials", "scores", "Potential list", false, "blocking");
+    } else {
+        sheet.potentials.forEach((potential) => {
+            const totalScore = getPotentialTotalScore(potential);
+            addCheck("potentials", "scores", `${potential.title} score`, totalScore > 0, "blocking");
+            addCheck(
+                "potentials",
+                "scores",
+                `${potential.title} volatility`,
+                isVolatilityDieAllowedForScore(potential.volatilityDieMax, totalScore),
+                "blocking",
+            );
+        });
+    }
+
+    const proficientSkillCount = sheet.potentials.reduce(
+        (count, potential) =>
+            count + potential.skills.filter((skill) => skill.proficient || skill.sources?.length).length,
+        0,
+    );
+    const proficientDomainCount = sheet.domains.filter((domain) => domain.proficient || domain.sources?.length).length;
+    const knackCount = sheet.knacks.length;
+    addCheck("proficiencies", "skills", "Skill proficiencies", proficientSkillCount > 0);
+    addCheck("proficiencies", "domains", "Domain proficiencies", proficientDomainCount > 0);
+    addCheck("proficiencies", "knacks", "Knacks", knackCount > 0);
+
+    addCheck("abilities", "assigned-abilities", "Assigned abilities", sheet.abilityIds.length > 0);
+
+    addCheck("goals", "origin-linked-goals", "Minor goal", hasText(sheet.originSelections?.crux?.minorGoalLabel));
+    addCheck("goals", "origin-linked-goals", "Major goal", hasText(sheet.originSelections?.crux?.majorGoalLabel));
+    addCheck("goals", "origin-linked-goals", "Heroic goal", hasText(sheet.firstArchetypeBoons.heroicGoalLabel));
+    addCheck("goals", "custom-goals", "Custom goal", sheet.goals.some((goal) => hasText(goal.title)));
+
+    return EDITOR_SUMMARY_SECTION_IDS.map((sectionId) => getSummary(sectionId));
+}
+
+export function getEditorSectionSummaryStatus(
+    summary?: EditorSectionSummary,
+): EditorSectionSummaryStatus {
+    if (!summary) {
+        return {
+            severity: "unknown",
+            icon: "circle-question",
+            label: "Status unknown",
+            count: 0,
+        };
+    }
+
+    if (summary.blockingCount > 0) {
+        const missingSuffix =
+            summary.missingCount > 0
+                ? `, ${summary.missingCount} missing choice${summary.missingCount === 1 ? "" : "s"}`
+                : "";
+
+        return {
+            severity: "blocking",
+            icon: "triangle-exclamation",
+            label: `${summary.blockingCount} blocking issue${summary.blockingCount === 1 ? "" : "s"}${missingSuffix}`,
+            count: summary.blockingCount + summary.missingCount,
+        };
+    }
+
+    if (summary.missingCount > 0) {
+        return {
+            severity: "missing",
+            icon: "circle-exclamation",
+            label: `${summary.missingCount} missing choice${summary.missingCount === 1 ? "" : "s"}`,
+            count: summary.missingCount,
+        };
+    }
+
+    return {
+        severity: "complete",
+        icon: "circle-check",
+        label: summary.totalCount === 0 ? summary.emptyText : "Complete",
+        count: 0,
+    };
+}
+
+export function getEditorTabStatusIcon(status: EditorSectionSummaryStatus): string {
+    if (status.severity === "blocking") return "triangle-exclamation";
+    if (status.severity === "missing") return "exclamation";
+    if (status.severity === "complete") return "check";
+    return "question";
+}
+
 type EditorWorkspaceProps = {
     sheet: CharacterSheetState;
     onChange: (next: CharacterSheetState) => void;
     forcedTab?: BuilderTabId;
     hideNav?: boolean;
-    onRequestPotentialRoll?: (potential: PotentialState) => void;
     assignedCampaign?: CampaignAssignment | null;
+    onRequestTab?: (tab: BuilderTabId) => void;
 };
 
 export default function EditorWorkspace({
@@ -122,8 +570,8 @@ export default function EditorWorkspace({
     onChange,
     forcedTab,
     hideNav = false,
-    onRequestPotentialRoll,
     assignedCampaign = null,
+    onRequestTab,
 }: EditorWorkspaceProps) {
     const [internalTab, setInternalTab] = useState<BuilderTabId>("identity");
     const [addArchetypeOpen, setAddArchetypeOpen] = useState(false);
@@ -137,8 +585,30 @@ export default function EditorWorkspace({
     const [originPickerRows, setOriginPickerRows] = useState<OriginSelectionSummary[]>([]);
     const [originPickerLoading, setOriginPickerLoading] = useState(false);
     const [originPickerError, setOriginPickerError] = useState<string | null>(null);
+    const [rollSession, setRollSession] = useState<PotentialRollSlot[] | null>(null);
+    const [rollRequest, setRollRequest] = useState<BuilderPotentialRollRequest | null>(null);
+    const [purchaseOpen, setPurchaseOpen] = useState(false);
+    const [perkAssignmentDraft, setPerkAssignmentDraft] =
+        useState<PerkAssignmentDraft | null>(null);
+    const [potentialScoreDrafts, setPotentialScoreDrafts] =
+        useState<Partial<Record<PotentialKey, string>>>({});
+    const [openAdvancedPanelIds, setOpenAdvancedPanelIds] = useState<Set<string>>(
+        () => new Set(),
+    );
+    const [summaryTrayOpen, setSummaryTrayOpen] = useState(false);
+    const [quickEditKey, setQuickEditKey] = useState<QuickEditKey | null>(null);
+    const summaryTrayToggleRef = useRef<HTMLButtonElement | null>(null);
+    const summaryTrayBodyRef = useRef<HTMLDivElement | null>(null);
+    const quickEditPanelRef = useRef<HTMLDivElement | null>(null);
+    const quickEditTriggerRefs = useRef(new Map<QuickEditKey, HTMLButtonElement>());
     const tab = forcedTab ?? internalTab;
-    const setTab = forcedTab ? (() => {}) : setInternalTab;
+    const setTab = forcedTab
+        ? (nextTab: BuilderTabId) => onRequestTab?.(nextTab)
+        : setInternalTab;
+    const sectionSubsections = EDITOR_SUBSECTIONS[tab] ?? [];
+    const [activeSubsectionId, setActiveSubsectionId] = useState(
+        sectionSubsections[0]?.id ?? "",
+    );
 
     const allSkills = useMemo(
         () =>
@@ -155,6 +625,170 @@ export default function EditorWorkspace({
 
     const selectedSkillNames = useMemo(() => getSelectedSkillNames(sheet), [sheet]);
     const selectedDomainIds = useMemo(() => getSelectedDomainIds(sheet), [sheet]);
+    const sectionSummaries = useMemo(() => deriveEditorSectionSummaries(sheet), [sheet]);
+    const summaryBySection = useMemo(
+        () => new Map(sectionSummaries.map((summary) => [summary.id, summary])),
+        [sectionSummaries],
+    );
+    const unresolvedIssueCount = sectionSummaries.reduce(
+        (count, summary) => count + summary.blockingCount + summary.missingCount,
+        0,
+    );
+    const blockingIssueCount = sectionSummaries.reduce(
+        (count, summary) => count + summary.blockingCount,
+        0,
+    );
+    const missingIssueCount = Math.max(0, unresolvedIssueCount - blockingIssueCount);
+
+    function isAdvancedPanelOpen(panelId: string): boolean {
+        return openAdvancedPanelIds.has(panelId);
+    }
+
+    function toggleAdvancedPanel(panelId: string) {
+        setOpenAdvancedPanelIds((current) => {
+            const next = new Set(current);
+            if (next.has(panelId)) {
+                next.delete(panelId);
+            } else {
+                next.add(panelId);
+            }
+            return next;
+        });
+    }
+
+    function scrollToEditorSubsection(sectionId: BuilderTabId, subsectionId?: string) {
+        if (typeof window === "undefined" || typeof document === "undefined") return;
+
+        const selector = subsectionId
+            ? `[data-editor-section="${sectionId}"][data-editor-subsection="${subsectionId}"]`
+            : `[data-editor-section="${sectionId}"][data-editor-subsection]`;
+        document.querySelector<HTMLElement>(selector)?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+        });
+    }
+
+    function requestEditorTarget(sectionId: BuilderTabId, subsectionId?: string) {
+        if (tab !== sectionId) {
+            setTab(sectionId);
+        }
+
+        if (typeof window === "undefined") return;
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+                scrollToEditorSubsection(sectionId, subsectionId);
+            });
+        });
+    }
+
+    function jumpFromSummaryTray(sectionId: BuilderTabId, subsectionId?: string) {
+        setSummaryTrayOpen(false);
+        setQuickEditKey(null);
+        requestEditorTarget(sectionId, subsectionId);
+    }
+
+    function setQuickEditTriggerRef(editKey: QuickEditKey) {
+        return (node: HTMLButtonElement | null) => {
+            if (node) {
+                quickEditTriggerRefs.current.set(editKey, node);
+            } else {
+                quickEditTriggerRefs.current.delete(editKey);
+            }
+        };
+    }
+
+    function getQuickEditPanelId(editKey: QuickEditKey) {
+        return `quick-edit-${editKey}`;
+    }
+
+    function getQuickEditSectionId(editKey: QuickEditKey): BuilderTabId {
+        if (editKey.startsWith("identity:")) return "identity";
+        if (editKey.startsWith("levels:")) return "levels";
+        return "origin";
+    }
+
+    function openQuickEdit(editKey: QuickEditKey) {
+        setQuickEditKey((current) => (current === editKey ? null : editKey));
+    }
+
+    function closeQuickEdit(restoreFocus = true) {
+        const closingKey = quickEditKey;
+        setQuickEditKey(null);
+
+        if (!restoreFocus || !closingKey || typeof window === "undefined") return;
+
+        window.requestAnimationFrame(() => {
+            quickEditTriggerRefs.current.get(closingKey)?.focus();
+        });
+    }
+
+    function closeSummaryTray() {
+        setSummaryTrayOpen(false);
+        setQuickEditKey(null);
+
+        if (typeof window === "undefined") return;
+        window.requestAnimationFrame(() => {
+            summaryTrayToggleRef.current?.focus();
+        });
+    }
+
+    useEffect(() => {
+        const fallbackSubsectionId = EDITOR_SUBSECTIONS[tab]?.[0]?.id ?? "";
+        let frameId = 0;
+
+        setActiveSubsectionId(fallbackSubsectionId);
+
+        if (typeof window === "undefined" || typeof document === "undefined") {
+            return;
+        }
+
+        function updateActiveSubsection() {
+            const anchors = Array.from(
+                document.querySelectorAll<HTMLElement>(
+                    `[data-editor-section="${tab}"][data-editor-subsection]`,
+                ),
+            );
+
+            if (anchors.length === 0) {
+                setActiveSubsectionId(fallbackSubsectionId);
+                return;
+            }
+
+            const activationOffset = 128;
+            let activeAnchor = anchors[0];
+            let activeTop = Number.NEGATIVE_INFINITY;
+
+            anchors.forEach((anchor) => {
+                const top = anchor.getBoundingClientRect().top;
+                if (top <= activationOffset && top > activeTop) {
+                    activeAnchor = anchor;
+                    activeTop = top;
+                }
+            });
+
+            const nextActive =
+                activeAnchor.dataset.editorSubsection ?? fallbackSubsectionId;
+
+            setActiveSubsectionId((current) =>
+                current === nextActive ? current : nextActive,
+            );
+        }
+
+        function queueActiveSubsectionUpdate() {
+            if (frameId) window.cancelAnimationFrame(frameId);
+            frameId = window.requestAnimationFrame(updateActiveSubsection);
+        }
+
+        queueActiveSubsectionUpdate();
+        window.addEventListener("scroll", queueActiveSubsectionUpdate, true);
+        window.addEventListener("resize", queueActiveSubsectionUpdate);
+
+        return () => {
+            if (frameId) window.cancelAnimationFrame(frameId);
+            window.removeEventListener("scroll", queueActiveSubsectionUpdate, true);
+            window.removeEventListener("resize", queueActiveSubsectionUpdate);
+        };
+    }, [tab]);
 
     useEffect(() => {
         if (!originPickerFacet) return;
@@ -208,6 +842,40 @@ export default function EditorWorkspace({
             setExpandedOriginPickerRowId(null);
         }
     }, [expandedOriginPickerRowId, originPickerRows]);
+
+    useEffect(() => {
+        if (addArchetypeOpen || originPickerFacet || rollRequest) {
+            setSummaryTrayOpen(false);
+            setQuickEditKey(null);
+        }
+    }, [addArchetypeOpen, originPickerFacet, rollRequest]);
+
+    useEffect(() => {
+        if (!summaryTrayOpen) {
+            setQuickEditKey(null);
+        }
+    }, [summaryTrayOpen]);
+
+    useEffect(() => {
+        if (!quickEditKey) return;
+        if (typeof window === "undefined") return;
+
+        const frameId = window.requestAnimationFrame(() => {
+            const focusTarget = quickEditPanelRef.current?.querySelector<HTMLElement>(
+                '[data-quick-edit-autofocus="true"]',
+            );
+            focusTarget?.focus();
+
+            if (
+                focusTarget instanceof HTMLInputElement ||
+                focusTarget instanceof HTMLTextAreaElement
+            ) {
+                focusTarget.select();
+            }
+        });
+
+        return () => window.cancelAnimationFrame(frameId);
+    }, [quickEditKey]);
 
     const skillOptions = useMemo(
         () =>
@@ -320,29 +988,167 @@ export default function EditorWorkspace({
     }
 
     function setPotentialBaseScore(potentialKey: PotentialKey, baseScore: number) {
-        applyCommand(setPotentialBaseScoreCommand(sheet, potentialKey, baseScore));
+        const nextSheet = setPotentialBaseScoreCommand(sheet, potentialKey, baseScore);
+        const nextPotential = nextSheet.potentials.find((entry) => entry.key === potentialKey);
+
+        if (
+            nextPotential &&
+            !isVolatilityDieAllowedForScore(
+                nextPotential.volatilityDieMax,
+                getPotentialTotalScore(nextPotential),
+            )
+        ) {
+            applyCommand(
+                setPotentialVolatilityDie(
+                    nextSheet,
+                    potentialKey,
+                    getVolatilityScoreCap(getPotentialTotalScore(nextPotential)),
+                ),
+            );
+            return;
+        }
+
+        applyCommand(nextSheet);
+    }
+
+    function getPotentialBaseScoreInputValue(potential: PotentialState) {
+        return potentialScoreDrafts[potential.key] ?? String(getPotentialBaseScore(potential));
+    }
+
+    function updatePotentialBaseScoreInput(potential: PotentialState, rawValue: string) {
+        if (rawValue !== "" && !/^\d+$/.test(rawValue)) return;
+
+        setPotentialScoreDrafts((current) => ({
+            ...current,
+            [potential.key]: rawValue,
+        }));
+
+        if (rawValue === "") return;
+
+        setPotentialBaseScore(potential.key, Number(rawValue));
+    }
+
+    function commitPotentialBaseScoreInput(potential: PotentialState) {
+        const draft = potentialScoreDrafts[potential.key];
+        if (draft === undefined) return;
+
+        setPotentialScoreDrafts((current) => {
+            const next = { ...current };
+            delete next[potential.key];
+            return next;
+        });
+
+        setPotentialBaseScore(potential.key, Number(draft) || 1);
     }
 
     function setPotentialDie(
         potentialKey: PotentialKey,
-        die: 4 | 6 | 8 | 10 | 12,
+        die: VolatilityDieType,
     ) {
-        applyCommand(setPotentialVolatilityDie(sheet, potentialKey, die));
-    }
+        const potential = sheet.potentials.find((entry) => entry.key === potentialKey);
+        if (!potential) return;
+        if (!isVolatilityDieAllowedForScore(die, getPotentialTotalScore(potential))) return;
 
-    function setPotentialPerkFace(
-        potentialKey: PotentialKey,
-        face: number,
-        perkId: PerkId,
-    ) {
-        applyCommand(setPotentialPerkFaceCommand(sheet, potentialKey, face, perkId));
+        applyCommand(setPotentialVolatilityDie(sheet, potentialKey, die));
     }
 
     function clearPotentialPerkFace(
         potentialKey: PotentialKey,
         face: number,
     ) {
-        applyCommand(setPotentialPerkFaceCommand(sheet, potentialKey, face, null));
+        const nextAssignments = { ...(sheet.perkAssignments ?? {}) };
+        delete nextAssignments[getPerkAssignmentKey(potentialKey, face)];
+
+        applyCommand({
+            ...setPotentialPerkFaceCommand(sheet, potentialKey, face, null),
+            perkAssignments: nextAssignments,
+        });
+    }
+
+    function rollPotentialSlot(slotId: string) {
+        const slot = rollSession?.find((entry) => entry.id === slotId);
+        if (!slot) return;
+
+        setRollRequest({
+            id: slotId,
+            label: slot.label,
+        });
+    }
+
+    function applyPotentialSlotRoll(result: {
+        requestId: string;
+        rolls: number[];
+        dropped: number;
+        total: number;
+    }) {
+        setRollSession((current) =>
+            current?.map((slot) =>
+                slot.id === result.requestId
+                    ? {
+                          ...slot,
+                          rolls: result.rolls,
+                          dropped: result.dropped,
+                          total: result.total,
+                      }
+                    : slot,
+            ) ?? null,
+        );
+        setRollRequest(null);
+    }
+
+    function assignPotentialRoll(slotId: string, potentialKey: PotentialKey | "") {
+        setRollSession((current) =>
+            current?.map((slot) =>
+                slot.id === slotId
+                    ? {
+                          ...slot,
+                          assignedPotentialKey: potentialKey,
+                      }
+                    : slot,
+            ) ?? null,
+        );
+    }
+
+    function resetPotentialRolls() {
+        setRollSession(createRollSession());
+        setRollRequest(null);
+    }
+
+    function applyPotentialRolls() {
+        if (!rollSession) return;
+
+        const assignments = rollSession.filter(
+            (slot): slot is PotentialRollSlot & {
+                assignedPotentialKey: PotentialKey;
+                total: number;
+            } => Boolean(slot.assignedPotentialKey) && typeof slot.total === "number",
+        );
+
+        if (assignments.length === 0) return;
+
+        const nextSheet = assignments.reduce(
+            (current, slot) =>
+                setPotentialBaseScoreCommand(
+                    current,
+                    slot.assignedPotentialKey,
+                    slot.total,
+                ),
+            sheet,
+        );
+
+        applyCommand(nextSheet);
+    }
+
+    function purchasePerk(perkId: PerkId) {
+        const perk = BASE_PERKS[perkId];
+        if (!perk || perk.chargeOnly) return;
+        if (availableExperienceBeats < perk.costBeats) return;
+
+        applyCommand({
+            ...sheet,
+            experience: beatTotalToExperience(availableExperienceBeats - perk.costBeats),
+            purchasedPerkIds: [...(sheet.purchasedPerkIds ?? []), perkId],
+        });
     }
 
     function applyOriginSkillSelection(
@@ -583,7 +1389,83 @@ export default function EditorWorkspace({
         [sheet.archetypeLevels],
     );
 
-    const obtainedPerkIds = selectedLevelPerkIds;
+    const availableExperienceBeats = experienceToBeatTotal(sheet.experience);
+
+    const perkInventoryRows = useMemo(() => {
+        const rows = new Map<string, Omit<PerkInventoryRow, "assigned" | "available">>();
+
+        const addRow = (
+            sourceId: string,
+            sourceKind: PerkAssignmentSourceKind,
+            sourceLabel: string,
+            perkId: PerkId | null | undefined,
+            assignmentCostBeats: number,
+        ) => {
+            if (!perkId || perkId === "charge") return;
+            const perk = BASE_PERKS[perkId];
+            if (!perk) return;
+
+            const key = `${sourceKind}:${sourceId}:${perkId}`;
+            const current = rows.get(key);
+            rows.set(key, {
+                sourceId,
+                sourceKind,
+                sourceLabel,
+                perkId,
+                perk,
+                assignmentCostBeats,
+                total: (current?.total ?? 0) + 1,
+            });
+        };
+
+        sheet.archetypeLevels
+            .filter((level) => level.rewardChoice === "perk")
+            .forEach((level) => {
+                addRow(
+                    `archetype-level:${level.id}`,
+                    "archetype-level",
+                    `Level ${level.rank} ${ARCHETYPE_LABELS[level.archetype]}`,
+                    level.perkId,
+                    0,
+                );
+            });
+
+        (sheet.purchasedPerkIds ?? []).forEach((perkId) => {
+            addRow("purchase", "purchase", "Purchased", perkId, 1);
+        });
+
+        return Array.from(rows.values())
+            .map((row) => {
+                const assigned = Object.values(sheet.perkAssignments ?? {}).filter(
+                    (assignment) =>
+                        assignment.perkId === row.perkId &&
+                        assignment.sourceId === row.sourceId &&
+                        assignment.sourceKind === row.sourceKind,
+                ).length;
+
+                return {
+                    ...row,
+                    assigned,
+                    available: Math.max(0, row.total - assigned),
+                };
+            })
+            .sort((a, b) => {
+                if (a.sourceKind !== b.sourceKind) {
+                    return a.sourceKind === "archetype-level" ? -1 : 1;
+                }
+                return a.perk.name.localeCompare(b.perk.name);
+            });
+    }, [sheet.archetypeLevels, sheet.perkAssignments, sheet.purchasedPerkIds]);
+
+    const availablePerkInventoryRows = useMemo(
+        () => perkInventoryRows.filter((row) => row.available > 0),
+        [perkInventoryRows],
+    );
+
+    const purchasablePerks = useMemo(
+        () => allPerkOptions.filter((perk) => !perk.chargeOnly),
+        [allPerkOptions],
+    );
 
     const potentialOptions = useMemo(
         () =>
@@ -593,6 +1475,22 @@ export default function EditorWorkspace({
             })),
         [sheet.potentials],
     );
+
+    function getPotentialsForRow(keys: PotentialKey[]) {
+        const keySet = new Set(keys);
+        return sheet.potentials.filter((potential) => keySet.has(potential.key));
+    }
+
+    function getAvailableRollPotentialOptions(slotId: string) {
+        const assignedElsewhere = new Set(
+            (rollSession ?? [])
+                .filter((slot) => slot.id !== slotId)
+                .map((slot) => slot.assignedPotentialKey)
+                .filter((potentialKey): potentialKey is PotentialKey => Boolean(potentialKey)),
+        );
+
+        return sheet.potentials.filter((potential) => !assignedElsewhere.has(potential.key));
+    }
 
     function getVisiblePerkFaces(potential: PotentialState) {
         const upperBound = Math.min(
@@ -608,26 +1506,36 @@ export default function EditorWorkspace({
         return faces;
     }
 
+    function getPerkTrackFaces(potential: PotentialState) {
+        const faces: number[] = [];
+
+        for (let face = 2; face <= potential.volatilityDieMax; face += 1) {
+            faces.push(face);
+        }
+
+        return faces;
+    }
+
     function getPerkAtFace(potential: PotentialState, face: number) {
         const perk = potential.resolverPerks?.[face] as PerkDefinition | undefined;
         return perk?.id ? perk : undefined;
     }
 
-    function getAssignedPerkIdsExcept(
-        potentialKey: PotentialKey,
-        face: number,
-    ) {
-        const assigned = new Set<PerkId>();
+    function getAssignedPerksForPotential(potential: PotentialState) {
+        return Object.entries(potential.resolverPerks ?? {})
+            .map(([face, perk]) => ({
+                face: Number(face),
+                perk: perk as PerkDefinition | undefined,
+            }))
+            .filter(
+                (entry): entry is { face: number; perk: PerkDefinition } =>
+                    Number.isInteger(entry.face) && Boolean(entry.perk?.id),
+            )
+            .sort((left, right) => left.face - right.face);
+    }
 
-        sheet.potentials.forEach((potential) => {
-            Object.entries(potential.resolverPerks ?? {}).forEach(([entryFace, perk]) => {
-                if (potential.key === potentialKey && Number(entryFace) === face) return;
-                const perkDef = perk as PerkDefinition | undefined;
-                if (perkDef?.id) assigned.add(perkDef.id as PerkId);
-            });
-        });
-
-        return assigned;
+    function getPerkAssignmentSourceAt(potentialKey: PotentialKey, face: number) {
+        return sheet.perkAssignments?.[getPerkAssignmentKey(potentialKey, face)] ?? null;
     }
 
     function getLowerPerkFacesFilled(potential: PotentialState) {
@@ -641,30 +1549,194 @@ export default function EditorWorkspace({
         return true;
     }
 
-    function getPerkSlotOptions(potential: PotentialState, face: number) {
-        const currentPerk = getPerkAtFace(potential, face);
-        const assignedPerkIds = getAssignedPerkIdsExcept(potential.key, face);
+    function getPerkInventoryRowKey(row: Pick<PerkInventoryRow, "sourceKind" | "sourceId" | "perkId">) {
+        return `${row.sourceKind}:${row.sourceId}:${row.perkId}`;
+    }
+
+    function getChargeAssignmentRow(potential: PotentialState): PerkInventoryRow | null {
+        const charge = BASE_PERKS.charge;
+        if (!charge) return null;
+        if (!getLowerPerkFacesFilled(potential)) return null;
+
+        return {
+            sourceId: "charge-unlock",
+            sourceKind: "origin",
+            sourceLabel: "Charge unlock",
+            perkId: "charge",
+            perk: charge,
+            total: 1,
+            assigned: potential.charged ? 1 : 0,
+            available: potential.charged ? 0 : 1,
+            assignmentCostBeats: 0,
+        };
+    }
+
+    function getAssignableFacesForInventoryRow(
+        potential: PotentialState,
+        row: Pick<PerkInventoryRow, "perkId" | "available">,
+    ) {
+        if (row.available <= 0) return [];
         const occupiedFaces = new Set(
-            Object.keys(potential.resolverPerks ?? {})
-                .map((entry) => Number(entry))
-                .filter((entryFace) => entryFace !== face),
+            Object.keys(potential.resolverPerks ?? {}).map((entry) => Number(entry)),
         );
 
-        return allPerkOptions.filter((perk) => {
-            if (!obtainedPerkIds.has(perk.id) && perk.id !== currentPerk?.id) return false;
-            if (assignedPerkIds.has(perk.id)) return false;
-            if (face === potential.volatilityDieMax && perk.id !== "charge") return false;
-            if (face !== potential.volatilityDieMax && perk.id === "charge") return false;
+        return getAllowedPerkFaces(potential, row.perkId, occupiedFaces);
+    }
 
-            return getAllowedPerkFaces(potential, perk.id, occupiedFaces).includes(face);
+    function getAssignableRowsForPotential(potential: PotentialState) {
+        const rows = availablePerkInventoryRows.filter(
+            (row) => getAssignableFacesForInventoryRow(potential, row).length > 0,
+        );
+        const chargeRow = getChargeAssignmentRow(potential);
+        if (chargeRow && getAssignableFacesForInventoryRow(potential, chargeRow).length > 0) {
+            rows.push(chargeRow);
+        }
+        return rows;
+    }
+
+    function findInventoryRow(sourceKey: string): PerkInventoryRow | null {
+        const regularRow = availablePerkInventoryRows.find(
+            (row) => getPerkInventoryRowKey(row) === sourceKey,
+        );
+        if (regularRow) return regularRow;
+
+        for (const potential of sheet.potentials) {
+            const chargeRow = getChargeAssignmentRow(potential);
+            if (chargeRow && getPerkInventoryRowKey(chargeRow) === sourceKey) {
+                return chargeRow;
+            }
+        }
+
+        return null;
+    }
+
+    function getAssignmentCostLabel(row: PerkInventoryRow) {
+        return row.assignmentCostBeats > 0
+            ? `Assign: ${row.assignmentCostBeats} Beat`
+            : "Assign: Free";
+    }
+
+    function getInventorySourceOptionLabel(row: PerkInventoryRow) {
+        return `${row.perk.name} - ${row.sourceLabel} (${row.available}/${row.total} available)`;
+    }
+
+    function getDraftSourceRow() {
+        if (!perkAssignmentDraft) return null;
+        return findInventoryRow(getPerkInventoryRowKey(perkAssignmentDraft));
+    }
+
+    function getDraftPotential() {
+        if (!perkAssignmentDraft?.potentialKey) return null;
+        return sheet.potentials.find((potential) => potential.key === perkAssignmentDraft.potentialKey) ?? null;
+    }
+
+    function openPerkAssignmentForPotential(potential: PotentialState) {
+        const row = getAssignableRowsForPotential(potential)[0];
+        if (!row) return;
+        const faces = getAssignableFacesForInventoryRow(potential, row);
+
+        setPerkAssignmentDraft({
+            sourceId: row.sourceId,
+            sourceKind: row.sourceKind,
+            sourceLabel: row.sourceLabel,
+            potentialKey: potential.key,
+            perkId: row.perkId,
+            face: faces[0] ?? "",
         });
     }
 
-    function getPerkSlotHint(potential: PotentialState, face: number) {
-        if (face !== potential.volatilityDieMax) return null;
-        if (!obtainedPerkIds.has("charge")) return "Charge perk not obtained.";
-        if (!getLowerPerkFacesFilled(potential)) return "Fill lower slots before Charge.";
-        return null;
+    function openPerkAssignmentFromInventory(row: PerkInventoryRow) {
+        const potential = sheet.potentials.find(
+            (entry) => getAssignableFacesForInventoryRow(entry, row).length > 0,
+        );
+        const faces = potential ? getAssignableFacesForInventoryRow(potential, row) : [];
+
+        setPerkAssignmentDraft({
+            sourceId: row.sourceId,
+            sourceKind: row.sourceKind,
+            sourceLabel: row.sourceLabel,
+            potentialKey: potential?.key ?? "",
+            perkId: row.perkId,
+            face: faces[0] ?? "",
+        });
+    }
+
+    function updatePerkAssignmentSource(sourceKey: string) {
+        const row = findInventoryRow(sourceKey);
+        if (!row) return;
+        const currentPotential = getDraftPotential();
+        const fallbackPotential = sheet.potentials.find(
+            (potential) => getAssignableFacesForInventoryRow(potential, row).length > 0,
+        );
+        const nextPotential = currentPotential &&
+            getAssignableFacesForInventoryRow(currentPotential, row).length > 0
+            ? currentPotential
+            : fallbackPotential;
+        const faces = nextPotential ? getAssignableFacesForInventoryRow(nextPotential, row) : [];
+
+        setPerkAssignmentDraft({
+            sourceId: row.sourceId,
+            sourceKind: row.sourceKind,
+            sourceLabel: row.sourceLabel,
+            potentialKey: nextPotential?.key ?? "",
+            perkId: row.perkId,
+            face: faces[0] ?? "",
+        });
+    }
+
+    function updatePerkAssignmentPotential(potentialKey: PotentialKey | "") {
+        const row = getDraftSourceRow();
+        const potential = sheet.potentials.find((entry) => entry.key === potentialKey);
+        const faces = row && potential ? getAssignableFacesForInventoryRow(potential, row) : [];
+
+        setPerkAssignmentDraft((current) =>
+            current
+                ? {
+                      ...current,
+                      potentialKey,
+                      face: faces[0] ?? "",
+                  }
+                : current,
+        );
+    }
+
+    function assignPerkDraft() {
+        if (!perkAssignmentDraft?.potentialKey || !perkAssignmentDraft.face) return;
+
+        const row = getDraftSourceRow();
+        if (!row) return;
+        if (row.assignmentCostBeats > 0 && availableExperienceBeats < row.assignmentCostBeats) return;
+
+        const nextSheet = setPotentialPerkFaceCommand(
+            sheet,
+            perkAssignmentDraft.potentialKey,
+            perkAssignmentDraft.face,
+            perkAssignmentDraft.perkId,
+        );
+
+        const assignmentKey = getPerkAssignmentKey(
+            perkAssignmentDraft.potentialKey,
+            perkAssignmentDraft.face,
+        );
+
+        applyCommand({
+            ...nextSheet,
+            experience:
+                row.assignmentCostBeats > 0
+                    ? beatTotalToExperience(availableExperienceBeats - row.assignmentCostBeats)
+                    : nextSheet.experience,
+            perkAssignments: {
+                ...(nextSheet.perkAssignments ?? {}),
+                [assignmentKey]: {
+                    perkId: row.perkId,
+                    sourceKind: row.sourceKind,
+                    sourceId: row.sourceId,
+                    sourceLabel: row.sourceLabel,
+                    assignmentPaid: row.assignmentCostBeats > 0,
+                },
+            },
+        });
+        setPerkAssignmentDraft(null);
     }
 
     function updateArchetypeLevel(
@@ -717,6 +1789,498 @@ export default function EditorWorkspace({
         );
     }
 
+    const inventoryAvailableCount = perkInventoryRows.reduce(
+        (sum, row) => sum + row.available,
+        0,
+    );
+    const draftSourceRow = getDraftSourceRow();
+    const draftPotential = getDraftPotential();
+    const draftSourceOptions = perkAssignmentDraft
+        ? (() => {
+              const rows = draftPotential
+                  ? getAssignableRowsForPotential(draftPotential)
+                  : availablePerkInventoryRows;
+              if (
+                  draftSourceRow &&
+                  !rows.some(
+                      (row) =>
+                          getPerkInventoryRowKey(row) ===
+                          getPerkInventoryRowKey(draftSourceRow),
+                  )
+              ) {
+                  return [draftSourceRow, ...rows];
+              }
+              return rows;
+          })()
+        : [];
+    const draftPotentialOptions = draftSourceRow
+        ? sheet.potentials.filter(
+              (potential) =>
+                  getAssignableFacesForInventoryRow(potential, draftSourceRow).length > 0,
+          )
+        : [];
+    const draftFaceOptions =
+        draftSourceRow && draftPotential
+            ? getAssignableFacesForInventoryRow(draftPotential, draftSourceRow)
+            : [];
+    const draftAssignmentCostBeats = draftSourceRow?.assignmentCostBeats ?? 0;
+    const canAssignPerkDraft = Boolean(
+        perkAssignmentDraft?.potentialKey &&
+            perkAssignmentDraft.face &&
+            draftSourceRow &&
+            availableExperienceBeats >= draftAssignmentCostBeats,
+    );
+    const activeSubsectionIndex = Math.max(
+        0,
+        sectionSubsections.findIndex((entry) => entry.id === activeSubsectionId),
+    );
+    const activeSubsection = sectionSubsections[activeSubsectionIndex] ?? sectionSubsections[0];
+    const showEditorBreadcrumb = !addArchetypeOpen && !originPickerFacet && !rollRequest;
+
+    useEffect(() => {
+        if (!summaryTrayOpen || !showEditorBreadcrumb) return;
+        if (typeof window === "undefined") return;
+
+        const frameId = window.requestAnimationFrame(() => {
+            summaryTrayBodyRef.current?.querySelector<HTMLElement>("button")?.focus();
+        });
+
+        return () => window.cancelAnimationFrame(frameId);
+    }, [showEditorBreadcrumb, summaryTrayOpen]);
+
+    const activeSectionSummary = sectionSummaries.find((summary) => summary.id === tab);
+    const summaryTrayStatus = blockingIssueCount
+        ? {
+              icon: "triangle-exclamation",
+              label:
+                  `${blockingIssueCount} blocking issue${blockingIssueCount === 1 ? "" : "s"}` +
+                  (missingIssueCount
+                      ? `, ${missingIssueCount} missing choice${missingIssueCount === 1 ? "" : "s"}`
+                      : ""),
+              tone: styles.summaryTrayToggleBlocking,
+          }
+        : unresolvedIssueCount
+          ? {
+                icon: "circle-exclamation",
+                label: `${unresolvedIssueCount} missing choice${unresolvedIssueCount === 1 ? "" : "s"}`,
+                tone: styles.summaryTrayToggleMissing,
+            }
+          : {
+                icon: "circle-check",
+                label: "All tracked choices complete",
+                tone: styles.summaryTrayToggleComplete,
+            };
+    const professionAdvancedSummary = formatConfiguredSummary(
+        [
+            sheet.originSelections?.profession?.knackName,
+            sheet.originSelections?.profession?.equipmentItems?.length ||
+                sheet.originSelections?.profession?.equipmentNote?.trim(),
+        ].filter(Boolean).length,
+        2,
+    );
+    const cruxAdvancedSummary = formatConfiguredSummary(
+        [
+            sheet.originSelections?.crux?.knackName,
+            sheet.originSelections?.crux?.minorGoalLabel,
+            sheet.originSelections?.crux?.majorGoalLabel,
+            sheet.originSelections?.crux?.equipmentNote,
+        ].filter(Boolean).length,
+        4,
+    );
+    const rolledPotentialSlotCount =
+        rollSession?.filter((slot) => typeof slot.total === "number").length ?? 0;
+    const assignedPotentialRollCount =
+        rollSession?.filter(
+            (slot) => slot.assignedPotentialKey && typeof slot.total === "number",
+        ).length ?? 0;
+    const potentialRollSummary = rollSession
+        ? `${rolledPotentialSlotCount} rolled, ${assignedPotentialRollCount} assigned`
+        : "No active roll set";
+    const assignedPerkCount = sheet.potentials.reduce(
+        (total, potential) =>
+            total + Object.keys(potential.resolverPerks ?? {}).length,
+        0,
+    );
+    const perkAdvancedSummary =
+        `${assignedPerkCount} assigned, ${inventoryAvailableCount} available, ` +
+        `${availableExperienceBeats} beats`;
+
+    function getArchetypeLevelCount(archetype: ArchetypeKey) {
+        if (sheet.archetypeLevels.length > 0) {
+            return sheet.archetypeLevels.filter((level) => level.archetype === archetype).length;
+        }
+
+        return sheet.header.archetypes.find((entry) => entry.id === archetype)?.levels ?? 0;
+    }
+
+    function getActiveArchetypeSummary() {
+        const active = ARCHETYPES
+            .map((archetype) => {
+                const levels = getArchetypeLevelCount(archetype.id as ArchetypeKey);
+                return levels > 0 ? `${archetype.label} ${levels}` : "";
+            })
+            .filter(Boolean);
+
+        return active.length > 0 ? active.join(" / ") : "None";
+    }
+
+    function getBloodlineAbilityDisplay() {
+        const bloodline = sheet.originSelections?.bloodline;
+        const selectedAbility = getBloodlineAbilityOptions(bloodline).find(
+            (ability) => ability.id === bloodline?.specialAbilityId,
+        );
+
+        return (
+            selectedAbility?.title ||
+            bloodline?.specialAbilityTitle ||
+            bloodline?.abilitySummary ||
+            (bloodline?.specialAbilityId
+                ? `Ability ${bloodline.specialAbilityId.slice(0, 8)}`
+                : "Not set")
+        );
+    }
+
+    const identityQuickEditChips: QuickEditChipConfig[] = [
+        {
+            key: "identity:name",
+            label: "Name",
+            value: sheet.header.name || "Not set",
+            icon: "signature",
+        },
+    ];
+    const originQuickEditChips: QuickEditChipConfig[] = [
+        ...ORIGIN_FACET_QUICK_EDIT_IDS.map((facet) => ({
+            key: `origin:${facet}:name` as QuickEditKey,
+            label: `${formatOriginFacetLabel(facet)} name`,
+            value: getOriginFacetName(sheet.originSelections?.[facet]) || "Not set",
+            icon: "pen",
+        })),
+        ...ORIGIN_SKILL_QUICK_EDIT_IDS.map((facet) => ({
+            key: `origin:${facet}:skill` as QuickEditKey,
+            label: `${formatOriginFacetLabel(facet)} skill`,
+            value: sheet.originSelections?.[facet]?.skillName || "Not set",
+            icon: "wand-magic-sparkles",
+        })),
+        {
+            key: "origin:bloodline:ability",
+            label: "Bloodline ability",
+            value: getBloodlineAbilityDisplay(),
+            icon: "bolt",
+        },
+    ];
+    const levelQuickEditChips: QuickEditChipConfig[] = [
+        {
+            key: "levels:archetypes",
+            label: "Active archetypes",
+            value: getActiveArchetypeSummary(),
+            icon: "layer-group",
+        },
+    ];
+
+    function getSummaryQuickEditChips(sectionId: BuilderTabId): QuickEditChipConfig[] {
+        if (sectionId === "identity") return identityQuickEditChips;
+        if (sectionId === "origin") return originQuickEditChips;
+        if (sectionId === "levels") return levelQuickEditChips;
+        return [];
+    }
+
+    function renderQuickEditChip(chip: QuickEditChipConfig) {
+        const active = quickEditKey === chip.key;
+        const valueMissing = chip.value === "Not set" || chip.value === "None";
+
+        return (
+            <button
+                key={chip.key}
+                type="button"
+                ref={setQuickEditTriggerRef(chip.key)}
+                className={`${styles.quickEditChip} ${
+                    active ? styles.quickEditChipActive : ""
+                }`}
+                aria-expanded={active}
+                aria-controls={getQuickEditPanelId(chip.key)}
+                onClick={() => openQuickEdit(chip.key)}
+            >
+                <i className={`fa-solid fa-${chip.icon}`} aria-hidden="true" />
+                <span>
+                    <small>{chip.label}</small>
+                    <strong className={valueMissing ? styles.quickEditChipEmpty : undefined}>
+                        {chip.value}
+                    </strong>
+                </span>
+            </button>
+        );
+    }
+
+    function renderIdentityQuickEditControl() {
+        return (
+            <label className={styles.field}>
+                <span>Character Name</span>
+                <input
+                    data-quick-edit-autofocus="true"
+                    value={sheet.header.name}
+                    onChange={(event) =>
+                        onChange({
+                            ...sheet,
+                            header: { ...sheet.header, name: event.target.value },
+                        })
+                    }
+                />
+            </label>
+        );
+    }
+
+    function renderOriginNameQuickEditControl(facet: OriginFacetId) {
+        return (
+            <label className={styles.field}>
+                <span>{formatOriginFacetLabel(facet)} name</span>
+                <input
+                    data-quick-edit-autofocus="true"
+                    value={sheet.originSelections?.[facet]?.name ?? ""}
+                    onChange={(event) => patchOriginFacet(facet, { name: event.target.value })}
+                />
+            </label>
+        );
+    }
+
+    function renderOriginSkillQuickEditControl(facet: OriginSkillFacetId) {
+        const currentSkillName = sheet.originSelections?.[facet]?.skillName;
+        const availableSkills = getOriginSkillOptions(facet, currentSkillName);
+
+        return (
+            <label className={styles.field}>
+                <span>{formatOriginFacetLabel(facet)} skill</span>
+                <select
+                    data-quick-edit-autofocus="true"
+                    value={currentSkillName ?? ""}
+                    onChange={(event) => {
+                        applyOriginSkillSelection(facet, event.target.value || undefined);
+                        closeQuickEdit();
+                    }}
+                >
+                    <option value="">Choose skill...</option>
+                    {availableSkills.map((skill) => (
+                        <option key={`quick-${facet}-skill-${skill.name}`} value={skill.name}>
+                            {skill.label}
+                        </option>
+                    ))}
+                </select>
+            </label>
+        );
+    }
+
+    function renderBloodlineAbilityQuickEditControl() {
+        const abilityOptions = getBloodlineAbilityOptions();
+        const abilitySummaryOptions =
+            sheet.originSelections?.bloodline?.abilitySummaryOptions ?? [];
+
+        if (abilityOptions.length > 0) {
+            return (
+                <label className={styles.field}>
+                    <span>Bloodline ability</span>
+                    <select
+                        data-quick-edit-autofocus="true"
+                        value={sheet.originSelections?.bloodline?.specialAbilityId ?? ""}
+                        onChange={(event) => {
+                            applyBloodlineSpecialAbilitySelection(
+                                event.target.value || undefined,
+                            );
+                            closeQuickEdit();
+                        }}
+                    >
+                        <option value="">Choose ability...</option>
+                        {abilityOptions.map((ability) => (
+                            <option key={`quick-bloodline-ability-${ability.id}`} value={ability.id}>
+                                {ability.title}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+            );
+        }
+
+        if (abilitySummaryOptions.length > 0) {
+            return (
+                <label className={styles.field}>
+                    <span>Bloodline ability</span>
+                    <select
+                        data-quick-edit-autofocus="true"
+                        value={sheet.originSelections?.bloodline?.abilitySummary ?? ""}
+                        onChange={(event) => {
+                            patchOriginFacet("bloodline", {
+                                abilitySummary: event.target.value || undefined,
+                            });
+                            closeQuickEdit();
+                        }}
+                    >
+                        <option value="">Choose ability...</option>
+                        {abilitySummaryOptions.map((summary) => (
+                            <option key={`quick-bloodline-summary-${summary}`} value={summary}>
+                                {summary}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+            );
+        }
+
+        return (
+            <label className={styles.field}>
+                <span>Bloodline ability summary</span>
+                <textarea
+                    data-quick-edit-autofocus="true"
+                    value={sheet.originSelections?.bloodline?.abilitySummary ?? ""}
+                    onChange={(event) =>
+                        patchOriginFacet("bloodline", {
+                            abilitySummary: event.target.value,
+                        })
+                    }
+                />
+            </label>
+        );
+    }
+
+    function renderArchetypeQuickEditControl() {
+        return (
+            <div className={styles.quickEditArchetypeGrid}>
+                {ARCHETYPES.map((archetype, index) => {
+                    const archetypeKey = archetype.id as ArchetypeKey;
+                    const levels = getArchetypeLevelCount(archetypeKey);
+                    const active = levels > 0;
+
+                    return (
+                        <div
+                            key={`quick-archetype-${archetype.id}`}
+                            className={`${styles.quickEditArchetypeRow} ${
+                                active ? styles.quickEditArchetypeRowActive : ""
+                            }`}
+                        >
+                            <button
+                                type="button"
+                                data-quick-edit-autofocus={index === 0 ? "true" : undefined}
+                                className={styles.quickEditArchetypeToggle}
+                                aria-pressed={active}
+                                onClick={() =>
+                                    setArchetypeLevelCount(archetypeKey, active ? 0 : 1)
+                                }
+                            >
+                                <span>{archetype.label}</span>
+                                <strong>{active ? levels : "+"}</strong>
+                            </button>
+
+                            {active ? (
+                                <div
+                                    className={styles.quickEditLevelStepper}
+                                    aria-label={`${archetype.label} level count`}
+                                >
+                                    <button
+                                        type="button"
+                                        className={styles.quickEditIconButton}
+                                        aria-label={`Decrease ${archetype.label} levels`}
+                                        onClick={() =>
+                                            setArchetypeLevelCount(
+                                                archetypeKey,
+                                                Math.max(0, levels - 1),
+                                            )
+                                        }
+                                    >
+                                        <i className="fa-solid fa-minus" aria-hidden="true" />
+                                    </button>
+                                    <span>{levels}</span>
+                                    <button
+                                        type="button"
+                                        className={styles.quickEditIconButton}
+                                        aria-label={`Increase ${archetype.label} levels`}
+                                        onClick={() =>
+                                            setArchetypeLevelCount(archetypeKey, levels + 1)
+                                        }
+                                    >
+                                        <i className="fa-solid fa-plus" aria-hidden="true" />
+                                    </button>
+                                </div>
+                            ) : null}
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    }
+
+    function renderQuickEditControl(editKey: QuickEditKey) {
+        if (editKey === "identity:name") return renderIdentityQuickEditControl();
+        if (editKey === "levels:archetypes") return renderArchetypeQuickEditControl();
+        if (editKey === "origin:bloodline:ability") {
+            return renderBloodlineAbilityQuickEditControl();
+        }
+
+        const [, facet, field] = editKey.split(":") as [
+            "origin",
+            OriginFacetId,
+            "name" | "skill",
+        ];
+
+        if (field === "name") return renderOriginNameQuickEditControl(facet);
+
+        return renderOriginSkillQuickEditControl(facet as OriginSkillFacetId);
+    }
+
+    function getQuickEditPanelTitle(editKey: QuickEditKey) {
+        if (editKey === "identity:name") return "Edit character name";
+        if (editKey === "levels:archetypes") return "Edit active archetypes";
+        if (editKey === "origin:bloodline:ability") return "Edit bloodline ability";
+
+        const [, facet, field] = editKey.split(":") as [
+            "origin",
+            OriginFacetId,
+            "name" | "skill",
+        ];
+        return `Edit ${formatOriginFacetLabel(facet)} ${field}`;
+    }
+
+    function renderQuickEditPanel(editKey: QuickEditKey) {
+        return (
+            <div
+                id={getQuickEditPanelId(editKey)}
+                ref={quickEditPanelRef}
+                className={styles.quickEditPanel}
+                onKeyDown={(event) => {
+                    if (event.key !== "Escape") return;
+                    event.stopPropagation();
+                    closeQuickEdit();
+                }}
+            >
+                <div className={styles.quickEditPanelHeader}>
+                    <strong>{getQuickEditPanelTitle(editKey)}</strong>
+                    <button
+                        type="button"
+                        className={styles.quickEditIconButton}
+                        onClick={() => closeQuickEdit()}
+                        aria-label="Close quick edit"
+                        title="Close"
+                    >
+                        <i className="fa-solid fa-xmark" aria-hidden="true" />
+                    </button>
+                </div>
+                {renderQuickEditControl(editKey)}
+            </div>
+        );
+    }
+
+    function renderSummaryQuickEdits(sectionId: BuilderTabId) {
+        const chips = getSummaryQuickEditChips(sectionId);
+        if (chips.length === 0) return null;
+
+        return (
+            <div className={styles.quickEditBlock}>
+                <div className={styles.quickEditChips}>
+                    {chips.map((chip) => renderQuickEditChip(chip))}
+                </div>
+                {quickEditKey && getQuickEditSectionId(quickEditKey) === sectionId
+                    ? renderQuickEditPanel(quickEditKey)
+                    : null}
+            </div>
+        );
+    }
+
     return (
         <>
         <section className={`${styles.editor} ${hideNav ? styles.editorFull : ""}`}>
@@ -726,25 +2290,77 @@ export default function EditorWorkspace({
                     <h2 className={styles.title}>Character Builder</h2>
 
                     <nav className={styles.nav}>
-                        {EDITOR_TABS.map((entry) => (
-                            <button
-                                key={entry.id}
-                                type={'button'}
-                                className={`${styles.navButton} ${
-                                    tab === entry.id ? styles.navButtonActive : ""
-                                }`}
-                                onClick={() => setTab(entry.id)}
-                            >
-                                {entry.label}
-                            </button>
-                        ))}
+                        {EDITOR_WORKSPACE_NAV_ITEMS.map((entry) => {
+                            const summary = summaryBySection.get(entry.id);
+                            const status = getEditorSectionSummaryStatus(summary);
+                            const tabStatusIcon = getEditorTabStatusIcon(status);
+
+                            return (
+                                <button
+                                    key={entry.id}
+                                    type={'button'}
+                                    className={`${styles.navButton} ${
+                                        tab === entry.id ? styles.navButtonActive : ""
+                                    }`}
+                                    onClick={() => setTab(entry.id)}
+                                    aria-label={summary ? `${entry.label}. ${status.label}.` : entry.label}
+                                >
+                                    <span className={styles.navButtonText}>{entry.label}</span>
+                                    {summary ? (
+                                        <span
+                                            className={`${styles.navStatus} ${
+                                                status.severity === "blocking"
+                                                    ? styles.navStatusBlocking
+                                                    : status.severity === "missing"
+                                                      ? styles.navStatusMissing
+                                                      : styles.navStatusComplete
+                                            }`}
+                                            title={status.label}
+                                            aria-hidden="true"
+                                        >
+                                            <i className={`fa-solid fa-${tabStatusIcon}`} aria-hidden="true" />
+                                            {status.count > 0 ? <span>{status.count}</span> : null}
+                                        </span>
+                                    ) : null}
+                                </button>
+                            );
+                        })}
                     </nav>
                 </aside>
             ) : null}
 
             <div className={styles.content}>
+                {showEditorBreadcrumb ? (
+                    <nav className={styles.editorBreadcrumb} aria-label="Editor location">
+                        <span className={styles.breadcrumbKicker}>You are here</span>
+                        <div className={styles.breadcrumbPath}>
+                            <span>{EDITOR_SECTION_LABELS[tab]}</span>
+                            {activeSubsection ? (
+                                <>
+                                    <span aria-hidden="true">/</span>
+                                    <strong>{activeSubsection.label}</strong>
+                                </>
+                            ) : null}
+                        </div>
+                        {sectionSubsections.length > 1 ? (
+                            <span className={styles.breadcrumbMeta}>
+                                Subsection {activeSubsectionIndex + 1} of {sectionSubsections.length}
+                            </span>
+                        ) : null}
+                        {activeSectionSummary ? (
+                            <span className={styles.breadcrumbCompletion}>
+                                {activeSectionSummary.configuredCount}/{activeSectionSummary.totalCount} complete
+                            </span>
+                        ) : null}
+                    </nav>
+                ) : null}
+
                 {tab === "identity" ? (
-                    <section className={styles.section}>
+                    <section
+                        className={styles.section}
+                        data-editor-section="identity"
+                        data-editor-subsection="basics"
+                    >
                         <header className={styles.sectionHeader}>
                             <div className={styles.sectionEyebrow}>Basics</div>
                             <h3>Identity</h3>
@@ -811,14 +2427,22 @@ export default function EditorWorkspace({
                 ) : null}
 
                 {tab === "origin" ? (
-                    <section className={styles.section}>
+                    <section
+                        className={styles.section}
+                        data-editor-section="origin"
+                        data-editor-subsection="origin-overview"
+                    >
                         <header className={styles.sectionHeader}>
                             <div className={styles.sectionEyebrow}>Background & Heritage</div>
                             <h3>Origin</h3>
                         </header>
 
                         <div className={styles.grid2}>
-                            <article className={styles.card}>
+                            <article
+                                className={styles.card}
+                                data-editor-section="origin"
+                                data-editor-subsection="profession"
+                            >
                                 <div className={styles.cardHeader}>
                                     <strong>Profession</strong>
                                     <button
@@ -861,55 +2485,67 @@ export default function EditorWorkspace({
                                         </select>
                                     </label>
 
-                                    <label className={styles.field}>
-                                        <span>Granted knack</span>
-                                        {sheet.originSelections?.profession?.knackNameOptions?.length ? (
-                                            <select
-                                                value={sheet.originSelections?.profession?.knackName ?? ""}
-                                                onChange={(e) =>
-                                                    patchOriginFacet("profession", { knackName: e.target.value || undefined })
-                                                }
-                                            >
-                                                <option value="">Choose knack...</option>
-                                                {sheet.originSelections.profession.knackNameOptions.map((knackName) => (
-                                                    <option key={`profession-knack-${knackName}`} value={knackName}>
-                                                        {knackName}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        ) : (
-                                            <input
-                                                value={sheet.originSelections?.profession?.knackName ?? ""}
-                                                onChange={(e) =>
-                                                    patchOriginFacet("profession", { knackName: e.target.value })
-                                                }
-                                            />
-                                        )}
-                                    </label>
-
-                                    <label className={styles.field}>
-                                        <span>Functional starting equipment</span>
-                                        {sheet.originSelections?.profession?.equipmentItems?.length ? (
-                                            <div className={styles.inlineCard}>
-                                                <ul className={styles.compactList}>
-                                                    {sheet.originSelections.profession.equipmentItems.map((item) => (
-                                                        <li key={`profession-equipment-${item}`}>{item}</li>
+                                    <AdvancedEditorPanel
+                                        id="origin-profession-details"
+                                        title="Advanced Details"
+                                        summary={professionAdvancedSummary}
+                                        open={isAdvancedPanelOpen("origin-profession-details")}
+                                        onToggle={toggleAdvancedPanel}
+                                    >
+                                        <label className={styles.field}>
+                                            <span>Granted knack</span>
+                                            {sheet.originSelections?.profession?.knackNameOptions?.length ? (
+                                                <select
+                                                    value={sheet.originSelections?.profession?.knackName ?? ""}
+                                                    onChange={(e) =>
+                                                        patchOriginFacet("profession", { knackName: e.target.value || undefined })
+                                                    }
+                                                >
+                                                    <option value="">Choose knack...</option>
+                                                    {sheet.originSelections.profession.knackNameOptions.map((knackName) => (
+                                                        <option key={`profession-knack-${knackName}`} value={knackName}>
+                                                            {knackName}
+                                                        </option>
                                                     ))}
-                                                </ul>
-                                            </div>
-                                        ) : (
-                                            <textarea
-                                                value={sheet.originSelections?.profession?.equipmentNote ?? ""}
-                                                onChange={(e) =>
-                                                    patchOriginFacet("profession", { equipmentNote: e.target.value })
-                                                }
-                                            />
-                                        )}
-                                    </label>
+                                                </select>
+                                            ) : (
+                                                <input
+                                                    value={sheet.originSelections?.profession?.knackName ?? ""}
+                                                    onChange={(e) =>
+                                                        patchOriginFacet("profession", { knackName: e.target.value })
+                                                    }
+                                                />
+                                            )}
+                                        </label>
+
+                                        <label className={styles.field}>
+                                            <span>Functional starting equipment</span>
+                                            {sheet.originSelections?.profession?.equipmentItems?.length ? (
+                                                <div className={styles.inlineCard}>
+                                                    <ul className={styles.compactList}>
+                                                        {sheet.originSelections.profession.equipmentItems.map((item) => (
+                                                            <li key={`profession-equipment-${item}`}>{item}</li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            ) : (
+                                                <textarea
+                                                    value={sheet.originSelections?.profession?.equipmentNote ?? ""}
+                                                    onChange={(e) =>
+                                                        patchOriginFacet("profession", { equipmentNote: e.target.value })
+                                                    }
+                                                />
+                                            )}
+                                        </label>
+                                    </AdvancedEditorPanel>
                                 </div>
                             </article>
 
-                            <article className={styles.card}>
+                            <article
+                                className={styles.card}
+                                data-editor-section="origin"
+                                data-editor-subsection="crux"
+                            >
                                 <div className={styles.cardHeader}>
                                     <strong>Crux</strong>
                                     <button
@@ -972,119 +2608,131 @@ export default function EditorWorkspace({
                                         </select>
                                     </label>
 
-                                    <label className={styles.field}>
-                                        <span>Granted knack</span>
-                                        {sheet.originSelections?.crux?.knackNameOptions?.length ? (
-                                            <select
-                                                value={sheet.originSelections?.crux?.knackName ?? ""}
-                                                onChange={(e) =>
-                                                    patchOriginFacet("crux", { knackName: e.target.value || undefined })
-                                                }
-                                            >
-                                                <option value="">Choose knack...</option>
-                                                {sheet.originSelections.crux.knackNameOptions.map((knackName) => (
-                                                    <option key={`crux-knack-${knackName}`} value={knackName}>
-                                                        {knackName}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        ) : (
-                                            <input
-                                                value={sheet.originSelections?.crux?.knackName ?? ""}
-                                                onChange={(e) =>
-                                                    patchOriginFacet("crux", { knackName: e.target.value })
-                                                }
-                                            />
-                                        )}
-                                    </label>
+                                    <AdvancedEditorPanel
+                                        id="origin-crux-details"
+                                        title="Advanced Details"
+                                        summary={cruxAdvancedSummary}
+                                        open={isAdvancedPanelOpen("origin-crux-details")}
+                                        onToggle={toggleAdvancedPanel}
+                                    >
+                                        <label className={styles.field}>
+                                            <span>Granted knack</span>
+                                            {sheet.originSelections?.crux?.knackNameOptions?.length ? (
+                                                <select
+                                                    value={sheet.originSelections?.crux?.knackName ?? ""}
+                                                    onChange={(e) =>
+                                                        patchOriginFacet("crux", { knackName: e.target.value || undefined })
+                                                    }
+                                                >
+                                                    <option value="">Choose knack...</option>
+                                                    {sheet.originSelections.crux.knackNameOptions.map((knackName) => (
+                                                        <option key={`crux-knack-${knackName}`} value={knackName}>
+                                                            {knackName}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <input
+                                                    value={sheet.originSelections?.crux?.knackName ?? ""}
+                                                    onChange={(e) =>
+                                                        patchOriginFacet("crux", { knackName: e.target.value })
+                                                    }
+                                                />
+                                            )}
+                                        </label>
 
-                                    <label className={styles.field}>
-                                        <span>Minor Goal</span>
-                                        {sheet.originSelections?.crux?.minorGoalLabelOptions?.length ? (
-                                            <select
-                                                value={sheet.originSelections?.crux?.minorGoalLabel ?? ""}
-                                                onChange={(e) =>
-                                                    patchOriginFacet("crux", { minorGoalLabel: e.target.value || undefined })
-                                                }
-                                            >
-                                                <option value="">Choose minor goal...</option>
-                                                {sheet.originSelections.crux.minorGoalLabelOptions.map((goalLabel) => (
-                                                    <option key={`crux-minor-${goalLabel}`} value={goalLabel}>
-                                                        {goalLabel}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        ) : (
-                                            <textarea
-                                                value={sheet.originSelections?.crux?.minorGoalLabel ?? ""}
-                                                onChange={(e) =>
-                                                    patchOriginFacet("crux", {
-                                                        minorGoalLabel: e.target.value,
-                                                    })
-                                                }
-                                            />
-                                        )}
-                                    </label>
+                                        <label className={styles.field}>
+                                            <span>Minor Goal</span>
+                                            {sheet.originSelections?.crux?.minorGoalLabelOptions?.length ? (
+                                                <select
+                                                    value={sheet.originSelections?.crux?.minorGoalLabel ?? ""}
+                                                    onChange={(e) =>
+                                                        patchOriginFacet("crux", { minorGoalLabel: e.target.value || undefined })
+                                                    }
+                                                >
+                                                    <option value="">Choose minor goal...</option>
+                                                    {sheet.originSelections.crux.minorGoalLabelOptions.map((goalLabel) => (
+                                                        <option key={`crux-minor-${goalLabel}`} value={goalLabel}>
+                                                            {goalLabel}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <textarea
+                                                    value={sheet.originSelections?.crux?.minorGoalLabel ?? ""}
+                                                    onChange={(e) =>
+                                                        patchOriginFacet("crux", {
+                                                            minorGoalLabel: e.target.value,
+                                                        })
+                                                    }
+                                                />
+                                            )}
+                                        </label>
 
-                                    <label className={styles.field}>
-                                        <span>Major Goal</span>
-                                        {sheet.originSelections?.crux?.majorGoalLabelOptions?.length ? (
-                                            <select
-                                                value={sheet.originSelections?.crux?.majorGoalLabel ?? ""}
-                                                onChange={(e) =>
-                                                    patchOriginFacet("crux", { majorGoalLabel: e.target.value || undefined })
-                                                }
-                                            >
-                                                <option value="">Choose major goal...</option>
-                                                {sheet.originSelections.crux.majorGoalLabelOptions.map((goalLabel) => (
-                                                    <option key={`crux-major-${goalLabel}`} value={goalLabel}>
-                                                        {goalLabel}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        ) : (
-                                            <textarea
-                                                value={sheet.originSelections?.crux?.majorGoalLabel ?? ""}
-                                                onChange={(e) =>
-                                                    patchOriginFacet("crux", {
-                                                        majorGoalLabel: e.target.value,
-                                                    })
-                                                }
-                                            />
-                                        )}
-                                    </label>
+                                        <label className={styles.field}>
+                                            <span>Major Goal</span>
+                                            {sheet.originSelections?.crux?.majorGoalLabelOptions?.length ? (
+                                                <select
+                                                    value={sheet.originSelections?.crux?.majorGoalLabel ?? ""}
+                                                    onChange={(e) =>
+                                                        patchOriginFacet("crux", { majorGoalLabel: e.target.value || undefined })
+                                                    }
+                                                >
+                                                    <option value="">Choose major goal...</option>
+                                                    {sheet.originSelections.crux.majorGoalLabelOptions.map((goalLabel) => (
+                                                        <option key={`crux-major-${goalLabel}`} value={goalLabel}>
+                                                            {goalLabel}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <textarea
+                                                    value={sheet.originSelections?.crux?.majorGoalLabel ?? ""}
+                                                    onChange={(e) =>
+                                                        patchOriginFacet("crux", {
+                                                            majorGoalLabel: e.target.value,
+                                                        })
+                                                    }
+                                                />
+                                            )}
+                                        </label>
 
-                                    <label className={styles.field}>
-                                        <span>Sentimental Equipment</span>
-                                        {sheet.originSelections?.crux?.equipmentNoteOptions?.length ? (
-                                            <select
-                                                value={sheet.originSelections?.crux?.equipmentNote ?? ""}
-                                                onChange={(e) =>
-                                                    patchOriginFacet("crux", { equipmentNote: e.target.value || undefined })
-                                                }
-                                            >
-                                                <option value="">Choose equipment...</option>
-                                                {sheet.originSelections.crux.equipmentNoteOptions.map((equipmentNote) => (
-                                                    <option key={`crux-equipment-${equipmentNote}`} value={equipmentNote}>
-                                                        {equipmentNote}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        ) : (
-                                            <textarea
-                                                value={sheet.originSelections?.crux?.equipmentNote ?? ""}
-                                                onChange={(e) =>
-                                                    patchOriginFacet("crux", {
-                                                        equipmentNote: e.target.value,
-                                                    })
-                                                }
-                                            />
-                                        )}
-                                    </label>
+                                        <label className={styles.field}>
+                                            <span>Sentimental Equipment</span>
+                                            {sheet.originSelections?.crux?.equipmentNoteOptions?.length ? (
+                                                <select
+                                                    value={sheet.originSelections?.crux?.equipmentNote ?? ""}
+                                                    onChange={(e) =>
+                                                        patchOriginFacet("crux", { equipmentNote: e.target.value || undefined })
+                                                    }
+                                                >
+                                                    <option value="">Choose equipment...</option>
+                                                    {sheet.originSelections.crux.equipmentNoteOptions.map((equipmentNote) => (
+                                                        <option key={`crux-equipment-${equipmentNote}`} value={equipmentNote}>
+                                                            {equipmentNote}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <textarea
+                                                    value={sheet.originSelections?.crux?.equipmentNote ?? ""}
+                                                    onChange={(e) =>
+                                                        patchOriginFacet("crux", {
+                                                            equipmentNote: e.target.value,
+                                                        })
+                                                    }
+                                                />
+                                            )}
+                                        </label>
+                                    </AdvancedEditorPanel>
                                 </div>
                             </article>
 
-                            <article className={styles.card}>
+                            <article
+                                className={styles.card}
+                                data-editor-section="origin"
+                                data-editor-subsection="descent"
+                            >
                                 <div className={styles.cardHeader}>
                                     <strong>Descent</strong>
                                     <button
@@ -1148,7 +2796,11 @@ export default function EditorWorkspace({
                                 </div>
                             </article>
 
-                            <article className={styles.card}>
+                            <article
+                                className={styles.card}
+                                data-editor-section="origin"
+                                data-editor-subsection="bloodline"
+                            >
                                 <div className={styles.cardHeader}>
                                     <strong>Bloodline</strong>
                                     <button
@@ -1238,7 +2890,11 @@ export default function EditorWorkspace({
                 ) : null}
 
                 {tab === "levels" ? (
-                    <section className={styles.section}>
+                    <section
+                        className={styles.section}
+                        data-editor-section="levels"
+                        data-editor-subsection="level-summary"
+                    >
                         <header className={styles.sectionHeader}>
                             <div className={styles.sectionEyebrow}>Archetype Leveling</div>
                             <h3>Levels</h3>
@@ -1337,11 +2993,37 @@ export default function EditorWorkspace({
                                 <p>Level 0 characters use a Mark pool of 1.</p>
                             </div>
                         ) : (
-                            <div className={styles.levelCardsGrid}>
+                            <div
+                                className={styles.levelCardsGrid}
+                                data-editor-section="levels"
+                                data-editor-subsection="archetypes"
+                            >
                                 {archetypeLevelGroups.map((archetype, archetypeIndex) => {
                                     const archetypeKey = archetype.id as ArchetypeKey;
                                     const expanded = expandedArchetypes.has(archetypeKey);
                                     const isFirstArchetype = archetypeIndex === 0;
+                                    const firstBoonConfiguredCount = isFirstArchetype
+                                        ? [
+                                            sheet.firstArchetypeBoons.domainId,
+                                            sheet.firstArchetypeBoons.skillIds[0],
+                                            sheet.firstArchetypeBoons.skillIds[1],
+                                            sheet.firstArchetypeBoons.heroicGoalLabel,
+                                        ].filter(Boolean).length
+                                        : 0;
+                                    const levelBoonConfiguredCount = archetype.levelRecords.reduce(
+                                        (total, level) =>
+                                            total +
+                                            (level.rewardChoice ? 1 : 0) +
+                                            (level.statIncrease ? 1 : 0),
+                                        0,
+                                    );
+                                    const levelBoonRequiredCount =
+                                        archetype.levelRecords.length * 2 +
+                                        (isFirstArchetype ? 4 : 0);
+                                    const levelBoonSummary = formatConfiguredSummary(
+                                        firstBoonConfiguredCount + levelBoonConfiguredCount,
+                                        levelBoonRequiredCount,
+                                    );
 
                                     return (
                                         <article
@@ -1399,7 +3081,10 @@ export default function EditorWorkspace({
                                                 aria-expanded={expanded}
                                                 onClick={() => toggleArchetypeExpanded(archetypeKey)}
                                             >
-                                                {expanded ? "Collapse Boons" : "Expand Boons"}
+                                                <span>{expanded ? "Collapse Boons" : "Expand Boons"}</span>
+                                                <small className={styles.expandButtonSummary}>
+                                                    {levelBoonSummary}
+                                                </small>
                                             </button>
 
                                             {expanded ? (
@@ -1641,148 +3326,573 @@ export default function EditorWorkspace({
                             <h3>Potentials</h3>
                         </header>
 
-                        <div className={styles.potentialGrid}>
-                            {sheet.potentials.map((potential) => {
-                                const totalScore = getPotentialTotalScore(potential);
-                                const perkFaces = getVisiblePerkFaces(potential);
+                        <section
+                            className={styles.potentialEditorSection}
+                            data-editor-section="potentials"
+                            data-editor-subsection="scores"
+                        >
+                            <header className={styles.cardHeader}>
+                                <strong>Scores and Volatility</strong>
+                            </header>
 
-                                return (
-                                    <article key={potential.key} className={`${styles.card} ${styles.potentialCard}`}>
-                                        <div className={styles.potentialHeaderRow}>
-                                            <strong>{potential.title}</strong>
+                            {[
+                                {
+                                    id: "physical",
+                                    keys: PHYSICAL_POTENTIAL_KEYS,
+                                },
+                                {
+                                    id: "mental",
+                                    keys: MENTAL_POTENTIAL_KEYS,
+                                },
+                            ].map((row) => (
+                                <div key={row.id} className={styles.potentialBand}>
+                                    <div className={styles.potentialRowGrid}>
+                                        {getPotentialsForRow(row.keys).map((potential) => {
+                                            const totalScore = getPotentialTotalScore(potential);
+                                            const legalVolatilityDice = getLegalVolatilityDice(totalScore);
 
-                                            <div className={styles.potentialHeaderActions}>
-                                                <button
-                                                    type="button"
-                                                    className={styles.smallButton}
-                                                    onClick={() => onRequestPotentialRoll?.(potential)}
+                                            return (
+                                                <article
+                                                    key={`${row.id}-${potential.key}`}
+                                                    className={styles.scorePotentialCard}
                                                 >
-                                                    Roll 3d4
-                                                </button>
-                                            </div>
-                                        </div>
+                                                    <div className={styles.potentialScoreHeader}>
+                                                        <strong>{potential.title}</strong>
+                                                        <span>D{potential.volatilityDieMax}</span>
+                                                    </div>
 
-                                        <div className={styles.potentialTopRow}>
-                                            <div className={styles.totalBlock}>
-                                                <span className={styles.totalLabel}>Total</span>
-                                                <strong className={styles.totalValue}>{totalScore}</strong>
+                                                    <div className={styles.scoreControlGrid}>
+                                                        <div className={styles.totalBlock}>
+                                                            <span className={styles.totalLabel}>Total</span>
+                                                            <strong className={styles.totalValue}>
+                                                                {totalScore}
+                                                            </strong>
+                                                        </div>
 
-                                                {potential.scoreBonuses?.length ? (
-                                                    <ul className={styles.bonusList}>
-                                                        {potential.scoreBonuses.map((bonus) => (
-                                                            <li key={bonus.id}>
-                                                                +{bonus.amount} from {bonus.label}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                ) : (
-                                                    <span className={styles.metaMuted}>No bonus sources.</span>
-                                                )}
-                                            </div>
+                                                        <label className={styles.compactField}>
+                                                            <span>Base</span>
+                                                            <input
+                                                                type="text"
+                                                                inputMode="numeric"
+                                                                pattern="[0-9]*"
+                                                                value={getPotentialBaseScoreInputValue(potential)}
+                                                                onChange={(e) =>
+                                                                    updatePotentialBaseScoreInput(
+                                                                        potential,
+                                                                        e.target.value,
+                                                                    )
+                                                                }
+                                                                onBlur={() =>
+                                                                    commitPotentialBaseScoreInput(potential)
+                                                                }
+                                                            />
+                                                        </label>
 
-                                            <label className={styles.compactField}>
-                                                <span>Base</span>
-                                                <input
-                                                    type="number"
-                                                    min={1}
-                                                    value={getPotentialBaseScore(potential)}
-                                                    onChange={(e) =>
-                                                        setPotentialBaseScore(
-                                                            potential.key,
-                                                            Number(e.target.value) || 1,
-                                                        )
-                                                    }
-                                                />
-                                            </label>
-
-                                            <label className={styles.compactField}>
-                                                <span>Volatility</span>
-                                                <select
-                                                    value={potential.volatilityDieMax}
-                                                    onChange={(e) =>
-                                                        setPotentialDie(
-                                                            potential.key,
-                                                            Number(e.target.value) as 4 | 6 | 8 | 10 | 12,
-                                                        )
-                                                    }
-                                                >
-                                                    <option value={4}>D4</option>
-                                                    <option value={6}>D6</option>
-                                                    <option value={8}>D8</option>
-                                                    <option value={10}>D10</option>
-                                                    <option value={12}>D12</option>
-                                                </select>
-                                            </label>
-                                        </div>
-
-                                        <div
-                                            className={styles.perkSlotList}
-                                            role="list"
-                                            aria-label={`${potential.title} volatility perk slots`}
-                                        >
-                                            {perkFaces.length === 0 ? (
-                                                <div className={styles.metaMuted}>
-                                                    No volatility perk slots are available at this score.
-                                                </div>
-                                            ) : (
-                                                perkFaces.map((face) => {
-                                                    const currentPerk = getPerkAtFace(potential, face);
-                                                    const slotOptions = getPerkSlotOptions(potential, face);
-                                                    const slotHint = getPerkSlotHint(potential, face);
-                                                    const disabled = !currentPerk && slotOptions.length === 0;
-
-                                                    return (
-                                                        <label
-                                                            key={`${potential.key}-perk-face-${face}`}
-                                                            className={styles.perkSlotRow}
-                                                            role="listitem"
-                                                        >
-                                                            <span className={styles.perkSlotFace}>
-                                                                Face {face}
-                                                                {face === potential.volatilityDieMax ? " · Max" : ""}
-                                                            </span>
-
+                                                        <label className={styles.compactField}>
+                                                            <span>Volatility</span>
                                                             <select
-                                                                value={currentPerk?.id ?? ""}
-                                                                aria-label={`${potential.title} face ${face} perk`}
-                                                                disabled={disabled}
-                                                                onChange={(e) => {
-                                                                    const nextPerkId = e.target.value as PerkId | "";
-                                                                    if (!nextPerkId) {
-                                                                        clearPotentialPerkFace(potential.key, face);
-                                                                        return;
-                                                                    }
-
-                                                                    setPotentialPerkFace(
+                                                                value={potential.volatilityDieMax}
+                                                                onChange={(e) =>
+                                                                    setPotentialDie(
                                                                         potential.key,
-                                                                        face,
-                                                                        nextPerkId,
-                                                                    );
-                                                                }}
+                                                                        Number(e.target.value) as VolatilityDieType,
+                                                                    )
+                                                                }
                                                             >
-                                                                <option value="">None</option>
-                                                                {slotOptions.map((perk) => (
-                                                                    <option key={perk.id} value={perk.id}>
-                                                                        {perk.name}
+                                                                {legalVolatilityDice.map((die) => (
+                                                                    <option
+                                                                        key={`${potential.key}-die-${die}`}
+                                                                        value={die}
+                                                                    >
+                                                                        D{die}
                                                                     </option>
                                                                 ))}
                                                             </select>
-
-                                                            <span className={styles.metaMuted}>
-                                                                {slotHint ??
-                                                                    (currentPerk
-                                                                        ? currentPerk.shortLabel ?? currentPerk.name
-                                                                        : "No perk assigned.")}
-                                                            </span>
                                                         </label>
-                                                    );
-                                                })
-                                            )}
+                                                    </div>
+
+                                                    {potential.scoreBonuses?.length ? (
+                                                        <ul className={styles.bonusList}>
+                                                            {potential.scoreBonuses.map((bonus) => (
+                                                                <li key={bonus.id}>
+                                                                    +{bonus.amount} from {bonus.label}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    ) : null}
+                                                </article>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </section>
+
+                        <section
+                            className={styles.potentialEditorSection}
+                            data-editor-section="potentials"
+                            data-editor-subsection="rolls"
+                        >
+                            <AdvancedEditorPanel
+                                id="potentials-rolls"
+                                title="Rolls"
+                                summary={potentialRollSummary}
+                                open={isAdvancedPanelOpen("potentials-rolls")}
+                                onToggle={toggleAdvancedPanel}
+                            >
+                            <header className={styles.cardHeader}>
+                                <strong>Rolls</strong>
+                                {!rollSession ? (
+                                    <button
+                                        type="button"
+                                        className={styles.smallButton}
+                                        onClick={() => setRollSession(createRollSession())}
+                                    >
+                                        <i className="fa-solid fa-dice" aria-hidden="true" />
+                                        Start Rolls
+                                    </button>
+                                ) : null}
+                            </header>
+
+                            {!rollSession ? (
+                                <div className={styles.inlineCard}>
+                                    <strong>No active potential rolls.</strong>
+                                </div>
+                            ) : (
+                                <article className={styles.rollSetCard}>
+                                    <div className={styles.rollSlotGrid}>
+                                        {rollSession.map((slot) => {
+                                            const potentialChoices = getAvailableRollPotentialOptions(slot.id);
+
+                                            return (
+                                                <section key={slot.id} className={styles.rollSlot}>
+                                                    <div className={styles.rollSlotHeader}>
+                                                        <strong>{slot.label}</strong>
+                                                        <button
+                                                            type="button"
+                                                            className={styles.secondaryButton}
+                                                            onClick={() => rollPotentialSlot(slot.id)}
+                                                        >
+                                                            <i className="fa-solid fa-dice-d6" aria-hidden="true" />
+                                                            Roll
+                                                        </button>
+                                                    </div>
+
+                                                    <div className={styles.rollResultBox}>
+                                                        <span>Score</span>
+                                                        <strong>{slot.total ?? "-"}</strong>
+                                                        <em>
+                                                            {slot.rolls.length
+                                                                ? `${slot.rolls.join(" + ")}; drop ${slot.dropped}`
+                                                                : "3d4 drop highest"}
+                                                        </em>
+                                                    </div>
+
+                                                    <label className={styles.compactField}>
+                                                        <span>Assign</span>
+                                                        <select
+                                                            value={slot.assignedPotentialKey}
+                                                            disabled={slot.total === null}
+                                                            onChange={(event) =>
+                                                                assignPotentialRoll(
+                                                                    slot.id,
+                                                                    event.target.value as PotentialKey | "",
+                                                                )
+                                                            }
+                                                        >
+                                                            <option value="">Choose potential...</option>
+                                                            {potentialChoices.map((potential) => (
+                                                                <option
+                                                                    key={`${slot.id}-${potential.key}`}
+                                                                    value={potential.key}
+                                                                >
+                                                                    {potential.title}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </label>
+                                                </section>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <footer className={styles.rollSetFooter}>
+                                        <button
+                                            type="button"
+                                            className={styles.secondaryButton}
+                                            onClick={resetPotentialRolls}
+                                        >
+                                            <i className="fa-solid fa-rotate-left" aria-hidden="true" />
+                                            Reset
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={styles.smallButton}
+                                            onClick={applyPotentialRolls}
+                                            disabled={
+                                                !rollSession.some(
+                                                    (slot) =>
+                                                        slot.assignedPotentialKey &&
+                                                        typeof slot.total === "number",
+                                                )
+                                            }
+                                        >
+                                            <i className="fa-solid fa-check" aria-hidden="true" />
+                                            Apply Scores
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={styles.removeButton}
+                                            onClick={() => {
+                                                setRollSession(null);
+                                                setRollRequest(null);
+                                            }}
+                                        >
+                                            <i className="fa-solid fa-trash" aria-hidden="true" />
+                                            Delete Rolls
+                                        </button>
+                                    </footer>
+                                </article>
+                            )}
+                            </AdvancedEditorPanel>
+                        </section>
+
+                        <section
+                            className={styles.potentialEditorSection}
+                            data-editor-section="potentials"
+                            data-editor-subsection="perks"
+                        >
+                            <AdvancedEditorPanel
+                                id="potentials-perks"
+                                title="Perks"
+                                summary={perkAdvancedSummary}
+                                open={isAdvancedPanelOpen("potentials-perks")}
+                                onToggle={toggleAdvancedPanel}
+                            >
+                            <header className={styles.cardHeader}>
+                                <strong>Perks</strong>
+                                <button
+                                    type="button"
+                                    className={styles.smallButton}
+                                    onClick={() => setPurchaseOpen((current) => !current)}
+                                >
+                                    <i className="fa-solid fa-bag-shopping" aria-hidden="true" />
+                                    Purchase
+                                </button>
+                            </header>
+
+                            {purchaseOpen ? (
+                                <div className={styles.purchasePanel}>
+                                    <div className={styles.purchaseSummary}>
+                                        <span>Experience</span>
+                                        <strong>{availableExperienceBeats} Beats</strong>
+                                    </div>
+
+                                    <div className={styles.purchaseGrid}>
+                                        {purchasablePerks.length === 0 ? (
+                                            <div className={styles.metaMuted}>
+                                                No purchasable perks are available.
+                                            </div>
+                                        ) : (
+                                            purchasablePerks.map((perk) => (
+                                                <article key={perk.id} className={styles.purchaseRow}>
+                                                    <div className={styles.purchaseText}>
+                                                        <strong>{perk.name}</strong>
+                                                        <span>{perk.description}</span>
+                                                    </div>
+
+                                                    <button
+                                                        type="button"
+                                                        className={styles.secondaryButton}
+                                                        disabled={availableExperienceBeats < perk.costBeats}
+                                                        onClick={() => purchasePerk(perk.id)}
+                                                    >
+                                                        Buy {perk.costBeats}
+                                                    </button>
+                                                </article>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            <div className={styles.perkInventoryPanel}>
+                                <header className={styles.cardHeader}>
+                                    <strong>Inventory</strong>
+                                    <span className={styles.perkInventoryCount}>
+                                        {inventoryAvailableCount} available
+                                    </span>
+                                </header>
+
+                                <div className={styles.perkInventoryGrid}>
+                                    {perkInventoryRows.length === 0 ? (
+                                        <div className={styles.metaMuted}>
+                                            No perks purchased or unlocked.
                                         </div>
-                                    </article>
-                                );
-                            })}
-                        </div>
+                                    ) : (
+                                        perkInventoryRows.map((row) => {
+                                            const hasAssignableSlot = sheet.potentials.some(
+                                                (potential) =>
+                                                    getAssignableFacesForInventoryRow(
+                                                        potential,
+                                                        row,
+                                                    ).length > 0,
+                                            );
+                                            const canAssign =
+                                                row.available > 0 &&
+                                                hasAssignableSlot &&
+                                                availableExperienceBeats >= row.assignmentCostBeats;
+
+                                            return (
+                                                <article
+                                                    key={getPerkInventoryRowKey(row)}
+                                                    className={styles.perkInventoryRow}
+                                                >
+                                                    <div className={styles.perkInventoryText}>
+                                                        <strong>{row.perk.name}</strong>
+                                                        <span>{row.sourceLabel}</span>
+                                                        <div className={styles.perkInventoryMeta}>
+                                                            <span>{row.available}/{row.total} available</span>
+                                                            <span>{getAssignmentCostLabel(row)}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <button
+                                                        type="button"
+                                                        className={styles.secondaryButton}
+                                                        disabled={!canAssign}
+                                                        onClick={() => openPerkAssignmentFromInventory(row)}
+                                                    >
+                                                        Assign
+                                                    </button>
+                                                </article>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+
+                            {perkAssignmentDraft ? (
+                                <div className={styles.perkAssignPanel}>
+                                    <label className={styles.compactField}>
+                                        <span>Source</span>
+                                        <select
+                                            value={
+                                                draftSourceRow
+                                                    ? getPerkInventoryRowKey(draftSourceRow)
+                                                    : ""
+                                            }
+                                            onChange={(event) =>
+                                                updatePerkAssignmentSource(event.target.value)
+                                            }
+                                        >
+                                            <option value="">Choose perk...</option>
+                                            {draftSourceOptions.map((row) => (
+                                                <option
+                                                    key={getPerkInventoryRowKey(row)}
+                                                    value={getPerkInventoryRowKey(row)}
+                                                >
+                                                    {getInventorySourceOptionLabel(row)}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </label>
+
+                                    <label className={styles.compactField}>
+                                        <span>Potential</span>
+                                        <select
+                                            value={perkAssignmentDraft.potentialKey}
+                                            disabled={!draftSourceRow}
+                                            onChange={(event) =>
+                                                updatePerkAssignmentPotential(
+                                                    event.target.value as PotentialKey | "",
+                                                )
+                                            }
+                                        >
+                                            <option value="">Choose potential...</option>
+                                            {draftPotentialOptions.map((potential) => (
+                                                <option key={potential.key} value={potential.key}>
+                                                    {potential.title}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </label>
+
+                                    <label className={styles.compactField}>
+                                        <span>Slot</span>
+                                        <select
+                                            value={perkAssignmentDraft.face}
+                                            disabled={!draftSourceRow || !perkAssignmentDraft.potentialKey}
+                                            onChange={(event) =>
+                                                setPerkAssignmentDraft({
+                                                    ...perkAssignmentDraft,
+                                                    face: event.target.value
+                                                        ? Number(event.target.value)
+                                                        : "",
+                                                })
+                                            }
+                                        >
+                                            <option value="">Choose slot...</option>
+                                            {draftFaceOptions.map((face) => (
+                                                <option key={face} value={face}>
+                                                    Face {face}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </label>
+
+                                    <div className={styles.perkAssignActions}>
+                                        <span>
+                                            {draftSourceRow
+                                                ? getAssignmentCostLabel(draftSourceRow)
+                                                : "Assign"}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            className={styles.smallButton}
+                                            disabled={!canAssignPerkDraft}
+                                            onClick={assignPerkDraft}
+                                        >
+                                            Assign
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {[
+                                {
+                                    id: "physical-perks",
+                                    keys: PHYSICAL_POTENTIAL_KEYS,
+                                },
+                                {
+                                    id: "mental-perks",
+                                    keys: MENTAL_POTENTIAL_KEYS,
+                                },
+                            ].map((row) => (
+                                <div key={row.id} className={styles.potentialBand}>
+                                    <div className={styles.potentialRowGrid}>
+                                        {getPotentialsForRow(row.keys).map((potential) => {
+                                            const totalScore = getPotentialTotalScore(potential);
+                                            const assignedPerks = getAssignedPerksForPotential(potential);
+                                            const assignableRows = getAssignableRowsForPotential(potential);
+                                            const draftOpen =
+                                                perkAssignmentDraft?.potentialKey === potential.key;
+
+                                            return (
+                                                <article
+                                                    key={`${row.id}-${potential.key}`}
+                                                    className={styles.perkPotentialCard}
+                                                >
+                                                    <div className={styles.potentialHeaderRow}>
+                                                        <div className={styles.perkPotentialTitle}>
+                                                            <strong>{potential.title}</strong>
+                                                            <span>D{potential.volatilityDieMax}</span>
+                                                        </div>
+
+                                                        <button
+                                                            type="button"
+                                                            className={styles.secondaryButton}
+                                                            disabled={assignableRows.length === 0}
+                                                            onClick={() =>
+                                                                draftOpen
+                                                                    ? setPerkAssignmentDraft(null)
+                                                                    : openPerkAssignmentForPotential(potential)
+                                                            }
+                                                        >
+                                                            <i className="fa-solid fa-plus" aria-hidden="true" />
+                                                            Add Perk
+                                                        </button>
+                                                    </div>
+
+                                                    <div
+                                                        className={styles.perkNodeTrack}
+                                                        aria-label={`${potential.title} perk slots`}
+                                                    >
+                                                        {getPerkTrackFaces(potential).map((face) => {
+                                                            const assignedPerk = getPerkAtFace(potential, face);
+                                                            const available = face <= Math.min(
+                                                                totalScore,
+                                                                potential.volatilityDieMax,
+                                                            );
+                                                            const charged =
+                                                                face === potential.volatilityDieMax &&
+                                                                assignedPerk?.id === "charge";
+
+                                                            return (
+                                                                <span
+                                                                    key={`${potential.key}-node-${face}`}
+                                                                    className={`${styles.perkNode} ${
+                                                                        assignedPerk ? styles.perkNodeFilled : ""
+                                                                    } ${available ? "" : styles.perkNodeLocked} ${
+                                                                        charged ? styles.perkNodeCharged : ""
+                                                                    }`}
+                                                                    title={
+                                                                        assignedPerk
+                                                                            ? `${face}: ${assignedPerk.name}`
+                                                                            : available
+                                                                              ? `${face}: available`
+                                                                              : `${face}: score locked`
+                                                                    }
+                                                                >
+                                                                    {face}
+                                                                </span>
+                                                            );
+                                                        })}
+                                                    </div>
+
+                                                    <div className={styles.assignedPerkList}>
+                                                        {assignedPerks.length === 0 ? (
+                                                            <span className={styles.metaMuted}>
+                                                                No assigned perks.
+                                                            </span>
+                                                        ) : (
+                                                            assignedPerks.map(({ face, perk }) => (
+                                                                <div
+                                                                    key={`${potential.key}-assigned-${face}`}
+                                                                    className={styles.assignedPerkRow}
+                                                                >
+                                                                    <span className={styles.perkFaceBadge}>
+                                                                        {face}
+                                                                    </span>
+                                                                    <div className={styles.assignedPerkText}>
+                                                                        <strong>{perk.name}</strong>
+                                                                        <span>
+                                                                            {getPerkAssignmentSourceAt(
+                                                                                potential.key,
+                                                                                face,
+                                                                            )?.sourceLabel ??
+                                                                                perk.shortLabel ??
+                                                                                perk.description}
+                                                                        </span>
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        className={styles.removeButton}
+                                                                        onClick={() =>
+                                                                            clearPotentialPerkFace(
+                                                                                potential.key,
+                                                                                face,
+                                                                            )
+                                                                        }
+                                                                        aria-label={`Remove ${perk.name} from ${potential.title}`}
+                                                                    >
+                                                                        <i
+                                                                            className="fa-solid fa-xmark"
+                                                                            aria-hidden="true"
+                                                                        />
+                                                                    </button>
+                                                                </div>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                </article>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                            </AdvancedEditorPanel>
+                        </section>
                     </section>
                 ) : null}
 
@@ -1793,7 +3903,11 @@ export default function EditorWorkspace({
                             <h3>Proficiencies</h3>
                         </header>
 
-                        <section className={styles.section}>
+                        <section
+                            className={styles.section}
+                            data-editor-section="proficiencies"
+                            data-editor-subsection="skills"
+                        >
                             <header className={styles.sectionHeader}>
                                 <div className={styles.sectionEyebrow}>Skills</div>
                                 <h4>Skill proficiencies by potential</h4>
@@ -1831,7 +3945,11 @@ export default function EditorWorkspace({
                         </section>
 
                         <div className={styles.grid2}>
-                            <article className={styles.card}>
+                            <article
+                                className={styles.card}
+                                data-editor-section="proficiencies"
+                                data-editor-subsection="domains"
+                            >
                                 <div className={styles.cardHeader}>
                                     <strong>Domains</strong>
                                 </div>
@@ -1861,7 +3979,11 @@ export default function EditorWorkspace({
                                 </div>
                             </article>
 
-                            <article className={styles.card}>
+                            <article
+                                className={styles.card}
+                                data-editor-section="proficiencies"
+                                data-editor-subsection="knacks"
+                            >
                                 <div className={styles.cardHeader}>
                                     <strong>Knacks</strong>
                                 </div>
@@ -1897,11 +4019,20 @@ export default function EditorWorkspace({
                 ) : null}
 
                 {tab === "abilities" ? (
-                    <EditorAbilitiesSection sheet={sheet} onChange={onChange} />
+                    <div
+                        data-editor-section="abilities"
+                        data-editor-subsection="assigned-abilities"
+                    >
+                        <EditorAbilitiesSection sheet={sheet} onChange={onChange} />
+                    </div>
                 ) : null}
 
                 {tab === "goals" ? (
-                    <section className={styles.section}>
+                    <section
+                        className={styles.section}
+                        data-editor-section="goals"
+                        data-editor-subsection="origin-linked-goals"
+                    >
                         <header className={styles.sectionHeader}>
                             <div className={styles.sectionEyebrow}>Story</div>
                             <h3>Goals</h3>
@@ -1953,7 +4084,12 @@ export default function EditorWorkspace({
                             </button>
 
                             {sheet.goals.map((goal: GoalState) => (
-                                <article key={goal.id} className={styles.card}>
+                                <article
+                                    key={goal.id}
+                                    className={styles.card}
+                                    data-editor-section="goals"
+                                    data-editor-subsection="custom-goals"
+                                >
                                     <div className={styles.grid4}>
                                         <label className={styles.field}>
                                             <span>Title</span>
@@ -1995,22 +4131,30 @@ export default function EditorWorkspace({
                                         <span>Reward: {REWARD_FROM_GOAL.get(goal.tier)}</span>
                                     </div>
 
-                                    <label className={styles.field}>
-                                        <span>Notes</span>
-                                        <textarea
-                                            value={goal.notes ?? ""}
-                                            onChange={(e) => {
-                                                onChange({
-                                                    ...sheet,
-                                                    goals: sheet.goals.map((entry) =>
-                                                        entry.id === goal.id
-                                                            ? { ...entry, notes: e.target.value || undefined }
-                                                            : entry,
-                                                    ),
-                                                })
-                                            }}
-                                        />
-                                    </label>
+                                    <AdvancedEditorPanel
+                                        id={`goal-${goal.id}-notes`}
+                                        title="Optional Notes"
+                                        summary={goal.notes?.trim() ? "Notes set" : "No notes"}
+                                        open={isAdvancedPanelOpen(`goal-${goal.id}-notes`)}
+                                        onToggle={toggleAdvancedPanel}
+                                    >
+                                        <label className={styles.field}>
+                                            <span>Notes</span>
+                                            <textarea
+                                                value={goal.notes ?? ""}
+                                                onChange={(e) => {
+                                                    onChange({
+                                                        ...sheet,
+                                                        goals: sheet.goals.map((entry) =>
+                                                            entry.id === goal.id
+                                                                ? { ...entry, notes: e.target.value || undefined }
+                                                                : entry,
+                                                        ),
+                                                    })
+                                                }}
+                                            />
+                                        </label>
+                                    </AdvancedEditorPanel>
                                 </article>
                             ))}
                         </div>
@@ -2018,6 +4162,120 @@ export default function EditorWorkspace({
                 ) : null}
             </div>
         </section>
+
+        {showEditorBreadcrumb ? (
+            <button
+                type="button"
+                ref={summaryTrayToggleRef}
+                className={`${styles.summaryTrayToggle} ${summaryTrayStatus.tone}`}
+                onClick={() => setSummaryTrayOpen(true)}
+                aria-label={`Open character readiness details. ${summaryTrayStatus.label}.`}
+                aria-expanded={summaryTrayOpen}
+                aria-controls="editor-readiness-tray"
+                title={summaryTrayStatus.label}
+            >
+                <i className={`fa-solid fa-${summaryTrayStatus.icon}`} aria-hidden="true" />
+                {unresolvedIssueCount > 0 ? <strong>{unresolvedIssueCount}</strong> : null}
+            </button>
+        ) : null}
+
+        <SideTray
+            open={summaryTrayOpen && showEditorBreadcrumb}
+            onClose={closeSummaryTray}
+            title="Readiness"
+            eyebrow="Character Status"
+            id="editor-readiness-tray"
+            side="right"
+            width="min(440px, 94vw)"
+            ariaLabel="Character readiness details"
+        >
+            <div className={styles.summaryTrayBody} ref={summaryTrayBodyRef}>
+                <div className={styles.summaryTrayOverview}>
+                    <strong>{summaryTrayStatus.label}</strong>
+                    <span>
+                        {sectionSummaries.filter((summary) => summary.issues.length === 0).length}/
+                        {sectionSummaries.length} sections clear
+                    </span>
+                </div>
+
+                <div className={styles.summaryTraySectionList}>
+                    {sectionSummaries.map((summary) => {
+                        const status = getEditorSectionSummaryStatus(summary);
+
+                        return (
+                            <section key={summary.id} className={styles.summaryTraySection}>
+                                <button
+                                    type="button"
+                                    className={styles.summaryTraySectionHeader}
+                                    onClick={() => jumpFromSummaryTray(summary.id)}
+                                >
+                                    <span>
+                                        <strong>{summary.label}</strong>
+                                        <small>
+                                            {summary.configuredCount}/{summary.totalCount} choices complete
+                                        </small>
+                                    </span>
+                                    <span
+                                        className={`${styles.summaryTrayStatus} ${
+                                            status.severity === "blocking"
+                                                ? styles.summaryTrayStatusBlocking
+                                                : status.severity === "missing"
+                                                  ? styles.summaryTrayStatusMissing
+                                                  : styles.summaryTrayStatusComplete
+                                        }`}
+                                        title={status.label}
+                                    >
+                                        <i className={`fa-solid fa-${status.icon}`} aria-hidden="true" />
+                                        {status.count > 0 ? <span>{status.count}</span> : null}
+                                    </span>
+                                </button>
+
+                                {renderSummaryQuickEdits(summary.id)}
+
+                                <div className={styles.summaryTrayIssues}>
+                                    {summary.issues.length > 0 ? (
+                                        summary.issues.map((issue) => (
+                                            <button
+                                                key={issue.id}
+                                                type="button"
+                                                className={styles.summaryTrayIssueButton}
+                                                onClick={() =>
+                                                    jumpFromSummaryTray(
+                                                        issue.sectionId,
+                                                        issue.subsectionId,
+                                                    )
+                                                }
+                                            >
+                                                <i
+                                                    className={`fa-solid fa-${
+                                                        issue.severity === "blocking"
+                                                            ? "triangle-exclamation"
+                                                            : "circle-exclamation"
+                                                    }`}
+                                                    aria-hidden="true"
+                                                />
+                                                <span>{issue.label}</span>
+                                            </button>
+                                        ))
+                                    ) : (
+                                        <span className={styles.summaryTrayEmpty}>
+                                            {summary.totalCount === 0 ? summary.emptyText : "No missing items."}
+                                        </span>
+                                    )}
+                                </div>
+                            </section>
+                        );
+                    })}
+                </div>
+            </div>
+        </SideTray>
+
+        <BuilderPotentialRoller
+            request={rollRequest}
+            open={Boolean(rollRequest)}
+            onClose={() => setRollRequest(null)}
+            onApply={applyPotentialSlotRoll}
+        />
 
         {originPickerFacet ? (
             <div className={styles.modalBackdrop}>

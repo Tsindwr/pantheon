@@ -23,6 +23,27 @@ import type {
 export type BuilderView = "tree" | "card";
 export type SidebarMode = "palette" | "inspector";
 
+export type AbilityBuilderValidationSeverity = "blocking" | "warning" | "note";
+
+export type AbilityBuilderValidationIssue = {
+    id: string;
+    severity: AbilityBuilderValidationSeverity;
+    source: "rules" | "budget" | "card" | "publish";
+    message: string;
+    actionLabel: string;
+    targetView?: BuilderView;
+    targetSidebarMode?: SidebarMode;
+    targetPaletteId?: string;
+    targetNodeId?: string;
+};
+
+export type AbilityBuilderValidationSummary = {
+    issues: AbilityBuilderValidationIssue[];
+    blocking: AbilityBuilderValidationIssue[];
+    warnings: AbilityBuilderValidationIssue[];
+    notes: AbilityBuilderValidationIssue[];
+};
+
 export type AbilityBuilderContextValue = {
     builderView: BuilderView;
     setBuilderView: React.Dispatch<React.SetStateAction<BuilderView>>;
@@ -55,6 +76,8 @@ export type AbilityBuilderContextValue = {
     onUndo: () => void;
     onRedo: () => void;
     cardIssues: AbilityCardValidationIssue[];
+    validationSummary: AbilityBuilderValidationSummary;
+    nodeValidationIssuesById: Record<string, AbilityBuilderValidationIssue[]>;
     nodes: AbilityBuilderNode[];
     edges: Edge[];
     nodeTypes: NodeTypes;

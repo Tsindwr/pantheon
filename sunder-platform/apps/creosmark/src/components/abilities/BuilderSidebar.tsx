@@ -25,6 +25,8 @@ export default function BuilderSidebar() {
         updateSelectedFreeform,
         updateModifierSelection,
         updateModifierOption,
+        setSelectedEdgeId,
+        setSelectedNodeId,
         summary,
         hasInvalidState,
         cardState,
@@ -41,7 +43,11 @@ export default function BuilderSidebar() {
                     <button
                         type="button"
                         className={`${styles.sidebarTab} ${sidebarMode === "palette" ? styles.sidebarTabActive : ""}`}
-                        onClick={() => setSidebarMode("palette")}
+                        onClick={() => {
+                            setSelectedNodeId(null);
+                            setSelectedEdgeId(null);
+                            setSidebarMode("palette");
+                        }}
                     >
                         Palette
                     </button>
@@ -181,6 +187,29 @@ export default function BuilderSidebar() {
 
                                 {selectedNode ? (
                                     <>
+                                        <div className={styles.sidebarSection}>
+                                            <div className={styles.eyebrow}>Rule Checks</div>
+                                            <div className={styles.warningList}>
+                                                {summary.warnings.length > 0 ? (
+                                                    summary.warnings.map((warning) => (
+                                                        <div key={warning} className={styles.warning}>
+                                                            {warning}
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div className={styles.okay}>
+                                                        No obvious structural warnings yet.
+                                                    </div>
+                                                )}
+
+                                                {summary.notes.map((note) => (
+                                                    <div key={note} className={styles.note}>
+                                                        {note}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
                                         {selectedNode.type === "abilityRoot" ? (
                                             <AbilityRootInspector
                                                 node={selectedNode}
@@ -211,29 +240,6 @@ export default function BuilderSidebar() {
                                                 onChange={updateSelectedFreeform}
                                             />
                                         ) : null}
-
-                                        <div className={styles.sidebarSection}>
-                                            <div className={styles.eyebrow}>Rule Checks</div>
-                                            <div className={styles.warningList}>
-                                                {summary.warnings.length > 0 ? (
-                                                    summary.warnings.map((warning) => (
-                                                        <div key={warning} className={styles.warning}>
-                                                            {warning}
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <div className={styles.okay}>
-                                                        No obvious structural warnings yet.
-                                                    </div>
-                                                )}
-
-                                                {summary.notes.map((note) => (
-                                                    <div key={note} className={styles.note}>
-                                                        {note}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
                                     </>
                                 ) : (
                                     <div className={styles.emptyInspector}>No node selected.</div>

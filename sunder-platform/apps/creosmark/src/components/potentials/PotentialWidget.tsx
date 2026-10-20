@@ -90,14 +90,15 @@ function describeArc(cx: number, cy: number, r: number, startDeg: number, endDeg
 
 function useLongPress(thresholdMs = 450) {
   const timer = useRef<number | null>(null);
-  const [fired, setFired] = useState(false);
+  const firedRef = useRef(false);
 
   const start = useCallback(
     (fn: () => void) => {
-      setFired(false);
+      firedRef.current = false;
       if (timer.current) window.clearTimeout(timer.current);
       timer.current = window.setTimeout(() => {
-        setFired(true);
+        firedRef.current = true;
+        timer.current = null;
         fn();
       }, thresholdMs);
     },
@@ -109,7 +110,9 @@ function useLongPress(thresholdMs = 450) {
     timer.current = null;
   }, []);
 
-  return { start, cancel, fired };
+  const didFire = useCallback(() => firedRef.current, []);
+
+  return { start, cancel, didFire };
 }
 
 function getColorInputValue(color?: string): string {
@@ -685,7 +688,7 @@ export default function PotentialWidget({
     }
   }, [onChange, safeStress, safeResist, activeSlots, commit]);
 
-  const { start: startLongPress, cancel: cancelLongPress, fired } = useLongPress(450);
+  const { start: startLongPress, cancel: cancelLongPress, didFire: didLongPressFire } = useLongPress(450);
 
   const titleY = cy + size * 0.225;
   const scoreY = cy + 6;
@@ -911,8 +914,9 @@ export default function PotentialWidget({
         }}
         onPointerUp={() => {
           if (!onChange) return;
+          const longPressFired = didLongPressFire();
           cancelLongPress();
-          if (!fired) addStress();
+          if (!longPressFired) addStress();
         }}
         onPointerCancel={() => cancelLongPress()}
       >

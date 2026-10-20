@@ -619,6 +619,86 @@
     transform: translateY(0) scale(0.98);
 }
 
+.nodeValidationBadge {
+    position: absolute;
+    top: -0.65rem;
+    right: 1.55rem;
+    z-index: 7;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.18rem;
+
+    min-width: 2rem;
+    height: 2rem;
+    padding: 0 0.42rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
+    cursor: pointer;
+}
+
+.nodeValidationBadge i {
+    font-size: 0.92rem;
+    line-height: 1;
+    -webkit-text-stroke: 0.38px currentColor;
+    text-shadow: 0 0 8px color-mix(in srgb, currentColor 46%, transparent);
+}
+
+.nodeValidationBadge strong {
+    color: rgba(255, 255, 255, 0.96);
+    font-size: 0.68rem;
+    font-weight: 950;
+    line-height: 1;
+}
+
+.nodeValidationBadgeBlocking {
+    border-color: rgba(255, 83, 83, 0.62);
+    background: linear-gradient(180deg, rgba(116, 26, 34, 0.98), rgba(61, 15, 22, 0.98));
+    color: #ff5353;
+}
+
+.nodeValidationBadgeWarning {
+    border-color: rgba(255, 209, 77, 0.52);
+    background: linear-gradient(180deg, rgba(113, 80, 18, 0.98), rgba(55, 37, 12, 0.98));
+    color: #ffd14d;
+}
+
+.nodeValidationTooltip {
+    position: absolute;
+    top: calc(100% + 0.42rem);
+    right: 0;
+    width: min(18rem, 76vw);
+    display: none;
+    gap: 0.32rem;
+    padding: 0.55rem 0.62rem;
+    border-radius: 0.68rem;
+    border: 1px solid rgba(210, 178, 76, 0.28);
+    background: rgba(8, 10, 16, 0.98);
+    color: rgba(245, 247, 251, 0.9);
+    font-size: 0.76rem;
+    font-weight: 750;
+    line-height: 1.25;
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.38);
+    pointer-events: none;
+}
+
+.nodeValidationTooltip span {
+    display: block;
+}
+
+.nodeValidationBadge:hover,
+.nodeValidationBadge:focus-visible {
+    outline: none;
+    transform: translateY(-1px) scale(1.03);
+}
+
+.nodeValidationBadge:hover .nodeValidationTooltip,
+.nodeValidationBadge:focus-visible .nodeValidationTooltip {
+    display: grid;
+}
+
 .sidebarTabLabel {
     display: inline-flex;
     align-items: center;

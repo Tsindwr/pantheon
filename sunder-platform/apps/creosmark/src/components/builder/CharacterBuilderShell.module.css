@@ -118,6 +118,9 @@
 
 .step {
     min-height: 2.4rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
     padding: 0.6rem 0.95rem;
     border-radius: 999px;
     border: 1px solid rgba(255,255,255,0.08);
@@ -126,6 +129,57 @@
     font: inherit;
     font-weight: 800;
     cursor: pointer;
+}
+
+.stepText {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.stepStatus {
+    min-width: 1.35rem;
+    height: 1.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.22rem;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    font-size: 0.66rem;
+    font-weight: 900;
+}
+
+.stepStatus i {
+    font-size: 0.76rem;
+    line-height: 1;
+    -webkit-text-stroke: 0.42px currentColor;
+    text-shadow: 0 0 7px color-mix(in srgb, currentColor 42%, transparent);
+}
+
+.stepStatus span {
+    color: rgba(255, 255, 255, 0.94);
+    line-height: 1;
+}
+
+.stepStatusComplete {
+    border-color: rgba(69, 234, 169, 0.38);
+    background: rgba(18, 89, 66, 0.74);
+    color: #45eaa9;
+}
+
+.stepStatusMissing {
+    border-color: rgba(255, 209, 77, 0.42);
+    background: rgba(113, 80, 18, 0.76);
+    color: #ffd14d;
+}
+
+.stepStatusBlocking {
+    border-color: rgba(255, 83, 83, 0.5);
+    background: rgba(116, 26, 34, 0.78);
+    color: #ff5353;
 }
 
 .stepActive {

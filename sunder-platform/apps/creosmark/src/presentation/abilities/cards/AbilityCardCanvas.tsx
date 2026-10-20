@@ -9,6 +9,7 @@ type Props = {
     title: string;
     subtitle?: string;
     onCardStateChange: (next: AbilityCardState) => void;
+    initialPreviewMode?: "edit" | "preview";
     canUndo?: boolean;
     canRedo?: boolean;
     onUndo?: () => void;
@@ -21,12 +22,13 @@ export default function AbilityCardCanvas({
     title,
     subtitle,
     onCardStateChange,
+    initialPreviewMode = "edit",
     canUndo = false,
     canRedo = false,
     onUndo,
     onRedo,
 }: Props) {
-    const [previewMode, setPreviewMode] = useState<"edit" | "preview">("edit");
+    const [previewMode, setPreviewMode] = useState<"edit" | "preview">(initialPreviewMode);
 
     return (
         <div className={styles.cardCanvasWorkspace}>

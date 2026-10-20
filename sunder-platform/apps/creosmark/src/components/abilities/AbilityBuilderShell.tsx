@@ -5,6 +5,7 @@ import styles from "./AbilityBuilderShell.module.css";
 import { ARCHETYPES } from "../../lib/sheet-data.ts";
 import type {
     AbilityBuilderNode,
+    AbilityCardValidationIssue,
     AbilityCardState,
     AbilitySummary,
     ModifierNodeType,
@@ -15,6 +16,7 @@ import {
     computeAbilitySummary,
     createDefaultAbilityCardState,
     normalizeAbilityCardState,
+    resolveModifierData,
 } from "../../domain";
 import { exportBlueprintJson, importBlueprintJson } from "../../application";
 import {
@@ -33,7 +35,12 @@ import ModifierNode from "../../presentation/abilities/nodes/ModifierNode";
 import AbilityReferencePickerFacade from "../../presentation/abilities/prerequisite/AbilityReferencePickerFacade";
 import {
     AbilityBuilderProvider,
+    type AbilityBuilderValidationIssue,
+    type AbilityBuilderValidationSeverity,
+    type AbilityBuilderValidationSummary,
+    type BuilderView,
     type AbilityBuilderContextValue,
+    type SidebarMode,
 } from "./AbilityBuilderContext";
 import BuilderSidebar from "./BuilderSidebar";
 import BuilderWorkspace from "./BuilderWorkspace";
@@ -130,8 +137,15 @@ function validateBudgetConstraint(
     };
 }
 
-function getTemporaryOriginPrerequisiteWarnings(nodes: AbilityBuilderNode[]): string[] {
-    const titles = new Set<string>();
+type TemporaryOriginPrerequisiteTarget = {
+    nodeId: string;
+    title: string;
+};
+
+function getTemporaryOriginPrerequisiteTargets(
+    nodes: AbilityBuilderNode[],
+): TemporaryOriginPrerequisiteTarget[] {
+    const targets = new Map<string, TemporaryOriginPrerequisiteTarget>();
 
     for (const node of nodes) {
         if (
@@ -150,18 +164,349 @@ function getTemporaryOriginPrerequisiteWarnings(nodes: AbilityBuilderNode[]): st
 
         if (!isTemporary) continue;
 
-        titles.add(
-            selection?.prerequisiteOriginTitle?.trim() ||
-            originId ||
-            "Draft Bloodline",
+        targets.set(node.id, {
+            nodeId: node.id,
+            title:
+                selection?.prerequisiteOriginTitle?.trim() ||
+                originId ||
+                "Draft Bloodline",
+        });
+    }
+
+    return Array.from(targets.values());
+}
+
+function getTemporaryOriginPrerequisiteWarnings(nodes: AbilityBuilderNode[]): string[] {
+    const targets = getTemporaryOriginPrerequisiteTargets(nodes);
+    if (targets.length === 0) return [];
+
+    return targets.map(
+        (target) =>
+            `Resolve the draft Bloodline prerequisite (${target.title}) before uploading. Save the Bloodline, then reselect it from the prerequisite picker.`,
+    );
+}
+
+type AbilityBuilderValidationModelInput = {
+    nodes: AbilityBuilderNode[];
+    summary: AbilitySummary;
+    budgetValidation: ReturnType<typeof validateBudgetConstraint>;
+    cardIssues: AbilityCardValidationIssue[];
+};
+
+function createValidationIssue(args: {
+    id: string;
+    severity: AbilityBuilderValidationSeverity;
+    source: AbilityBuilderValidationIssue["source"];
+    message: string;
+    actionLabel: string;
+    targetView?: BuilderView;
+    targetSidebarMode?: SidebarMode;
+    targetPaletteId?: string;
+    targetNodeId?: string;
+}): AbilityBuilderValidationIssue {
+    return args;
+}
+
+function getModifierEntries(nodes: AbilityBuilderNode[]) {
+    return nodes
+        .filter((node): node is ModifierNodeType => node.type === "marketModifier")
+        .map((node) => ({
+            node,
+            resolved: resolveModifierData(node.data),
+        }));
+}
+
+function findActivationTypeNodeId(
+    modifierEntries: ReturnType<typeof getModifierEntries>,
+): string | undefined {
+    return modifierEntries.find(
+        (entry) =>
+            entry.node.data.optionPoolId === "activationType" ||
+            entry.resolved.label.startsWith("Activation ·") ||
+            entry.resolved.label.startsWith("Activate ·"),
+    )?.node.id;
+}
+
+function findSummaryWarning(
+    summary: AbilitySummary,
+    predicate: (message: string) => boolean,
+): string | undefined {
+    return summary.warnings.find(predicate);
+}
+
+function deriveTargetedRuleIssues(
+    nodes: AbilityBuilderNode[],
+    summary: AbilitySummary,
+): {
+    issues: AbilityBuilderValidationIssue[];
+    coveredMessages: Set<string>;
+} {
+    const issues: AbilityBuilderValidationIssue[] = [];
+    const coveredMessages = new Set<string>();
+    const modifierEntries = getModifierEntries(nodes);
+
+    function addNodeIssue(
+        message: string | undefined,
+        nodeId: string | undefined,
+        actionLabel: string,
+    ) {
+        if (!message || !nodeId) return;
+        coveredMessages.add(message);
+        issues.push(
+            createValidationIssue({
+                id: `rules.${nodeId}.${issues.length}`,
+                severity: "blocking",
+                source: "rules",
+                message,
+                actionLabel,
+                targetView: "tree",
+                targetSidebarMode: "inspector",
+                targetNodeId: nodeId,
+            }),
         );
     }
 
-    if (titles.size === 0) return [];
+    const actionFocusWarning = findSummaryWarning(
+        summary,
+        (message) => message === "Action cards need a real Focus before the Flipside budget means anything.",
+    );
+    addNodeIssue(
+        actionFocusWarning,
+        findActivationTypeNodeId(modifierEntries),
+        "Review activation type",
+    );
 
-    return [
-        `Resolve the draft Bloodline prerequisite (${Array.from(titles).join(", ")}) before uploading. Save the Bloodline, then reselect it from the prerequisite picker.`,
-    ];
+    const flipsideBudgetWarning = findSummaryWarning(
+        summary,
+        (message) => message.startsWith("Flipside total cost"),
+    );
+    const firstFlipsideNode = modifierEntries.find(
+        (entry) => entry.resolved.lane === "flipside",
+    )?.node;
+    addNodeIssue(flipsideBudgetWarning, firstFlipsideNode?.id, "Review flipside cost");
+
+    const flipsideEnhancementWarning = findSummaryWarning(
+        summary,
+        (message) => message.startsWith("Flipside Enhancements"),
+    );
+    const firstFlipsideEnhancementNode = modifierEntries.find(
+        (entry) =>
+            entry.resolved.lane === "flipside" &&
+            entry.resolved.cost.enhancements > 0,
+    )?.node;
+    addNodeIssue(flipsideEnhancementWarning, firstFlipsideEnhancementNode?.id, "Review enhancements");
+
+    const duplicateResetWarning = findSummaryWarning(
+        summary,
+        (message) => message.startsWith("Multiple reset conditions are present."),
+    );
+    if (duplicateResetWarning) {
+        const resetNodes = modifierEntries.filter(
+            (entry) =>
+                entry.node.data.optionPoolId === "resetCondition" ||
+                entry.resolved.label.startsWith("Reset ·"),
+        );
+        resetNodes.forEach((entry) =>
+            addNodeIssue(duplicateResetWarning, entry.node.id, "Review reset condition"),
+        );
+    }
+
+    const duplicateActivationWarning = findSummaryWarning(
+        summary,
+        (message) => message.startsWith("Multiple activation types are present."),
+    );
+    if (duplicateActivationWarning) {
+        const activationNodes = modifierEntries.filter(
+            (entry) =>
+                entry.node.data.optionPoolId === "activationType" ||
+                entry.resolved.label.startsWith("Activation ·"),
+        );
+        activationNodes.forEach((entry) =>
+            addNodeIssue(duplicateActivationWarning, entry.node.id, "Review activation type"),
+        );
+    }
+
+    const utilityWarning = findSummaryWarning(
+        summary,
+        (message) => message.startsWith("Three or more Utility Narrative Weights are present."),
+    );
+    if (utilityWarning) {
+        modifierEntries
+            .filter((entry) => entry.resolved.label === "Narrative · Utility")
+            .forEach((entry) =>
+                addNodeIssue(utilityWarning, entry.node.id, "Review utility weight"),
+            );
+    }
+
+    const spellConsequenceWarning = findSummaryWarning(
+        summary,
+        (message) => message === "Spell reset is present without any consequence block.",
+    );
+    if (spellConsequenceWarning) {
+        modifierEntries
+            .filter((entry) => entry.resolved.label.includes("Reset · Spell"))
+            .forEach((entry) =>
+                addNodeIssue(spellConsequenceWarning, entry.node.id, "Add consequence"),
+            );
+    }
+
+    const testRequiredWarning = findSummaryWarning(
+        summary,
+        (message) => message.startsWith("Spells and attacks already require a Test."),
+    );
+    if (testRequiredWarning) {
+        modifierEntries
+            .filter(
+                (entry) =>
+                    entry.resolved.label === "Caveat · Test Required" &&
+                    (
+                        entry.resolved.cost.strings < 0 ||
+                        entry.resolved.cost.beats < 0 ||
+                        entry.resolved.cost.enhancements < 0
+                    ),
+            )
+            .forEach((entry) =>
+                addNodeIssue(testRequiredWarning, entry.node.id, "Review caveat discount"),
+            );
+    }
+
+    return { issues, coveredMessages };
+}
+
+function deriveAbilityBuilderValidationSummary({
+    nodes,
+    summary,
+    budgetValidation,
+    cardIssues,
+}: AbilityBuilderValidationModelInput): AbilityBuilderValidationSummary {
+    const issues: AbilityBuilderValidationIssue[] = [];
+    const seen = new Set<string>();
+
+    function addIssue(issue: AbilityBuilderValidationIssue) {
+        const dedupeKey = `${issue.severity}:${issue.message}:${issue.targetNodeId ?? "global"}`;
+        if (seen.has(dedupeKey)) return;
+        seen.add(dedupeKey);
+        issues.push(issue);
+    }
+
+    if (
+        summary.actionEconomyId === "unknown" ||
+        summary.resetConditionId === "unknown"
+    ) {
+        addIssue(
+            createValidationIssue({
+                id: "publish.activation-reset",
+                severity: "blocking",
+                source: "publish",
+                message:
+                    "Add one action economy modifier and one reset condition modifier before publishing.",
+                actionLabel: "Open activation palette",
+                targetView: "tree",
+                targetSidebarMode: "palette",
+                targetPaletteId: "activation",
+            }),
+        );
+    }
+
+    const targetedRuleIssues = deriveTargetedRuleIssues(nodes, summary);
+    targetedRuleIssues.issues.forEach(addIssue);
+
+    summary.warnings.forEach((message, index) => {
+        if (targetedRuleIssues.coveredMessages.has(message)) return;
+
+        addIssue(
+            createValidationIssue({
+                id: `rules.warning.${index}`,
+                severity: "blocking",
+                source: "rules",
+                message,
+                actionLabel: "Review graph rules",
+                targetView: "tree",
+                targetSidebarMode: "palette",
+            }),
+        );
+    });
+
+    budgetValidation.warnings.forEach((message, index) => {
+        addIssue(
+            createValidationIssue({
+                id: `budget.warning.${index}`,
+                severity: "blocking",
+                source: "budget",
+                message,
+                actionLabel: "Review budget",
+                targetView: "tree",
+            }),
+        );
+    });
+
+    getTemporaryOriginPrerequisiteTargets(nodes).forEach((target) => {
+        addIssue(
+            createValidationIssue({
+                id: `publish.temporary-origin.${target.nodeId}`,
+                severity: "blocking",
+                source: "publish",
+                message:
+                    `Resolve the draft Bloodline prerequisite (${target.title}) before uploading. ` +
+                    "Save the Bloodline, then reselect it from the prerequisite picker.",
+                actionLabel: "Select prerequisite",
+                targetView: "tree",
+                targetSidebarMode: "inspector",
+                targetNodeId: target.nodeId,
+            }),
+        );
+    });
+
+    cardIssues.forEach((issue) => {
+        addIssue(
+            createValidationIssue({
+                id: `card.${issue.id}.${issue.modifierNodeId ?? "global"}`,
+                severity: issue.severity === "blocking" ? "blocking" : "warning",
+                source: "card",
+                message: issue.message,
+                actionLabel:
+                    issue.severity === "blocking"
+                        ? "Open card placement"
+                        : "Review card mapping",
+                targetView: "card",
+                targetSidebarMode: "palette",
+                targetNodeId: issue.modifierNodeId,
+            }),
+        );
+    });
+
+    summary.notes.forEach((message, index) => {
+        addIssue(
+            createValidationIssue({
+                id: `rules.note.${index}`,
+                severity: "note",
+                source: "rules",
+                message,
+                actionLabel: "View graph",
+                targetView: "tree",
+            }),
+        );
+    });
+
+    budgetValidation.notes.forEach((message, index) => {
+        addIssue(
+            createValidationIssue({
+                id: `budget.note.${index}`,
+                severity: "note",
+                source: "budget",
+                message,
+                actionLabel: "Review budget",
+                targetView: "tree",
+            }),
+        );
+    });
+
+    return {
+        issues,
+        blocking: issues.filter((issue) => issue.severity === "blocking"),
+        warnings: issues.filter((issue) => issue.severity === "warning"),
+        notes: issues.filter((issue) => issue.severity === "note"),
+    };
 }
 
 function AbilityBuilderInner({
@@ -275,8 +620,34 @@ function AbilityBuilderInner({
 
     const { fitView } = useReactFlow<AbilityBuilderNode, Edge>();
 
+    const validationSummary = useMemo(
+        () =>
+            deriveAbilityBuilderValidationSummary({
+                nodes,
+                summary,
+                budgetValidation,
+                cardIssues: card.cardIssues,
+            }),
+        [nodes, summary, budgetValidation, card.cardIssues],
+    );
+    const nodeValidationIssuesById = useMemo(() => {
+        const result: Record<string, AbilityBuilderValidationIssue[]> = {};
+
+        validationSummary.issues.forEach((issue) => {
+            if (!issue.targetNodeId || issue.source === "card" || issue.severity === "note") {
+                return;
+            }
+
+            result[issue.targetNodeId] = [
+                ...(result[issue.targetNodeId] ?? []),
+                issue,
+            ];
+        });
+
+        return result;
+    }, [validationSummary]);
     const hasInvalidState = displaySummary.warnings.length > 0;
-    const canPublish = !hasInvalidState && !card.hasBlockingCardIssues && !publish.isPublishing;
+    const canPublish = validationSummary.blocking.length === 0 && !publish.isPublishing;
     const canUndo = historyState.past.length > 0;
     const canRedo = historyState.future.length > 0;
 
@@ -430,6 +801,15 @@ function AbilityBuilderInner({
             setSelectedNodeId(null);
         }
     }, [selectedNodeId, nodes, setSelectedNodeId]);
+
+    useEffect(() => {
+        if (card.builderView !== "tree") return;
+
+        const expectedSidebarMode = selectedNodeId ? "inspector" : "palette";
+        if (sidebarMode !== expectedSidebarMode) {
+            setSidebarMode(expectedSidebarMode);
+        }
+    }, [card.builderView, selectedNodeId, sidebarMode]);
 
     useEffect(() => {
         if (!selectedEdgeId) return;
@@ -690,6 +1070,8 @@ function AbilityBuilderInner({
             onUndo: undoHistory,
             onRedo: redoHistory,
             cardIssues: card.cardIssues,
+            validationSummary,
+            nodeValidationIssuesById,
             nodes,
             edges: displayEdges,
             nodeTypes,
@@ -740,6 +1122,8 @@ function AbilityBuilderInner({
             undoHistory,
             redoHistory,
             card.cardIssues,
+            validationSummary,
+            nodeValidationIssuesById,
             nodes,
             edges,
             nodeTypes,

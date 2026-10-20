@@ -202,7 +202,11 @@ export default function CampaignRosterPage({
 
                 <div className={styles.grid}>
                     {campaign.characters.map((character) => (
-                        <CharacterSheetCard character={character} key={character.id} />
+                        <CharacterSheetCard
+                            character={character}
+                            key={character.id}
+                            showEdit={isGm}
+                        />
                     ))}
                 </div>
             </section>

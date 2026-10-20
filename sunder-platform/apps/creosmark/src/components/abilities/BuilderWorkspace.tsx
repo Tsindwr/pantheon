@@ -19,6 +19,7 @@ export default function BuilderWorkspace() {
     const {
         builderView,
         setBuilderView,
+        setSidebarMode,
         nodes,
         edges,
         nodeTypes,
@@ -37,6 +38,7 @@ export default function BuilderWorkspace() {
         canPublish,
         hasInvalidState,
         hasBlockingCardIssues,
+        validationSummary,
         isPublishing,
         publishError,
         publishResult,
@@ -47,6 +49,11 @@ export default function BuilderWorkspace() {
         onDrop,
     } = useAbilityBuilderContext();
     const importInputRef = useRef<HTMLInputElement | null>(null);
+    const primaryBlocker = validationSummary.blocking[0];
+    const publishBlockerTitle =
+        primaryBlocker?.source === "card" && builderView === "tree"
+            ? "Switch to Card View to resolve card placement errors."
+            : primaryBlocker?.message;
 
     return (
         <section
@@ -121,11 +128,12 @@ export default function BuilderWorkspace() {
                         onClick={onPublish}
                         disabled={!canPublish}
                         title={
-                            hasBlockingCardIssues
+                            publishBlockerTitle ??
+                            (hasBlockingCardIssues
                                 ? "Apply all required modifiers to the card before publishing."
                                 : hasInvalidState
-                                    ? "Fix rule errors"
-                                    : "Send to cloud"
+                                  ? "Fix rule errors"
+                                  : "Send to cloud")
                         }
                     >
                         {isPublishing ? "Sending..." : "Upload"}
@@ -190,14 +198,17 @@ export default function BuilderWorkspace() {
                     onNodeClick={(_, node) => {
                         setSelectedNodeId(node.id);
                         setSelectedEdgeId(null);
+                        setSidebarMode("inspector");
                     }}
                     onEdgeClick={(_, edge) => {
                         setSelectedEdgeId(edge.id);
                         setSelectedNodeId(null);
+                        setSidebarMode("palette");
                     }}
                     onPaneClick={() => {
                         setSelectedNodeId(null);
                         setSelectedEdgeId(null);
+                        setSidebarMode("palette");
                     }}
                     fitView
                     className={styles.flow}
