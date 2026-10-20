@@ -15,7 +15,11 @@ Assessment date: **2026-10-20**. Scope: preserve existing local source and plann
 | Branch URL | [Engineering branch](https://github.com/Tsindwr/pantheon/tree/fix/creosmark-batch01-reconciliation-20261020) |
 | Application/workspace commit | [`978c3e031da24ab6f06435e75055ab74922e2d5c`](https://github.com/Tsindwr/pantheon/commit/978c3e031da24ab6f06435e75055ab74922e2d5c) |
 | Application/workspace message | `chore(creosmark): preserve local application and workspace changes` |
-| Publication status at initial report preparation | Source commit created; documentation commit and remote verification pending. See the publication verification section for subsequent results. |
+| Planning/documentation commit | [`a8537dd467afa70cb0cd01ee4ca831f31956006b`](https://github.com/Tsindwr/pantheon/commit/a8537dd467afa70cb0cd01ee4ca831f31956006b) |
+| Planning/documentation message | `docs(creosmark): preserve planning references and reconciliation report` |
+| Verified published payload HEAD | `a8537dd467afa70cb0cd01ee4ca831f31956006b` (application/workspace plus planning/documentation) |
+| Publication status | **PUSHED and remotely verified.** A documentation-only follow-up records these observed results. |
+| Final verification commit | The commit containing this updated report, titled `docs(creosmark): record verified branch publication`; its full SHA is available in [file history](https://github.com/Tsindwr/pantheon/commits/fix/creosmark-batch01-reconciliation-20261020/sunder-platform/apps/creosmark/docs/engineering/Creosmark_Local_Reconciliation_and_Branch_Handoff_2026-10-20.md) and the final handoff response. |
 
 The branch name was unused locally and remotely before creation. It was created from the verified original HEAD without resetting, stashing, merging, rebasing, or discarding work. No existing remote branch is being overwritten. The original `main` ref is unchanged by this operation.
 
@@ -152,7 +156,24 @@ No workflow file is changed by this branch. This engineering branch matches none
 
 ## Publication verification
 
-Pending the documentation commit and actual push. This section will be finalized from observed remote results, without pre-claiming synchronization. A documentation-only follow-up may record the payload commit SHA and remote observations after publication. A file cannot contain its own enclosing Git commit SHA; the final verification commit is identified authoritatively by the linked branch/file history and the accompanying final handoff response.
+**VERIFIED REMOTE / LOCAL, 2026-10-20:** The initial publication completed successfully using `git push -u origin HEAD`, without force. It created the new branch and established its upstream. No pull request was opened. Both payload commit SHAs above are now present on GitHub.
+
+| Verification command / inspection | Observed result |
+| --- | --- |
+| `git ls-remote --heads origin refs/heads/fix/creosmark-batch01-reconciliation-20261020` | Remote branch SHA exactly `a8537dd467afa70cb0cd01ee4ca831f31956006b`, matching local payload HEAD. |
+| `gh api repos/Tsindwr/pantheon/branches/fix/creosmark-batch01-reconciliation-20261020` | GitHub branch accessible; API returned the same branch name and commit SHA. |
+| `gh api repos/Tsindwr/pantheon/compare/62eac0ebfef436f8542fee3f4cf0bf1b773db2d1...a8537dd467afa70cb0cd01ee4ca831f31956006b` | Exactly two new payload commits and 50 intended unique paths; GitHub file set equals the locally reviewed diff. |
+| `gh run list --repo Tsindwr/pantheon --branch fix/creosmark-batch01-reconciliation-20261020 --limit 20 --json databaseId,headSha,event,status,conclusion,url,name` | Empty list: no branch Actions runs observed. |
+| `gh api repos/Tsindwr/pantheon/commits/a8537dd467afa70cb0cd01ee4ca831f31956006b/check-runs` | Zero check runs. |
+| `gh api 'repos/Tsindwr/pantheon/deployments?sha=a8537dd467afa70cb0cd01ee4ca831f31956006b'` | Empty list: no deployment records for payload HEAD. |
+| Outgoing commit-by-commit path/blob review | All 50 newly committed blobs reviewed; no private worksheets, `.env`, generated output, dependency trees, or log paths included in either new commit. Targeted sensitive-content scan found no additional publication blocker. |
+| `git status --porcelain=v1 -z --untracked-files=all` compared to original inventory | Exactly 208 remaining visible generated/dependency/log changes, with the same original statuses. No unpublished application source or planning reference remained. |
+| Original inventory hash/symlink/absence verification after push | All 259 original entries still matched. Both excluded worksheets remain locally unchanged. |
+| `git rev-parse main` | Original local `main` remains `62eac0ebfef436f8542fee3f4cf0bf1b773db2d1`. |
+
+The source commit contains 44 files; the planning/documentation commit contains six. A third, documentation-only verification commit updates this same handoff after those two commits were actually published and checked. It adds no application changes or new unique file paths. Its final local/remote SHA is checked after its push and supplied in the final handoff response. A file cannot contain its own enclosing Git commit SHA; [branch history](https://github.com/Tsindwr/pantheon/commits/fix/creosmark-batch01-reconciliation-20261020) identifies that final verification commit without inventing a self-reference.
+
+Workflow and deployment observations describe the query time and the inspected repository's Actions/deployment records. No unexpected production deployment was observed, and the declared workflow triggers exclude this engineering branch. External automation beyond those records is not independently audited.
 
 ## Remaining concerns and next CR-E01 work
 
