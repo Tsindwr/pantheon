@@ -1,5 +1,6 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
 import { useEditorNavigation } from "../../presentation/character-editor/use-editor-navigation.ts";
+import { previewOriginChoice, summarizeOriginFacet, type OriginChoicePreview } from "../../presentation/character-editor/origin-choice-preview.ts";
 import styles from './EditorWorkspace.module.css';
 import {
     type CharacterSheetState,
@@ -48,7 +49,6 @@ import {
 } from "../../domain";
 import EditorAbilitiesSection from "./EditorAbilitiesSection.tsx";
 import {
-    describeOriginBoons,
     formatOriginFacetLabel,
     formatOriginSelectionSource,
     searchOriginSelections,
@@ -552,6 +552,10 @@ export default function EditorWorkspace({
     const [pendingArchetypeId, setPendingArchetypeId] = useState<ArchetypeKey | "">("");
     const [expandedArchetypes, setExpandedArchetypes] = useState<Set<string>>(() => new Set());
     const [originPickerFacet, setOriginPickerFacet] = useState<OriginFacetId | null>(null);
+    const [originSelectionAnnouncement, setOriginSelectionAnnouncement] = useState("");
+    const originPickerRef = useRef<HTMLElement>(null);
+    const originPickerTriggerRef = useRef<HTMLButtonElement | null>(null);
+    const restoreOriginFocusRef = useRef(false);
     const [originPickerSearch, setOriginPickerSearch] = useState("");
     const [originPickerOwnerFilter, setOriginPickerOwnerFilter] =
         useState<OriginSelectionOwnerFilter>("all");
@@ -1157,12 +1161,96 @@ export default function EditorWorkspace({
         applyCommand(nextSheet);
     }
 
-    function openOriginPicker(facet: OriginFacetId) {
+    function openOriginPicker(facet: OriginFacetId, trigger: HTMLButtonElement) {
+        originPickerTriggerRef.current = trigger;
+        restoreOriginFocusRef.current = false;
         setOriginPickerFacet(facet);
         setOriginPickerSearch("");
         setOriginPickerRows([]);
         setExpandedOriginPickerRowId(null);
         setOriginPickerError(null);
+    }
+
+    function closeOriginPicker() {
+        restoreOriginFocusRef.current = true;
+        setOriginPickerFacet(null);
+    }
+
+    useEffect(() => {
+        if (originPickerFacet) {
+            originPickerRef.current?.querySelector<HTMLInputElement>("input")?.focus();
+        } else if (restoreOriginFocusRef.current) {
+            restoreOriginFocusRef.current = false;
+            const trigger = originPickerTriggerRef.current;
+            if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+        }
+    }, [originPickerFacet]);
+
+    function handleOriginPickerKeyDown(event: React.KeyboardEvent<HTMLElement>) {
+        if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            closeOriginPicker();
+        } else if (event.key === "Tab") {
+            const controls = Array.from(originPickerRef.current?.querySelectorAll<HTMLElement>(
+                'button:not(:disabled), input:not(:disabled), select:not(:disabled), [href], [tabindex="0"]',
+            ) ?? []);
+            const first = controls[0];
+            const last = controls[controls.length - 1];
+            if (event.shiftKey && event.target === first) {
+                event.preventDefault(); last?.focus();
+            } else if (!event.shiftKey && event.target === last) {
+                event.preventDefault(); first?.focus();
+            }
+        }
+    }
+
+    function renderOriginPreview(preview: OriginChoicePreview) {
+        return <dl className={styles.originBenefitList}>
+            {preview.benefits.map(benefit => <div key={benefit.key}>
+                <dt>{benefit.label}</dt>
+                <dd>
+                    {benefit.options.length ? <ul>{benefit.options.map((option, index) =>
+                        <li key={`${option.value}-${index}`}>{option.label}
+                            {!option.eligible ? " — already used" : ""}
+                            {!option.recognized ? " — unrecognized value" : ""}
+                        </li>)}</ul> : <span>No structured options</span>}
+                    <p className={styles.originChoiceStatus}>
+                        {benefit.status === "automatic"
+                            ? `${benefit.reason === "retained" ? "Automatically retained" : benefit.reason === "record" ? "Saved on Use" : "Automatically selected"}: ${benefit.valueLabel}`
+                            : benefit.status === "decision" ? "Choose after applying"
+                                : benefit.status === "information" ? "Reference only" : "No automatic choice confirmed"}
+                    </p>
+                    {benefit.note ? <p>{benefit.note}</p> : null}
+                </dd>
+            </div>)}
+        </dl>;
+    }
+
+    function renderOriginGuidance(facet: OriginFacetId) {
+        const state = sheet.originSelections?.[facet];
+        if (!state?.originSelectionId) return null;
+        const preview = summarizeOriginFacet(facet, sheet, selectedSkillNames);
+        const issues = summaryBySection.get("origin")?.issues.filter(issue => issue.subsectionId === facet) ?? [];
+        const optionalChoice = preview.benefits.find(benefit => benefit.status === "decision");
+        return <aside className={styles.originGuidance} aria-label={`Selected ${formatOriginFacetLabel(facet)} guidance`}>
+            <strong>Selected {formatOriginFacetLabel(facet)}: {getOriginFacetName(state)}</strong>
+            <ul className={styles.originCurrentBenefits}>
+                {preview.benefits.map(benefit => <li key={benefit.key}>
+                    {benefit.label}: {benefit.status === "selected" || benefit.status === "information" && benefit.value
+                        ? benefit.valueLabel : benefit.status === "decision" ? "Not selected" : "Not established"}
+                </li>)}
+            </ul>
+            {issues[0] || optionalChoice ? <button type="button" className={styles.secondaryButton}
+                onClick={() => {
+                    if (!issues[0] && (facet === "profession" || facet === "crux")) {
+                        setOpenAdvancedPanelIds(current => new Set([...current, `origin-${facet}-details`]));
+                    }
+                    requestEditorTarget("origin", issues[0]?.subsectionId ?? facet);
+                }}>
+                {issues[0] ? `Review next choice: ${issues[0].label}` : `Review optional choice: ${optionalChoice?.label}`}
+            </button> : <p>No outstanding readiness issues for this facet. Other optional details may remain.</p>}
+        </aside>;
     }
 
     function applyOriginSelection(selection: OriginSelectionSummary) {
@@ -1303,7 +1391,8 @@ export default function EditorWorkspace({
         }
 
         applyCommand(nextSheet);
-        setOriginPickerFacet(null);
+        setOriginSelectionAnnouncement(`${formatOriginFacetLabel(selection.facet)} selected: ${selection.title}. Review its benefits and next choice below.`);
+        closeOriginPicker();
     }
 
 
@@ -2390,6 +2479,9 @@ export default function EditorWorkspace({
                             <div className={styles.sectionEyebrow}>Background & Heritage</div>
                             <h3 tabIndex={-1} data-editor-heading="origin">Origin</h3>
                         </header>
+                        <p role="status" className={styles.originSelectionStatus}>
+                            {originSelectionAnnouncement}
+                        </p>
 
                         <div className={styles.grid2}>
                             <article
@@ -2402,11 +2494,13 @@ export default function EditorWorkspace({
                                     <button
                                         type="button"
                                         className={styles.secondaryButton}
-                                        onClick={() => openOriginPicker("profession")}
+                                        onClick={(event) => openOriginPicker("profession", event.currentTarget)}
                                     >
                                         Choose
                                     </button>
                                 </div>
+
+                                {renderOriginGuidance("profession")}
 
                                 <div className={styles.stack}>
                                     <label className={styles.field}>
@@ -2505,11 +2599,13 @@ export default function EditorWorkspace({
                                     <button
                                         type="button"
                                         className={styles.secondaryButton}
-                                        onClick={() => openOriginPicker("crux")}
+                                        onClick={(event) => openOriginPicker("crux", event.currentTarget)}
                                     >
                                         Choose
                                     </button>
                                 </div>
+
+                                {renderOriginGuidance("crux")}
 
                                 <div className={styles.stack}>
                                     <label className={styles.field}>
@@ -2692,11 +2788,13 @@ export default function EditorWorkspace({
                                     <button
                                         type="button"
                                         className={styles.secondaryButton}
-                                        onClick={() => openOriginPicker("descent")}
+                                        onClick={(event) => openOriginPicker("descent", event.currentTarget)}
                                     >
                                         Choose
                                     </button>
                                 </div>
+
+                                {renderOriginGuidance("descent")}
 
                                 <div className={styles.stack}>
                                     <label className={styles.field}>
@@ -2760,11 +2858,13 @@ export default function EditorWorkspace({
                                     <button
                                         type="button"
                                         className={styles.secondaryButton}
-                                        onClick={() => openOriginPicker("bloodline")}
+                                        onClick={(event) => openOriginPicker("bloodline", event.currentTarget)}
                                     >
                                         Choose
                                     </button>
                                 </div>
+
+                                {renderOriginGuidance("bloodline")}
 
                                 <div className={styles.stack}>
                                     <label className={styles.field}>
@@ -4246,6 +4346,8 @@ export default function EditorWorkspace({
                     role="dialog"
                     aria-modal="true"
                     aria-label={`Choose ${formatOriginFacetLabel(originPickerFacet)}`}
+                    ref={originPickerRef}
+                    onKeyDown={handleOriginPickerKeyDown}
                 >
                     <header className={styles.sectionHeader}>
                         <div>
@@ -4307,6 +4409,9 @@ export default function EditorWorkspace({
 
                         {!originPickerLoading && originPickerRows.map((row) => {
                             const expanded = expandedOriginPickerRowId === row.id;
+                            const preview = previewOriginChoice(row, sheet, selectedSkillNames);
+                            const summary = preview.benefits.filter(benefit => benefit.options.length).slice(0, 2)
+                                .map(benefit => `${benefit.label}: ${benefit.options.slice(0, 2).map(option => option.label).join(" / ")}${benefit.options.length > 2 ? "…" : ""}`).join(" · ");
 
                             return (
                                 <article
@@ -4325,6 +4430,7 @@ export default function EditorWorkspace({
                                                 )
                                             }
                                             aria-expanded={expanded}
+                                            aria-controls={`origin-preview-${row.id}`}
                                         >
                                             <span className={styles.originPickerRowTitle}>
                                                 <strong>{row.title}</strong>
@@ -4353,16 +4459,19 @@ export default function EditorWorkspace({
                                     </div>
 
                                     <p className={styles.originPickerBoonText}>
-                                        {describeOriginBoons(row.boons)}
+                                        {summary || "No structured benefits provided. Expand to inspect the description."}
                                     </p>
 
+                                    {preview.replacement ? <p className={styles.originReplacement}>{preview.replacement}</p> : null}
                                     {expanded ? (
-                                        <div className={styles.originPickerDescription}>
+                                        <div id={`origin-preview-${row.id}`} className={styles.originPickerDescription}>
+                                            <h4>{row.title}</h4>
                                             {row.description ? (
                                                 <p>{row.description}</p>
                                             ) : (
                                                 <p>No description provided.</p>
                                             )}
+                                            {renderOriginPreview(preview)}
                                         </div>
                                     ) : null}
                                 </article>
@@ -4374,7 +4483,7 @@ export default function EditorWorkspace({
                         <button
                             type="button"
                             className={styles.secondaryButton}
-                            onClick={() => setOriginPickerFacet(null)}
+                            onClick={closeOriginPicker}
                         >
                             Close
                         </button>

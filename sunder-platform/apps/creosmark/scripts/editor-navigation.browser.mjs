@@ -3,6 +3,7 @@
  * node scripts/editor-navigation.browser.mjs --checkout <repo> --playwright <installed module>
  * No framework installation, production sessions, or database traffic is needed.
  */
+import { originFixtures, runOriginBrowserCases } from "./origin-choice.browser.mjs";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
@@ -39,6 +40,9 @@ import CharacterBuilderShell from "../components/builder/CharacterBuilderShell.t
 import EditorWorkspace from "../components/manage/EditorWorkspace.tsx";
 import {createBlankSheet} from "../lib/supabase/db.ts";
 import {normalizeFeatureDrivenSheetState} from "../application/character-sheet/commands.ts";
+import {supabase} from "../lib/supabase/client.ts";
+// Synthetic identity only. Every external request is intercepted; no real session or record writes.
+supabase.auth.getUser = async () => ({data:{user:{id:"00000000-0000-4000-8000-000000000090",aud:"authenticated",app_metadata:{},user_metadata:{},created_at:"2026-10-21T00:00:00Z"}},error:null});
 export default function E09NavigationFixture() {
  const [sheet, setSheet] = useState(() => {
   const initial = normalizeFeatureDrivenSheetState(createBlankSheet());
@@ -102,6 +106,10 @@ import "../styles/sunder-theme.css";
         const request = route.request();
         if (new URL(request.url()).origin === new URL(url).origin) return route.continue();
         external.push({ method: request.method(), path: new URL(request.url()).pathname });
+        if (request.method() === "GET" && new URL(request.url()).pathname === "/rest/v1/origin_selections") {
+            const facet = new URL(request.url()).searchParams.get("origin_facet")?.replace(/^eq\./, "");
+            return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(originFixtures.filter(row => !facet || row.origin_facet === facet))});
+        }
         // Never forward any external request, including requests using accidentally configured credentials.
         return route.fulfill({ status: request.method() === "GET" ? 200 : 403,
             contentType: "application/json", body: "[]" });
@@ -240,6 +248,7 @@ import "../styles/sunder-theme.css";
     await run("no JavaScript exceptions or external writes", async () => {
         assert.deepEqual(exceptions, []); assert.ok(external.every(request => request.method === "GET"));
     });
+    await runOriginBrowserCases({page, run, resultDir, exceptions, external});
     console.log(`Browser regression: ${results.length} passed, 0 failed; ${url}; evidence: ${resultDir}`);
 } catch (error) {
     console.error(error);

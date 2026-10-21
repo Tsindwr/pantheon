@@ -1720,3 +1720,41 @@ textarea {
         justify-self: start;
     }
 }
+
+/* Origin choices use existing dark surfaces and gold/purple accents. */
+.originBenefitList {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+    gap: 0.65rem;
+    margin: 0.75rem 0 0;
+}
+
+.originBenefitList > div,
+.originGuidance {
+    padding: 0.65rem;
+    border: 1px solid rgba(139, 124, 243, 0.25);
+    border-radius: 0.65rem;
+    background: rgba(139, 124, 243, 0.06);
+}
+
+.originBenefitList dt,
+.originChoiceStatus {
+    font-weight: 750;
+    color: var(--sunder-gold, #d2b24c);
+}
+
+.originBenefitList dd { margin: 0.35rem 0 0; }
+.originBenefitList ul { margin: 0 0 0.35rem; padding-left: 1.1rem; }
+.originPickerDescription h4 { margin: 0.25rem 0; }
+.originGuidance { display: grid; gap: 0.5rem; font-size: 0.8rem; }
+.originGuidance p { margin: 0; }
+.originCurrentBenefits { margin: 0; padding-left: 1.1rem; }
+.originSelectionStatus { margin: 0; color: var(--sunder-purple, #8b7cf3); }
+.originSelectionStatus:empty { display: none; }
+.originReplacement {
+    margin: 0;
+    padding: 0.6rem;
+    border-left: 3px solid var(--sunder-gold, #d2b24c);
+    background: rgba(210, 178, 76, 0.1);
+    color: white;
+}
