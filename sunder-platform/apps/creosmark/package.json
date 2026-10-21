@@ -8,12 +8,13 @@
     "build": "astro build",
     "preview": "astro preview --port 4174",
     "astro": "astro",
-    "check": "node scripts/ensure-checker.mjs && node --test scripts/editor-sections.test.mjs scripts/editor-navigation.test.mjs scripts/origin-choice-preview.test.mjs && astro check",
+    "check": "node scripts/ensure-checker.mjs && node --test scripts/editor-sections.test.mjs scripts/editor-navigation.test.mjs scripts/origin-choice-preview.test.mjs scripts/archetype-choice-preview.test.mjs && astro check",
     "test:editor-sections": "node --test scripts/editor-sections.test.mjs",
     "supabase:push": "dotenv -e .env -- supabase db push",
     "supabase:pull": "dotenv -e .env -- supabase db pull",
     "test:editor-navigation": "node --test scripts/editor-navigation.test.mjs",
-    "test:origin-preview": "node --test scripts/origin-choice-preview.test.mjs"
+    "test:origin-preview": "node --test scripts/origin-choice-preview.test.mjs",
+    "test:archetype-preview": "node --test scripts/archetype-choice-preview.test.mjs"
   },
   "dependencies": {
     "@3d-dice/dice-box": "^1.1.4",

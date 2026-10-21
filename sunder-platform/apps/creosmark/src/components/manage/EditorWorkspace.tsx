@@ -1,6 +1,11 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
 import { useEditorNavigation } from "../../presentation/character-editor/use-editor-navigation.ts";
 import { previewOriginChoice, summarizeOriginFacet, type OriginChoicePreview } from "../../presentation/character-editor/origin-choice-preview.ts";
+import {
+    getArchetypeRemainingChoices,
+    previewArchetypeChoice,
+    type ArchetypeChoicePreview,
+} from "../../presentation/character-editor/archetype-choice-preview.ts";
 import styles from './EditorWorkspace.module.css';
 import {
     type CharacterSheetState,
@@ -80,6 +85,14 @@ export type EditorSummaryIssue = {
     subsectionId: string;
 };
 
+type AddedArchetypeGuidance = {
+    archetype: ArchetypeKey;
+    label: string;
+    rank: number;
+    absoluteLevel: number;
+    firstArchetype: boolean;
+};
+
 export type EditorSectionSummary = {
     id: BuilderTabId;
     label: string;
@@ -119,6 +132,7 @@ const EDITOR_SUBSECTIONS: Record<BuilderTabId, EditorSubsectionDefinition[]> = {
     levels: [
         { id: "level-summary", label: "Summary" },
         { id: "archetypes", label: "Archetypes" },
+        { id: "archetype-controls", label: "Archetype Controls" },
     ],
     abilities: [{ id: "assigned-abilities", label: "Assigned Abilities" }],
     potentials: [
@@ -364,6 +378,22 @@ function hasText(value?: string | null): boolean {
     return Boolean(value?.trim());
 }
 
+function trapModalFocus(event: React.KeyboardEvent<HTMLElement>, root: HTMLElement | null) {
+    if (event.key !== "Tab") return;
+    const controls = Array.from(root?.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), input:not(:disabled), select:not(:disabled), [href], [tabindex="0"]',
+    ) ?? []);
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if (event.shiftKey && event.target === first) {
+        event.preventDefault();
+        last?.focus();
+    } else if (!event.shiftKey && event.target === last) {
+        event.preventDefault();
+        first?.focus();
+    }
+}
+
 function getOriginFacetName(facet?: OriginFacetState): string | undefined {
     return facet?.name || facet?.originSelectionTitle;
 }
@@ -550,6 +580,11 @@ export default function EditorWorkspace({
     const [internalTab, setInternalTab] = useState<BuilderTabId>("identity");
     const [addArchetypeOpen, setAddArchetypeOpen] = useState(false);
     const [pendingArchetypeId, setPendingArchetypeId] = useState<ArchetypeKey | "">("");
+    const [addedArchetypeGuidance, setAddedArchetypeGuidance] =
+        useState<AddedArchetypeGuidance | null>(null);
+    const addArchetypeDialogRef = useRef<HTMLDivElement>(null);
+    const addArchetypeTriggerRef = useRef<HTMLButtonElement | null>(null);
+    const restoreAddArchetypeFocusRef = useRef(false);
     const [expandedArchetypes, setExpandedArchetypes] = useState<Set<string>>(() => new Set());
     const [originPickerFacet, setOriginPickerFacet] = useState<OriginFacetId | null>(null);
     const [originSelectionAnnouncement, setOriginSelectionAnnouncement] = useState("");
@@ -1191,17 +1226,8 @@ export default function EditorWorkspace({
             event.preventDefault();
             event.stopPropagation();
             closeOriginPicker();
-        } else if (event.key === "Tab") {
-            const controls = Array.from(originPickerRef.current?.querySelectorAll<HTMLElement>(
-                'button:not(:disabled), input:not(:disabled), select:not(:disabled), [href], [tabindex="0"]',
-            ) ?? []);
-            const first = controls[0];
-            const last = controls[controls.length - 1];
-            if (event.shiftKey && event.target === first) {
-                event.preventDefault(); last?.focus();
-            } else if (!event.shiftKey && event.target === last) {
-                event.preventDefault(); first?.focus();
-            }
+        } else {
+            trapModalFocus(event, originPickerRef.current);
         }
     }
 
@@ -1419,6 +1445,24 @@ export default function EditorWorkspace({
             ),
         [sheet.header.archetypes],
     );
+
+    const pendingArchetypePreview = useMemo(() => {
+        if (!pendingArchetypeId) return null;
+        const candidate = ARCHETYPES.find((archetype) => archetype.id === pendingArchetypeId);
+        return candidate ? previewArchetypeChoice(sheet, candidate, deriveEditorSectionSummaries) : null;
+    }, [pendingArchetypeId, sheet]);
+
+    const postAddRemainingChoices = useMemo(() => {
+        if (!addedArchetypeGuidance) return [];
+        const levelIssues = sectionSummaries.find((summary) => summary.id === "levels")?.issues ?? [];
+        return getArchetypeRemainingChoices(
+            sheet,
+            addedArchetypeGuidance.archetype,
+            addedArchetypeGuidance.rank,
+            addedArchetypeGuidance.firstArchetype,
+            levelIssues,
+        );
+    }, [addedArchetypeGuidance, sectionSummaries, sheet]);
 
     const selectedLevelPerkIds = useMemo(
         () =>
@@ -1802,16 +1846,65 @@ export default function EditorWorkspace({
         applyCommand(setArchetypeLevelCountCommand(sheet, archetype, levels));
     }
 
-    function addArchetype(archetype: ArchetypeKey) {
-        setArchetypeLevelCount(archetype, 1);
-        setExpandedArchetypes((current) => {
-            const next = new Set(current);
-            next.add(archetype);
-            return next;
-        });
+    function openAddArchetypeDialog(trigger: HTMLButtonElement) {
+        addArchetypeTriggerRef.current = trigger;
+        restoreAddArchetypeFocusRef.current = false;
+        setPendingArchetypeId("");
+        setAddArchetypeOpen(true);
+    }
+
+    function closeAddArchetypeDialog() {
+        restoreAddArchetypeFocusRef.current = true;
         setPendingArchetypeId("");
         setAddArchetypeOpen(false);
     }
+
+    function handleAddArchetypeKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+        if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            closeAddArchetypeDialog();
+        } else {
+            trapModalFocus(event, addArchetypeDialogRef.current);
+        }
+    }
+
+    function addArchetype(preview: ArchetypeChoicePreview) {
+        if (preview.status !== "available" || !preview.resultingSheet || !preview.addedLevel) return;
+        applyCommand(preview.resultingSheet);
+        setExpandedArchetypes((current) => {
+            const next = new Set(current);
+            next.add(preview.addedLevel!.archetype);
+            return next;
+        });
+        setAddedArchetypeGuidance({
+            archetype: preview.addedLevel.archetype,
+            label: preview.addedLevel.label,
+            rank: preview.addedLevel.rank,
+            absoluteLevel: preview.addedLevel.absoluteLevel,
+            firstArchetype: preview.kind === "first",
+        });
+        restoreAddArchetypeFocusRef.current = false;
+        setPendingArchetypeId("");
+        setAddArchetypeOpen(false);
+        requestEditorTarget("levels", "archetypes");
+    }
+
+    function reviewAddedArchetypeControls() {
+        if (!addedArchetypeGuidance) return;
+        setExpandedArchetypes((current) => new Set(current).add(addedArchetypeGuidance.archetype));
+        requestEditorTarget("levels", "archetype-controls");
+    }
+
+    useEffect(() => {
+        if (addArchetypeOpen) {
+            addArchetypeDialogRef.current?.querySelector<HTMLSelectElement>("select")?.focus();
+        } else if (restoreAddArchetypeFocusRef.current) {
+            restoreAddArchetypeFocusRef.current = false;
+            const trigger = addArchetypeTriggerRef.current;
+            if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+        }
+    }, [addArchetypeOpen]);
 
     function toggleArchetypeExpanded(archetype: ArchetypeKey) {
         setExpandedArchetypes((current) => {
@@ -2973,7 +3066,7 @@ export default function EditorWorkspace({
                             <button
                                 type="button"
                                 className={styles.smallButton}
-                                onClick={() => setAddArchetypeOpen(true)}
+                                onClick={(event) => openAddArchetypeDialog(event.currentTarget)}
                                 disabled={availableArchetypes.length === 0}
                             >
                                 Add Archetype
@@ -2983,10 +3076,12 @@ export default function EditorWorkspace({
                         {addArchetypeOpen ? (
                             <div className={styles.modalBackdrop} role="presentation">
                                 <div
-                                    className={styles.modal}
+                                    className={`${styles.modal} ${styles.archetypeDialog}`}
                                     role="dialog"
                                     aria-modal="true"
                                     aria-labelledby="add-archetype-title"
+                                    ref={addArchetypeDialogRef}
+                                    onKeyDown={handleAddArchetypeKeyDown}
                                 >
                                     <header className={styles.cardHeader}>
                                         <div>
@@ -3004,6 +3099,7 @@ export default function EditorWorkspace({
                                             onChange={(e) =>
                                                 setPendingArchetypeId(e.target.value as ArchetypeKey | "")
                                             }
+                                            aria-describedby={pendingArchetypePreview ? "add-archetype-preview" : undefined}
                                         >
                                             <option value="">Choose archetype...</option>
                                             {availableArchetypes.map((archetype) => (
@@ -3014,31 +3110,125 @@ export default function EditorWorkspace({
                                         </select>
                                     </label>
 
+                                    {pendingArchetypePreview ? (
+                                        <aside
+                                            id="add-archetype-preview"
+                                            className={styles.archetypePreview}
+                                            aria-live="polite"
+                                        >
+                                            <div className={styles.archetypePreviewHeader}>
+                                                <strong role="heading" aria-level={4}>
+                                                    {pendingArchetypePreview.candidate.label}
+                                                </strong>
+                                                <span>
+                                                    {pendingArchetypePreview.kind === "first"
+                                                        ? "First character Archetype"
+                                                        : "Additional Archetype · first rank"}
+                                                </span>
+                                            </div>
+                                            {pendingArchetypePreview.status === "available" && pendingArchetypePreview.after ? (
+                                                <>
+                                                    <dl className={styles.archetypePreviewValues}>
+                                                        <div><dt>Character level</dt><dd>{pendingArchetypePreview.before.totalLevel} → {pendingArchetypePreview.after.totalLevel}</dd></div>
+                                                        <div><dt>Tier</dt><dd>{pendingArchetypePreview.before.tier} → {pendingArchetypePreview.after.tier}</dd></div>
+                                                        <div><dt>Marks</dt><dd>{pendingArchetypePreview.before.marks} → {pendingArchetypePreview.after.marks}</dd></div>
+                                                    </dl>
+                                                    <p className={styles.metaMuted}>
+                                                        {pendingArchetypePreview.kind === "first"
+                                                            ? `This establishes ${pendingArchetypePreview.baseMarks} Base Marks and introduces the first-Archetype boons below.`
+                                                            : pendingArchetypePreview.before.marks === pendingArchetypePreview.after.marks
+                                                                ? "Adding this Archetype does not grant additional Marks."
+                                                                : "The Marks value shown above comes from the authoritative progression result."}
+                                                    </p>
+                                                    {pendingArchetypePreview.kind === "first" ? (
+                                                        <div className={styles.archetypePreviewBoons}>
+                                                            <strong>First-Archetype boons</strong>
+                                                            <span>Domain: {pendingArchetypePreview.firstArchetypeBoons?.domainId || "Choice required"}</span>
+                                                            <span>Skills: {pendingArchetypePreview.firstArchetypeBoons?.skillIds.filter(Boolean).join(", ") || "Two choices required"}</span>
+                                                            <span>Heroic Goal: {pendingArchetypePreview.firstArchetypeBoons?.heroicGoalLabel || "Choice required"}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <p className={styles.metaMuted}>
+                                                            Existing first-Archetype boons remain attached to the character and are not granted again.
+                                                        </p>
+                                                    )}
+                                                    <div className={styles.archetypePreviewChoices}>
+                                                        <strong>Choices remaining after Add</strong>
+                                                        {pendingArchetypePreview.remainingDecisions.length ? (
+                                                            <ul>
+                                                                {pendingArchetypePreview.remainingDecisions.map((decision) => (
+                                                                    <li key={decision.key}>{decision.label}</li>
+                                                                ))}
+                                                            </ul>
+                                                        ) : <span>No unresolved choices were identified.</span>}
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <p>{pendingArchetypePreview.reason}</p>
+                                            )}
+                                        </aside>
+                                    ) : null}
+
                                     <div className={styles.modalActions}>
                                         <button
                                             type="button"
                                             className={styles.secondaryButton}
-                                            onClick={() => {
-                                                setPendingArchetypeId("");
-                                                setAddArchetypeOpen(false);
-                                            }}
+                                            onClick={closeAddArchetypeDialog}
                                         >
                                             Cancel
                                         </button>
                                         <button
                                             type="button"
                                             className={styles.smallButton}
-                                            disabled={!pendingArchetypeId}
+                                            disabled={pendingArchetypePreview?.status !== "available"}
                                             onClick={() => {
-                                                if (!pendingArchetypeId) return;
-                                                addArchetype(pendingArchetypeId);
+                                                if (!pendingArchetypePreview) return;
+                                                addArchetype(pendingArchetypePreview);
                                             }}
                                         >
-                                            Add
+                                            {pendingArchetypePreview?.status === "available"
+                                                ? `Add ${pendingArchetypePreview.candidate.label}`
+                                                : "Add"}
                                         </button>
                                     </div>
                                 </div>
                             </div>
+                        ) : null}
+
+                        {addedArchetypeGuidance ? (
+                            <aside
+                                className={styles.archetypeGuidance}
+                                role="complementary"
+                                aria-label={`New ${addedArchetypeGuidance.label} guidance`}
+                                data-editor-section="levels"
+                                data-editor-subsection="archetypes"
+                            >
+                                <div>
+                                    <h4 tabIndex={-1}>{addedArchetypeGuidance.label} added</h4>
+                                    <p>
+                                        {addedArchetypeGuidance.firstArchetype
+                                            ? "Complete the first-Archetype boons separately from this level's reward and stat increase."
+                                            : `This is ${addedArchetypeGuidance.label} rank ${addedArchetypeGuidance.rank}; first-Archetype boons were not granted again.`}
+                                    </p>
+                                </div>
+                                <div className={styles.archetypeGuidanceChoices}>
+                                    <strong>Outstanding choices</strong>
+                                    {postAddRemainingChoices.length ? (
+                                        <ul>
+                                            {postAddRemainingChoices.map((decision) => (
+                                                <li key={decision.key}>{decision.label}</li>
+                                            ))}
+                                        </ul>
+                                    ) : <span>All choices introduced by this addition are configured.</span>}
+                                </div>
+                                <button
+                                    type="button"
+                                    className={styles.secondaryButton}
+                                    onClick={reviewAddedArchetypeControls}
+                                >
+                                    Review {addedArchetypeGuidance.label} level {addedArchetypeGuidance.rank} controls
+                                </button>
+                            </aside>
                         ) : null}
 
                         {archetypeLevelGroups.length === 0 ? (
@@ -3083,6 +3273,16 @@ export default function EditorWorkspace({
                                         <article
                                             key={archetype.id}
                                             className={`${styles.card} ${styles.levelCard}`}
+                                            data-editor-section={
+                                                addedArchetypeGuidance?.archetype === archetypeKey
+                                                    ? "levels"
+                                                    : undefined
+                                            }
+                                            data-editor-subsection={
+                                                addedArchetypeGuidance?.archetype === archetypeKey
+                                                    ? "archetype-controls"
+                                                    : undefined
+                                            }
                                         >
                                             <div className={styles.levelCardTop}>
                                                 <div>

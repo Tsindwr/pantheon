@@ -4,6 +4,7 @@
  * No framework installation, production sessions, or database traffic is needed.
  */
 import { originFixtures, runOriginBrowserCases } from "./origin-choice.browser.mjs";
+import { runArchetypeBrowserCases } from "./archetype-choice.browser.mjs";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
@@ -249,6 +250,7 @@ import "../styles/sunder-theme.css";
         assert.deepEqual(exceptions, []); assert.ok(external.every(request => request.method === "GET"));
     });
     await runOriginBrowserCases({page, run, resultDir, exceptions, external});
+    await runArchetypeBrowserCases({page, run, resultDir, exceptions, external});
     console.log(`Browser regression: ${results.length} passed, 0 failed; ${url}; evidence: ${resultDir}`);
 } catch (error) {
     console.error(error);
