@@ -8,7 +8,7 @@
     "build": "astro build",
     "preview": "astro preview --port 4174",
     "astro": "astro",
-    "check": "astro check",
+    "check": "node scripts/ensure-checker.mjs && astro check",
     "supabase:push": "dotenv -e .env -- supabase db push",
     "supabase:pull": "dotenv -e .env -- supabase db pull"
   },
@@ -32,7 +32,9 @@
     "zustand": "4.5.7"
   },
   "devDependencies": {
+    "@astrojs/check": "0.9.10",
     "dotenv-cli": "^11.0.0",
-    "supabase": "^2.78.1"
+    "supabase": "^2.78.1",
+    "typescript": "6.0.2"
   }
 }
