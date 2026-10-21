@@ -86,7 +86,7 @@ export default function CharacterBuilderShell({
                 </button>
             </header>
 
-            <nav className={styles.steps}>
+            <nav className={styles.steps} aria-label="Character creation steps">
                 {BUILDER_STEPS.map((entry, index) => {
                     const stepLabel = `${index + 1}. ${entry.label}`;
                     const summary = summaryBySection.get(entry.id);
@@ -99,6 +99,7 @@ export default function CharacterBuilderShell({
                             type={'button'}
                             className={`${styles.step} ${step === entry.id ? styles.stepActive : ""}`}
                             onClick={() => setStep(entry.id)}
+                            aria-current={step === entry.id ? "step" : undefined}
                             aria-label={`${stepLabel}. ${status.label}.`}
                         >
                             <span className={styles.stepText}>{stepLabel}</span>

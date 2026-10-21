@@ -1,4 +1,5 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
+import { useEditorNavigation } from "../../presentation/character-editor/use-editor-navigation.ts";
 import styles from './EditorWorkspace.module.css';
 import {
     type CharacterSheetState,
@@ -150,22 +151,23 @@ function AdvancedEditorPanel({
 
     return (
         <section className={styles.advancedPanel}>
-            <button
-                type="button"
-                className={styles.advancedToggle}
-                aria-expanded={open}
-                aria-controls={contentId}
-                onClick={() => onToggle(id)}
-            >
-                <span className={styles.advancedToggleText}>
-                    <strong>{title}</strong>
-                    <span>{summary}</span>
-                </span>
-                <span className={styles.advancedToggleAction}>
-                    {open ? "Hide" : "Show"}
-                </span>
-            </button>
-
+            <div role="heading" aria-level={4} tabIndex={-1}>
+                <button
+                    type="button"
+                    className={styles.advancedToggle}
+                    aria-expanded={open}
+                    aria-controls={contentId}
+                    onClick={() => onToggle(id)}
+                >
+                    <span className={styles.advancedToggleText}>
+                        <strong>{title}</strong>
+                        <span>{summary}</span>
+                    </span>
+                    <span className={styles.advancedToggleAction}>
+                        {open ? "Hide" : "Show"}
+                    </span>
+                </button>
+            </div>
             {open ? (
                 <div id={contentId} className={styles.advancedPanelBody}>
                     {children}
@@ -569,6 +571,7 @@ export default function EditorWorkspace({
     );
     const [summaryTrayOpen, setSummaryTrayOpen] = useState(false);
     const [quickEditKey, setQuickEditKey] = useState<QuickEditKey | null>(null);
+    const restoreSummaryFocusRef = useRef(false);
     const summaryTrayToggleRef = useRef<HTMLButtonElement | null>(null);
     const summaryTrayBodyRef = useRef<HTMLDivElement | null>(null);
     const quickEditPanelRef = useRef<HTMLDivElement | null>(null);
@@ -577,6 +580,7 @@ export default function EditorWorkspace({
     const setTab = forcedTab
         ? (nextTab: BuilderTabId) => onRequestTab?.(nextTab)
         : setInternalTab;
+    const { contentRef, requestTarget } = useEditorNavigation(tab);
     const sectionSubsections = EDITOR_SUBSECTIONS[tab] ?? [];
     const [activeSubsectionId, setActiveSubsectionId] = useState(
         sectionSubsections[0]?.id ?? "",
@@ -628,32 +632,13 @@ export default function EditorWorkspace({
         });
     }
 
-    function scrollToEditorSubsection(sectionId: BuilderTabId, subsectionId?: string) {
-        if (typeof window === "undefined" || typeof document === "undefined") return;
-
-        const selector = subsectionId
-            ? `[data-editor-section="${sectionId}"][data-editor-subsection="${subsectionId}"]`
-            : `[data-editor-section="${sectionId}"][data-editor-subsection]`;
-        document.querySelector<HTMLElement>(selector)?.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-        });
-    }
-
     function requestEditorTarget(sectionId: BuilderTabId, subsectionId?: string) {
-        if (tab !== sectionId) {
-            setTab(sectionId);
-        }
-
-        if (typeof window === "undefined") return;
-        window.requestAnimationFrame(() => {
-            window.requestAnimationFrame(() => {
-                scrollToEditorSubsection(sectionId, subsectionId);
-            });
-        });
+        requestTarget(sectionId, subsectionId);
+        if (tab !== sectionId) setTab(sectionId);
     }
 
     function jumpFromSummaryTray(sectionId: BuilderTabId, subsectionId?: string) {
+        restoreSummaryFocusRef.current = false;
         setSummaryTrayOpen(false);
         setQuickEditKey(null);
         requestEditorTarget(sectionId, subsectionId);
@@ -695,13 +680,9 @@ export default function EditorWorkspace({
     }
 
     function closeSummaryTray() {
+        restoreSummaryFocusRef.current = true;
         setSummaryTrayOpen(false);
         setQuickEditKey(null);
-
-        if (typeof window === "undefined") return;
-        window.requestAnimationFrame(() => {
-            summaryTrayToggleRef.current?.focus();
-        });
     }
 
     useEffect(() => {
@@ -716,9 +697,9 @@ export default function EditorWorkspace({
 
         function updateActiveSubsection() {
             const anchors = Array.from(
-                document.querySelectorAll<HTMLElement>(
+                contentRef.current?.querySelectorAll<HTMLElement>(
                     `[data-editor-section="${tab}"][data-editor-subsection]`,
-                ),
+                ) ?? [],
             );
 
             if (anchors.length === 0) {
@@ -1810,14 +1791,12 @@ export default function EditorWorkspace({
     const showEditorBreadcrumb = !addArchetypeOpen && !originPickerFacet && !rollRequest;
 
     useEffect(() => {
-        if (!summaryTrayOpen || !showEditorBreadcrumb) return;
-        if (typeof window === "undefined") return;
-
-        const frameId = window.requestAnimationFrame(() => {
+        if (summaryTrayOpen && showEditorBreadcrumb) {
             summaryTrayBodyRef.current?.querySelector<HTMLElement>("button")?.focus();
-        });
-
-        return () => window.cancelAnimationFrame(frameId);
+        } else if (restoreSummaryFocusRef.current) {
+            restoreSummaryFocusRef.current = false;
+            summaryTrayToggleRef.current?.focus({ preventScroll: true });
+        }
     }, [showEditorBreadcrumb, summaryTrayOpen]);
 
     const activeSectionSummary = sectionSummaries.find((summary) => summary.id === tab);
@@ -2261,7 +2240,7 @@ export default function EditorWorkspace({
                     <div className={styles.eyebrow}>Editing</div>
                     <h2 className={styles.title}>Character Builder</h2>
 
-                    <nav className={styles.nav}>
+                    <nav className={styles.nav} aria-label="Character editor sections">
                         {EDITOR_WORKSPACE_NAV_ITEMS.map((entry) => {
                             const summary = summaryBySection.get(entry.id);
                             const status = getEditorSectionSummaryStatus(summary);
@@ -2274,7 +2253,10 @@ export default function EditorWorkspace({
                                     className={`${styles.navButton} ${
                                         tab === entry.id ? styles.navButtonActive : ""
                                     }`}
-                                    onClick={() => setTab(entry.id)}
+                                    onClick={() => {
+                                        if (tab !== entry.id) requestEditorTarget(entry.id);
+                                    }}
+                                    aria-current={tab === entry.id ? "location" : undefined}
                                     aria-label={summary ? `${entry.label}. ${status.label}.` : entry.label}
                                 >
                                     <span className={styles.navButtonText}>{entry.label}</span>
@@ -2301,7 +2283,7 @@ export default function EditorWorkspace({
                 </aside>
             ) : null}
 
-            <div className={styles.content}>
+            <div className={styles.content} ref={contentRef}>
                 {showEditorBreadcrumb ? (
                     <nav className={styles.editorBreadcrumb} aria-label="Editor location">
                         <span className={styles.breadcrumbKicker}>You are here</span>
@@ -2335,7 +2317,7 @@ export default function EditorWorkspace({
                     >
                         <header className={styles.sectionHeader}>
                             <div className={styles.sectionEyebrow}>Basics</div>
-                            <h3>Identity</h3>
+                            <h3 tabIndex={-1} data-editor-heading="identity">Identity</h3>
                         </header>
 
                         <div className={styles.grid2}>
@@ -2406,7 +2388,7 @@ export default function EditorWorkspace({
                     >
                         <header className={styles.sectionHeader}>
                             <div className={styles.sectionEyebrow}>Background & Heritage</div>
-                            <h3>Origin</h3>
+                            <h3 tabIndex={-1} data-editor-heading="origin">Origin</h3>
                         </header>
 
                         <div className={styles.grid2}>
@@ -2416,7 +2398,7 @@ export default function EditorWorkspace({
                                 data-editor-subsection="profession"
                             >
                                 <div className={styles.cardHeader}>
-                                    <strong>Profession</strong>
+                                    <strong role="heading" aria-level={4} tabIndex={-1}>Profession</strong>
                                     <button
                                         type="button"
                                         className={styles.secondaryButton}
@@ -2519,7 +2501,7 @@ export default function EditorWorkspace({
                                 data-editor-subsection="crux"
                             >
                                 <div className={styles.cardHeader}>
-                                    <strong>Crux</strong>
+                                    <strong role="heading" aria-level={4} tabIndex={-1}>Crux</strong>
                                     <button
                                         type="button"
                                         className={styles.secondaryButton}
@@ -2706,7 +2688,7 @@ export default function EditorWorkspace({
                                 data-editor-subsection="descent"
                             >
                                 <div className={styles.cardHeader}>
-                                    <strong>Descent</strong>
+                                    <strong role="heading" aria-level={4} tabIndex={-1}>Descent</strong>
                                     <button
                                         type="button"
                                         className={styles.secondaryButton}
@@ -2774,7 +2756,7 @@ export default function EditorWorkspace({
                                 data-editor-subsection="bloodline"
                             >
                                 <div className={styles.cardHeader}>
-                                    <strong>Bloodline</strong>
+                                    <strong role="heading" aria-level={4} tabIndex={-1}>Bloodline</strong>
                                     <button
                                         type="button"
                                         className={styles.secondaryButton}
@@ -2869,7 +2851,7 @@ export default function EditorWorkspace({
                     >
                         <header className={styles.sectionHeader}>
                             <div className={styles.sectionEyebrow}>Archetype Leveling</div>
-                            <h3>Levels</h3>
+                            <h3 tabIndex={-1} data-editor-heading="levels">Levels</h3>
                         </header>
 
                         <div className={styles.levelToolbar}>
@@ -3004,7 +2986,7 @@ export default function EditorWorkspace({
                                         >
                                             <div className={styles.levelCardTop}>
                                                 <div>
-                                                    <strong>{archetype.label}</strong>
+                                                    <strong role="heading" aria-level={4} tabIndex={-1}>{archetype.label}</strong>
                                                     {isFirstArchetype ? (
                                                         <div className={styles.metaMuted}>
                                                             Base Marks {ARCHETYPE_MARKS[archetypeKey]}
@@ -3295,7 +3277,7 @@ export default function EditorWorkspace({
                     <section className={styles.section}>
                         <header className={styles.sectionHeader}>
                             <div className={styles.sectionEyebrow}>Stats</div>
-                            <h3>Potentials</h3>
+                            <h3 tabIndex={-1} data-editor-heading="potentials">Potentials</h3>
                         </header>
 
                         <section
@@ -3304,7 +3286,7 @@ export default function EditorWorkspace({
                             data-editor-subsection="scores"
                         >
                             <header className={styles.cardHeader}>
-                                <strong>Scores and Volatility</strong>
+                                <strong role="heading" aria-level={4} tabIndex={-1}>Scores and Volatility</strong>
                             </header>
 
                             {[
@@ -3872,7 +3854,7 @@ export default function EditorWorkspace({
                     <section className={styles.section}>
                         <header className={styles.sectionHeader}>
                             <div className={styles.sectionEyebrow}>Feature Sources</div>
-                            <h3>Proficiencies</h3>
+                            <h3 tabIndex={-1} data-editor-heading="proficiencies">Proficiencies</h3>
                         </header>
 
                         <section
@@ -3882,7 +3864,7 @@ export default function EditorWorkspace({
                         >
                             <header className={styles.sectionHeader}>
                                 <div className={styles.sectionEyebrow}>Skills</div>
-                                <h4>Skill proficiencies by potential</h4>
+                                <h4 tabIndex={-1}>Skill proficiencies by potential</h4>
                             </header>
 
                             <div className={styles.potentialGrid}>
@@ -3923,7 +3905,7 @@ export default function EditorWorkspace({
                                 data-editor-subsection="domains"
                             >
                                 <div className={styles.cardHeader}>
-                                    <strong>Domains</strong>
+                                    <strong role="heading" aria-level={4} tabIndex={-1}>Domains</strong>
                                 </div>
 
                                 <div className={styles.domainGrid}>
@@ -3957,7 +3939,7 @@ export default function EditorWorkspace({
                                 data-editor-subsection="knacks"
                             >
                                 <div className={styles.cardHeader}>
-                                    <strong>Knacks</strong>
+                                    <strong role="heading" aria-level={4} tabIndex={-1}>Knacks</strong>
                                 </div>
 
                                 <div className={styles.knackList}>
@@ -4003,17 +3985,16 @@ export default function EditorWorkspace({
                     <section
                         className={styles.section}
                         data-editor-section="goals"
-                        data-editor-subsection="origin-linked-goals"
                     >
                         <header className={styles.sectionHeader}>
                             <div className={styles.sectionEyebrow}>Story</div>
-                            <h3>Goals</h3>
+                            <h3 tabIndex={-1} data-editor-heading="goals">Goals</h3>
                         </header>
 
                         <div className={styles.stack}>
-                            <article className={styles.card}>
+                            <article className={styles.card} data-editor-section="goals" data-editor-subsection="origin-linked-goals">
                                 <div className={styles.cardHeader}>
-                                    <strong>Origin-linked goals</strong>
+                                    <strong role="heading" aria-level={4} tabIndex={-1}>Origin-linked goals</strong>
                                 </div>
 
                                 <div className={styles.grid2}>
@@ -4062,6 +4043,7 @@ export default function EditorWorkspace({
                                     data-editor-section="goals"
                                     data-editor-subsection="custom-goals"
                                 >
+                                    <h4 className={styles.subsectionHeading} tabIndex={-1}>{goal.title || "Custom Goal"}</h4>
                                     <div className={styles.grid4}>
                                         <label className={styles.field}>
                                             <span>Title</span>
@@ -4130,6 +4112,14 @@ export default function EditorWorkspace({
                                 </article>
                             ))}
                         </div>
+                    </section>
+                ) : null}
+                {tab === "inventory" || tab === "attacks" ? (
+                    <section className={styles.section} role="region"
+                        aria-label={EDITOR_SECTION_LABELS[tab]} tabIndex={-1}
+                        data-editor-heading={tab}>
+                        <header className={styles.sectionHeader}><h3>{EDITOR_SECTION_LABELS[tab]}</h3></header>
+                        <p>Editing controls for {EDITOR_SECTION_LABELS[tab]} are not available here yet.</p>
                     </section>
                 ) : null}
             </div>

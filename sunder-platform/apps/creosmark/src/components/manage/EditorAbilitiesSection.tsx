@@ -300,7 +300,7 @@ export default function EditorAbilitiesSection({
             <header className={styles.header}>
                 <div>
                     <div className={styles.eyebrow}>Progression</div>
-                    <h3 className={styles.title}>Abilities</h3>
+                    <h3 className={styles.title} tabIndex={-1} data-editor-heading="abilities">Abilities</h3>
                 </div>
 
                 <button

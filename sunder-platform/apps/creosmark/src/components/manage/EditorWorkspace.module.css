@@ -563,8 +563,21 @@
     font-weight: 900;
 }
 
-.content [data-editor-subsection] {
-    scroll-margin-top: 5.75rem;
+.content [data-editor-subsection],
+.content [tabindex="-1"] {
+    scroll-margin-top: max(5.75rem, var(--editor-navigation-offset, 0px));
+}
+
+.content [tabindex="-1"]:focus {
+    outline: 2px solid var(--sunder-gold, #d2b24c);
+    outline-offset: 4px;
+    border-radius: 0.2rem;
+}
+
+.subsectionHeading {
+    margin: 0;
+    font: inherit;
+    font-weight: 700;
 }
 
 .section {
