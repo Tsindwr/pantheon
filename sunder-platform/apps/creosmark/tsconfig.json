@@ -4,7 +4,8 @@
     "../../tsconfig.astro.json"
   ],
   "exclude": [
-    "dist"
+    "dist",
+    "assets/Potential Sheet_files"
   ],
   "compilerOptions": {
     "module": "ESNext",
