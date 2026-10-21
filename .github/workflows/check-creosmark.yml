@@ -1,0 +1,145 @@
+name: Creosmark Engineering Checks
+
+on:
+  push:
+    branches:
+      - "fix/**"
+      - "feat/**"
+      - "feature/**"
+      - "refactor/**"
+      - "chore/**"
+    paths:
+      - ".github/workflows/check-creosmark.yml"
+      - "sunder-platform/apps/creosmark/**"
+      - "!sunder-platform/apps/creosmark/docs/**"
+      - "sunder-platform/packages/core/**"
+      - "sunder-platform/packages/experience-market/**"
+      - "sunder-platform/packages/schema/**"
+      - "sunder-platform/packages/discord/**"
+      - "sunder-platform/package.json"
+      - "sunder-platform/pnpm-lock.yaml"
+      - "sunder-platform/pnpm-workspace.yaml"
+      - "sunder-platform/tsconfig*.json"
+      - "sunder-platform/turbo.json"
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/check-creosmark.yml"
+      - "sunder-platform/apps/creosmark/**"
+      - "!sunder-platform/apps/creosmark/docs/**"
+      - "sunder-platform/packages/core/**"
+      - "sunder-platform/packages/experience-market/**"
+      - "sunder-platform/packages/schema/**"
+      - "sunder-platform/packages/discord/**"
+      - "sunder-platform/package.json"
+      - "sunder-platform/pnpm-lock.yaml"
+      - "sunder-platform/pnpm-workspace.yaml"
+      - "sunder-platform/tsconfig*.json"
+      - "sunder-platform/turbo.json"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: creosmark-check-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Build and validate Creosmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    env:
+      CI: "true"
+      ASTRO_TELEMETRY_DISABLED: "1"
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: sunder-platform
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.22.0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: sunder-platform/pnpm-lock.yaml
+
+      - name: Remove inherited build artifacts
+        working-directory: .
+        run: |
+          set -euo pipefail
+
+          find sunder-platform \
+            -name node_modules \
+            -prune -exec rm -rf {} +
+
+          rm -rf \
+            sunder-platform/packages/core/dist \
+            sunder-platform/packages/experience-market/dist \
+            sunder-platform/packages/schema/dist \
+            sunder-platform/packages/discord/dist \
+            sunder-platform/apps/creosmark/dist \
+            sunder-platform/apps/creosmark/.astro
+
+          for package in core experience-market schema discord; do
+            test ! -e "sunder-platform/packages/$package/dist"
+          done
+
+      - name: Verify toolchain
+        run: |
+          node --version
+          pnpm --version
+
+          test "$(pnpm --version)" = "11.22.0"
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check and build Core
+        run: |
+          pnpm --filter @sunderttrpg/core check
+          pnpm --filter @sunderttrpg/core build
+
+      - name: Check and build Experience Market
+        run: |
+          pnpm --filter @sunderttrpg/experience-market check
+          pnpm --filter @sunderttrpg/experience-market build
+
+      - name: Check and build Schema
+        run: |
+          pnpm --filter @sunderttrpg/schema check
+          pnpm --filter @sunderttrpg/schema build
+
+      - name: Check and build Discord
+        run: |
+          pnpm --filter @sunderttrpg/discord check
+          pnpm --filter @sunderttrpg/discord build
+
+      - name: Check Creosmark source
+        run: pnpm --filter @sunderttrpg/creosmark check
+
+      - name: Build Creosmark static site
+        env:
+          PUBLIC_SUPABASE_URL: https://example.supabase.co
+          PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+        run: pnpm --filter @sunderttrpg/creosmark build
+
+      - name: Verify static output
+        run: |
+          test -f apps/creosmark/dist/index.html
+          echo "Creosmark static build artifact verified."
