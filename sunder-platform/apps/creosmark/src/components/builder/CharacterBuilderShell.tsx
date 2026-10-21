@@ -4,23 +4,17 @@ import EditorWorkspace, {
     deriveEditorSectionSummaries,
     getEditorSectionSummaryStatus,
     getEditorTabStatusIcon,
-    type BuilderTabId,
 } from "../manage/EditorWorkspace.tsx";
 import styles from './CharacterBuilderShell.module.css';
 import { routes } from "../../lib/routing.ts";
 import type { CampaignAssignment } from "../../types/roll-feed.ts";
 
-const BUILDER_STEPS = [
-    { id: 'identity', label: '1. Identity' },
-    { id: 'origin', label: '2. Origin' },
-    { id: 'levels', label: '3. Levels' },
-    { id: 'potentials', label: '4. Potentials' },
-    { id: 'proficiencies', label: '5. Proficiencies' },
-    { id: 'abilities', label: '6. Abilities' },
-    { id: 'goals', label: '7. Goals' },
-] as const;
-
-type BuilderStepId = (typeof BUILDER_STEPS)[number]['id'];
+import {
+    BUILDER_STEPS,
+    isBuilderStepId,
+    type BuilderStepId,
+    type EditorSectionId,
+} from "../../presentation/character-editor/editor-sections.ts";
 
 type CharacterBuilderShellProps = {
     sheet: CharacterSheetState;
@@ -65,9 +59,9 @@ export default function CharacterBuilderShell({
         window.location.href = routes.characterView(characterId);
     }
 
-    function requestBuilderStep(nextTab: BuilderTabId) {
-        if (BUILDER_STEPS.some((entry) => entry.id === nextTab)) {
-            setStep(nextTab as BuilderStepId);
+    function requestBuilderStep(nextTab: EditorSectionId) {
+        if (isBuilderStepId(nextTab)) {
+            setStep(nextTab);
         }
     }
 
@@ -93,7 +87,8 @@ export default function CharacterBuilderShell({
             </header>
 
             <nav className={styles.steps}>
-                {BUILDER_STEPS.map((entry) => {
+                {BUILDER_STEPS.map((entry, index) => {
+                    const stepLabel = `${index + 1}. ${entry.label}`;
                     const summary = summaryBySection.get(entry.id);
                     const status = getEditorSectionSummaryStatus(summary);
                     const tabStatusIcon = getEditorTabStatusIcon(status);
@@ -104,9 +99,9 @@ export default function CharacterBuilderShell({
                             type={'button'}
                             className={`${styles.step} ${step === entry.id ? styles.stepActive : ""}`}
                             onClick={() => setStep(entry.id)}
-                            aria-label={`${entry.label}. ${status.label}.`}
+                            aria-label={`${stepLabel}. ${status.label}.`}
                         >
-                            <span className={styles.stepText}>{entry.label}</span>
+                            <span className={styles.stepText}>{stepLabel}</span>
                             <span
                                 className={`${styles.stepStatus} ${
                                     status.severity === "blocking"

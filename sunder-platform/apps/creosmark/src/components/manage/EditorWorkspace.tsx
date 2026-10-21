@@ -16,8 +16,13 @@ import {
 import {
     ARCHETYPES,
     DOMAINS,
-    type EditorTabId,
 } from '../../lib/sheet-data';
+import {
+    BUILDER_STEPS,
+    EDITOR_SECTIONS as EDITOR_WORKSPACE_NAV_ITEMS,
+    EDITOR_SECTION_LABELS,
+    type EditorSectionId,
+} from "../../presentation/character-editor/editor-sections.ts";
 import { BASE_PERKS } from "../../domain";
 import type { PerkDefinition, PerkId, VolatilityDieType } from "@sunderttrpg/core";
 import {
@@ -56,7 +61,8 @@ import BuilderPotentialRoller, {
 } from "../builder/BuilderPotentialRoller.tsx";
 import SideTray from "../common/SideTray.tsx";
 
-export type BuilderTabId = EditorTabId | "origin";
+/** Compatibility name for all editor sections, including the editor-only sections. */
+export type BuilderTabId = EditorSectionId;
 
 type EditorSubsectionDefinition = {
     id: string;
@@ -100,30 +106,6 @@ type AdvancedEditorPanelProps = {
     children: React.ReactNode;
 };
 
-const EDITOR_SECTION_LABELS: Record<BuilderTabId, string> = {
-    identity: "Identity",
-    origin: "Origin",
-    levels: "Levels",
-    abilities: "Abilities",
-    potentials: "Potentials",
-    proficiencies: "Proficiencies",
-    goals: "Goals",
-    inventory: "Inventory",
-    attacks: "Attacks",
-};
-
-const EDITOR_WORKSPACE_NAV_ITEMS: Array<{ id: BuilderTabId; label: string }> = [
-    { id: "identity", label: "Identity" },
-    { id: "origin", label: "Origin" },
-    { id: "levels", label: "Levels" },
-    { id: "potentials", label: "Potentials" },
-    { id: "proficiencies", label: "Proficiencies" },
-    { id: "abilities", label: "Abilities" },
-    { id: "goals", label: "Goals" },
-    { id: "inventory", label: "Inventory" },
-    { id: "attacks", label: "Attacks" },
-];
-
 const EDITOR_SUBSECTIONS: Record<BuilderTabId, EditorSubsectionDefinition[]> = {
     identity: [{ id: "basics", label: "Basics" }],
     origin: [
@@ -155,16 +137,6 @@ const EDITOR_SUBSECTIONS: Record<BuilderTabId, EditorSubsectionDefinition[]> = {
     inventory: [],
     attacks: [],
 };
-
-const EDITOR_SUMMARY_SECTION_IDS: BuilderTabId[] = [
-    "identity",
-    "origin",
-    "levels",
-    "potentials",
-    "proficiencies",
-    "abilities",
-    "goals",
-];
 
 function AdvancedEditorPanel({
     id,
@@ -503,7 +475,7 @@ export function deriveEditorSectionSummaries(sheet: CharacterSheetState): Editor
     addCheck("goals", "origin-linked-goals", "Heroic goal", hasText(sheet.firstArchetypeBoons.heroicGoalLabel));
     addCheck("goals", "custom-goals", "Custom goal", sheet.goals.some((goal) => hasText(goal.title)));
 
-    return EDITOR_SUMMARY_SECTION_IDS.map((sectionId) => getSummary(sectionId));
+    return BUILDER_STEPS.map(({ id }) => getSummary(id));
 }
 
 export function getEditorSectionSummaryStatus(

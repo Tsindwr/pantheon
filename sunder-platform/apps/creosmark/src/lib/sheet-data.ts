@@ -20,26 +20,11 @@ export const SHEET_TABS = [
 
 export type SheetTabId = (typeof SHEET_TABS)[number]["id"];
 
-export type EditorTabId =
-  | "identity"
-  | "levels"
-  | "abilities"
-  | "potentials"
-  | "proficiencies"
-  | "goals"
-  | "inventory"
-  | "attacks";
-
-export const EDITOR_TABS: Array<{ id: EditorTabId; label: string }> = [
-    { id: "identity", label: "Identity" },
-    { id: "levels", label: "Levels" },
-    { id: "abilities", label: "Abilities" },
-    { id: "potentials", label: "Potentials" },
-    { id: "proficiencies", label: "Proficiencies" },
-    { id: "goals", label: "Goals" },
-    { id: "inventory", label: "Inventory" },
-    { id: "attacks", label: "Attacks" },
-];
+/** Legacy import paths now share the canonical editor model, including Origin. */
+export {
+  EDITOR_SECTIONS as EDITOR_TABS,
+  type EditorSectionId as EditorTabId,
+} from "../presentation/character-editor/editor-sections.ts";
 
 export type ArchetypeId =
   | "spellslinger"
