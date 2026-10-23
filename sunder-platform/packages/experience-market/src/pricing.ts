@@ -4,7 +4,7 @@ import type {
     CostState,
     ModifierFamily,
     ModifierNodeType,
-} from "./types.js";
+} from "./types.ts";
 import { deriveActivationProfile } from "./activation-profile.js";
 import { applyMovementDamageLaneSurcharge } from "./cost-rules.js";
 import { resolveModifierData } from "./palette.js";
@@ -100,32 +100,52 @@ export type AbilitySummary = {
     notes: string[];
 };
 
-function fibonacci(index: number): number {
-    // follow pattern: 2, 3, 5, 8, 13 ...
-    if (index <= 0) return 0;
-    if (index === 1) return 2;
-    if (index === 2) return 3;
-
-    let a = 2; // F(1)
-    let b = 3; // F(2)
-    for (let i = 3; i <= index; i++) {
-        const next = a + b;
-        a = b;
-        b = next;
+/**
+ * Total String price of the Enhancements on one Ability.
+ *
+ * Individual Enhancement prices follow:
+ * 2, 3, 5, 8, 13, ...
+ *
+ * Prices are cumulative:
+ * 1 Enhancement = 2 Strings
+ * 2 Enhancements = 5 Strings
+ * 3 Enhancements = 10 Strings
+ *
+ * Negative net Enhancement counts contribute no price.
+ * Invalid or excessively large inputs return NaN.
+ */
+export function calculateEnhancementCostStrings(
+    enhancements: number,
+): number {
+    if (!Number.isSafeInteger(enhancements) || enhancements > 100) {
+        return Number.NaN;
     }
-    return b;
+
+    if (enhancements <= 0) {
+        return 0;
+    }
+
+    let previous = 2;
+    let current = 3;
+    let total = 0;
+
+    for (let index = 0; index < enhancements; index += 1) {
+        total += previous;
+
+        const next = previous + current;
+        previous = current;
+        current = next;
+    }
+
+    return total;
 }
 
-export function calculateTotalFromCost(cost: CostState): number {
-    // beats are 0.1
-    // strings are 1
-    // enhancements follow a fibonacci-like sequence: 2, 3, 5, 8, 13 ...
+export function calculateTotalFromCost(
+    cost: CostState,
+): number {
+    const enhancementCost = calculateEnhancementCostStrings(cost.enhancements);
 
-    const enhancementCost = cost.enhancements > 0
-        ? fibonacci(cost.enhancements) // +1 because the sequence starts at 2 for 1 enhancement
-        : 0;
-
-    return cost.strings + (cost.beats * 0.1) + enhancementCost;
+    return (cost.strings + cost.beats / 10 + enhancementCost);
 }
 
 export function computeAbilitySummary(nodes: AbilityBuilderNode[]): AbilitySummary {

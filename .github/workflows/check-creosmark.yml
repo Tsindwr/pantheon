@@ -120,6 +120,9 @@ jobs:
           pnpm --filter @sunderttrpg/experience-market check
           pnpm --filter @sunderttrpg/experience-market build
 
+      - name: Test Experience Market pricing and Enhancement limits
+        run: pnpm --filter @sunderttrpg/experience-market test:rules
+
       - name: Check and build Schema
         run: |
           pnpm --filter @sunderttrpg/schema check
