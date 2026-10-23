@@ -13,6 +13,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { abilityFixtures, runAbilityBrowserCases } from "./ability-choice.browser.mjs"
 
 const option = (name) => process.argv[process.argv.indexOf(name) + 1];
 assert.ok(process.argv.includes("--checkout") && process.argv.includes("--playwright"),
@@ -106,6 +107,27 @@ import "../styles/sunder-theme.css";
     await context.route("**/*", async route => {
         const request = route.request();
         if (new URL(request.url()).origin === new URL(url).origin) return route.continue();
+        if (request.method() === "GET" &&
+            new URL(request.url()).pathname === "/rest/v1/abilities") {
+            const idFilter = new URL(request.url()).searchParams.get("id");
+
+            if (idFilter?.startsWith("eq.")) {
+                const matched = abilityFixtures.find(
+                    row => row.id === idFilter.slice(3)
+                );
+
+                return route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify(matched ?? null),
+                });
+            }
+
+            return route.fulfill({
+                status: 200, contentType: "application/json",
+                body: JSON.stringify(abilityFixtures),
+            });
+        }
         external.push({ method: request.method(), path: new URL(request.url()).pathname });
         if (request.method() === "GET" && new URL(request.url()).pathname === "/rest/v1/origin_selections") {
             const facet = new URL(request.url()).searchParams.get("origin_facet")?.replace(/^eq\./, "");
@@ -251,6 +273,7 @@ import "../styles/sunder-theme.css";
     });
     await runOriginBrowserCases({page, run, resultDir, exceptions, external});
     await runArchetypeBrowserCases({page, run, resultDir, exceptions, external});
+    await runAbilityBrowserCases({ page, run, exceptions, external });
     console.log(`Browser regression: ${results.length} passed, 0 failed; ${url}; evidence: ${resultDir}`);
 } catch (error) {
     console.error(error);

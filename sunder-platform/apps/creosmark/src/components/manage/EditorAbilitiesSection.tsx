@@ -1,6 +1,16 @@
-import React, { useDeferredValue, useEffect, useMemo, useState } from "react";
+import React, {
+    useDeferredValue,
+    useEffect,
+    useMemo,
+    useRef,
+    useState
+} from "react";
 import type { CharacterSheetState } from "../../types/sheet.ts";
-import { type ArchetypeId } from "../../lib/sheet-data.ts";
+import { getArchetypeLabel, type ArchetypeId } from "../../lib/sheet-data.ts";
+import {
+    assessAbilityChoice,
+    type AbilityBlocker
+} from "../../presentation/character-editor/ability-choice-status.ts";
 import {
     getAbilityReferenceById,
     searchAbilityReferences,
@@ -34,41 +44,30 @@ function includesAllWords(text: string, words: string[]): boolean {
     return words.every((word) => target.includes(word));
 }
 
-function resolveInheritedArchetypes(
-    abilityId: string,
-    byId: Map<string, AbilityReferenceSummary>,
-    memo: Map<string, ArchetypeId[]>,
-    visiting: Set<string>,
-): ArchetypeId[] {
-    const cached = memo.get(abilityId);
-    if (cached) return cached;
-    if (visiting.has(abilityId)) return [];
+type AbilityPickerFilter =
+    | "available"
+    | "blocked"
+    | "on-character"
+    | "all";
 
-    visiting.add(abilityId);
+function describeAbilityBlocker(
+    blocker: AbilityBlocker,
+    catalog: ReadonlyMap<string, AbilityReferenceSummary>,
+): string {
+    switch (blocker.kind) {
+        case "ability":
+            return `Requires Ability: ${
+                catalog.get(blocker.id)?.title ??
+                `Unknown Ability ${blocker.id.slice(0, 8)}`
+            }`;
+        case "archetype":
+            return `Requires Archetype: ${getArchetypeLabel(
+                blocker.id as ArchetypeId,
+            )}`;
 
-    const row = byId.get(abilityId);
-    if (!row) {
-        visiting.delete(abilityId);
-        memo.set(abilityId, []);
-        return [];
+        case "origin":
+            return `Requires Origin selection: ${blocker.id.slice(0, 8)}`;
     }
-
-    const collected = new Set<ArchetypeId>(row.directArchetypeIds);
-    for (const prerequisiteAbilityId of row.prerequisiteAbilityIds) {
-        for (const inherited of resolveInheritedArchetypes(
-            prerequisiteAbilityId,
-            byId,
-            memo,
-            visiting,
-        )) {
-            collected.add(inherited);
-        }
-    }
-
-    const resolved = Array.from(collected);
-    memo.set(abilityId, resolved);
-    visiting.delete(abilityId);
-    return resolved;
 }
 
 function toFallbackAbilityEntry(abilityId: string): AbilityReferenceEntry {
@@ -96,6 +95,87 @@ export default function EditorAbilitiesSection({
     onChange,
 }: EditorAbilitiesSectionProps) {
     const [openPicker, setOpenPicker] = useState(false);
+    const [pickerFilter, setPickerFilter] =
+        useState<AbilityPickerFilter>("available");
+
+    const addTriggerRef = useRef<HTMLButtonElement>(null);
+    const pickerDialogRef = useRef<HTMLElement>(null);
+    const pickerSearchRef = useRef<HTMLInputElement>(null);
+    const restorePickerFocusRef = useRef(false);
+
+    function openAbilityPicker() {
+        setPickerFilter("available");
+        setSearchText("");
+        setOpenPicker(true);
+    }
+
+    function closeAbilityPicker() {
+        restorePickerFocusRef.current = true;
+        setOpenPicker(false);
+    }
+
+    useEffect(() => {
+        if (!openPicker) {
+            if (restorePickerFocusRef.current) {
+                restorePickerFocusRef.current = false;
+                addTriggerRef.current?.focus({ preventScroll: true });
+            }
+            return;
+        }
+
+        const dialog = pickerDialogRef.current;
+        if (!dialog) return;
+
+        pickerSearchRef.current?.focus({ preventScroll: true });
+
+        function handleKeyDown(event: KeyboardEvent) {
+            if (event.key === "Escape") {
+                event.preventDefault();
+                closeAbilityPicker();
+                return;
+            }
+
+            if (event.key !== "Tab" || !dialog) return;
+
+            const focusable = Array.from(
+                dialog.querySelectorAll<HTMLElement>(
+                    'button:not([disabled]), input:not([disabled]), ' +
+                    'select:not([disabled]), textarea:not([disabled])',
+                ),
+            ).filter((element) => element.getClientRects().length > 0);
+
+            if (focusable.length === 0) {
+                event.preventDefault();
+                return;
+            }
+
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+
+            if (
+                event.shiftKey &&
+                (document.activeElement === first ||
+                    !dialog.contains(document.activeElement))
+            ) {
+                event.preventDefault();
+                last.focus();
+            } else if (
+                !event.shiftKey &&
+                (document.activeElement === last ||
+                    !dialog.contains(document.activeElement))
+            ) {
+                event.preventDefault();
+                first.focus();
+            }
+        }
+
+        dialog.addEventListener("keydown", handleKeyDown);
+
+        return () => {
+            dialog.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [openPicker]);
+    
     const [searchText, setSearchText] = useState("");
     const [rows, setRows] = useState<AbilityReferenceSummary[]>([]);
     const [cachedById, setCachedById] = useState<CachedAbilityById>({});
@@ -221,71 +301,124 @@ export default function EditorAbilitiesSection({
         return ids;
     }, [sheet.originSelections]);
 
-    const archetypesByAbilityId = useMemo(() => {
-        const memo = new Map<string, ArchetypeId[]>();
-        const visiting = new Set<string>();
-        for (const row of rowsById.values()) {
-            resolveInheritedArchetypes(row.id, rowsById, memo, visiting);
+    const catalogById = useMemo(() => {
+        const catalog = new Map<string, AbilityReferenceSummary>();
+
+        for (const [id, entry] of Object.entries(cachedById)) {
+            if (entry) catalog.set(id, entry);
         }
-        return memo;
-    }, [rowsById]);
+
+        for (const entry of rows) {
+            catalog.set(entry.id, entry);
+        }
+
+        return catalog;
+    }, [cachedById, rows]);
+
+    const eligibilityContext = useMemo(() => ({
+        assignedAbilityIds,
+        characterArchetypeIds,
+        characterOriginSelectionIds,
+        catalogById,
+    }), [
+        assignedAbilityIds,
+        characterArchetypeIds,
+        characterOriginSelectionIds,
+        catalogById
+    ]);
 
     const searchWords = useMemo(
         () => parseSearchWords(deferredSearchText),
-        [deferredSearchText],
+        [deferredSearchText]
     );
 
-    const availableEntries = useMemo<AbilityReferenceEntry[]>(() => {
-        return rows.flatMap((row) => {
-            if (assignedAbilityIds.has(row.id)) return [];
+    const pickerChoices = useMemo(() => {
+        const catalogEntries: AbilityReferenceEntry[] = rows.map(
+            (entry) => ({
+                ...entry, kind: "ability",
+            }),
+        );
 
-            const requiredArchetypes = archetypesByAbilityId.get(row.id) ?? row.directArchetypeIds;
-            if (requiredArchetypes.some((id) => !characterArchetypeIds.has(id))) {
-                return [];
-            }
+        // Assigned IDs may not appear in the normal catalog query.
+        // Retain those entries in the "On character" view.
+        const missingAssignedEntries = assignedEntries.filter(
+            (entry) => !rowsById.has(entry.id),
+        );
 
-            if (row.prerequisiteAbilityIds.some((id) => !assignedAbilityIds.has(id))) {
-                return [];
-            }
-
-            if (row.directOriginSelectionIds.some((id) => !characterOriginSelectionIds.has(id))) {
-                return [];
-            }
-
-            if (
-                searchWords.length > 0 &&
-                !includesAllWords(
-                    `${row.title} ${row.descriptionText} ${row.prerequisiteText}`,
-                    searchWords,
+        return [...catalogEntries, ...missingAssignedEntries]
+            .filter((entry) => includesAllWords(
+                `${entry.title} ${entry.descriptionText} ${entry.prerequisiteText}`,
+                searchWords,
+            ))
+            .map((entry) => ({
+                entry,
+                assessment: assessAbilityChoice(
+                    entry, eligibilityContext,
                 )
-            ) {
-                return [];
-            }
-
-            return [
-                {
-                    ...row,
-                    kind: "ability",
-                },
-            ];
-        });
+            }));
     }, [
         rows,
-        assignedAbilityIds,
-        archetypesByAbilityId,
-        characterArchetypeIds,
-        characterOriginSelectionIds,
+        assignedEntries,
+        rowsById,
         searchWords,
+        eligibilityContext
     ]);
+
+    const choiceCounts = useMemo(() => ({
+        all: pickerChoices.length,
+        available: pickerChoices.filter(
+            ({ assessment }) => assessment.passesExistingFilter,
+        ).length,
+        blocked: pickerChoices.filter(
+            ({ assessment }) => assessment.status === "blocked",
+        ).length,
+        onCharacter: pickerChoices.filter(
+            ({ assessment }) => assessment.status === "on-character",
+        ).length,
+    }), [pickerChoices]);
+
+    const visibleChoices = useMemo(() => {
+        switch (pickerFilter) {
+            case "available":
+                return pickerChoices.filter(
+                    ({ assessment }) => assessment.passesExistingFilter,
+                );
+
+            case "blocked":
+                return pickerChoices.filter(
+                    ({ assessment }) => assessment.status === "blocked",
+                );
+
+            case "on-character":
+                return pickerChoices.filter(
+                    ({ assessment }) => assessment.status === "on-character",
+                );
+
+            case "all":
+                return pickerChoices;
+        }
+    }, [pickerChoices, pickerFilter]);
 
     function assignAbility(abilityId: string) {
         if (assignedAbilityIds.has(abilityId)) return;
+
+        const entry = rowsById.get(abilityId);
+        if (!entry) return;
+
+        const assessment = assessAbilityChoice(
+            entry,
+            eligibilityContext
+        );
+
+        // Preserve the existing assignment eligibility contract.
+        if (!assessment.passesExistingFilter) return;
 
         onChange({
             ...sheet,
             abilityIds: [...sheet.abilityIds, abilityId],
         });
-        setOpenPicker(false);
+
+        closeAbilityPicker();
     }
 
     function removeAbility(abilityId: string) {
@@ -304,9 +437,10 @@ export default function EditorAbilitiesSection({
                 </div>
 
                 <button
+                    ref={addTriggerRef}
                     type="button"
                     className={styles.addButton}
-                    onClick={() => setOpenPicker(true)}
+                    onClick={openAbilityPicker}
                 >
                     Add Ability
                 </button>
@@ -341,11 +475,12 @@ export default function EditorAbilitiesSection({
                     <button
                         type="button"
                         className={pickerStyles.abilityPickerScrim}
-                        onClick={() => setOpenPicker(false)}
+                        onClick={closeAbilityPicker}
                         aria-label="Close ability picker"
                     />
 
                     <section
+                        ref={pickerDialogRef}
                         className={pickerStyles.abilityPickerPanel}
                         role="dialog"
                         aria-modal="true"
@@ -360,53 +495,146 @@ export default function EditorAbilitiesSection({
                             <button
                                 type="button"
                                 className={pickerStyles.abilityPickerClose}
-                                onClick={() => setOpenPicker(false)}
+                                onClick={closeAbilityPicker}
+                                aria-label={"Close ability picker"}
                             >
                                 ✕
                             </button>
                         </header>
 
                         <div className={pickerStyles.abilityPickerControls}>
-                            <input
-                                className={pickerStyles.abilityPickerSearch}
-                                value={searchText}
-                                onChange={(event) => setSearchText(event.target.value)}
-                                placeholder="Search available abilities..."
-                            />
+                            <div className={styles.experienceSummary}>
+                                <strong>Recorded Experience</strong>
+
+                                <div className={styles.experienceAmounts}>
+                                    <span>{sheet.experience.beats} Beats</span>
+                                    <span>{sheet.experience.strings} Strings</span>
+                                    <span>{sheet.experience.milestones} Milestones</span>
+                                    <span>{sheet.experience.zeniths} Zeniths</span>
+                                </div>
+
+                                <p>
+                                    Adding an Ability currently assigns it to this
+                                    character. Experience is not deducted by this action.
+                                </p>
+                            </div>
+
+                            <label className={pickerStyles.abilityPickerFilterField}>
+                                <span>Search Abilities</span>
+                                <input
+                                    ref={pickerSearchRef}
+                                    className={pickerStyles.abilityPickerSearch}
+                                    value={searchText}
+                                    onChange={(event) => setSearchText(event.target.value)}
+                                    placeholder="Search by ability name or description..."
+                                />
+                            </label>
+
+                            <label className={pickerStyles.abilityPickerFilterField}>
+                                <span>Show abilities</span>
+                                <select
+                                    value={pickerFilter}
+                                    onChange={(event) =>
+                                        setPickerFilter(
+                                            event.target.value as AbilityPickerFilter
+                                        )
+                                    }
+                                >
+                                    <option value={"available"}>
+                                        Available to add ({choiceCounts.available})
+                                    </option>
+                                    <option value={"blocked"}>
+                                        Prerequisites missing ({choiceCounts.blocked})
+                                    </option>
+                                    <option value={"on-character"}>
+                                        On character ({choiceCounts.onCharacter})
+                                    </option>
+                                    <option value={"all"}>
+                                        All visible ({choiceCounts.all})
+                                    </option>
+                                </select>
+                            </label>
                         </div>
 
                         <div className={pickerStyles.abilityPickerList}>
                             {errorText ? (
-                                <div className={pickerStyles.abilityPickerState}>Error: {errorText}</div>
-                            ) : null}
-
-                            {loadingRows ? (
-                                <div className={pickerStyles.abilityPickerState}>Loading abilities…</div>
-                            ) : null}
-
-                            {!loadingRows && availableEntries.length === 0 ? (
-                                <div className={pickerStyles.abilityPickerState}>
-                                    No abilities currently match this character&apos;s prerequisites.
+                                <div role={"alert"} className={pickerStyles.abilityPickerState}>
+                                    Error: {errorText}
                                 </div>
                             ) : null}
 
-                            {!loadingRows &&
-                                availableEntries.map((entry) => (
-                                    <AbilityReferenceEntryRow
-                                        key={entry.id}
-                                        entry={entry}
-                                        expanded={Boolean(expandedAvailableIds[entry.id])}
-                                        selected={false}
-                                        onToggle={() =>
-                                            setExpandedAvailableIds((current) => ({
-                                                ...current,
-                                                [entry.id]: !current[entry.id],
-                                            }))
-                                        }
-                                        onSelect={() => assignAbility(entry.id)}
-                                        actionLabel="Add"
-                                    />
-                                ))}
+                            {loadingRows ? (
+                                <div role={"status"} className={pickerStyles.abilityPickerState}>
+                                    Loading abilities…
+                                </div>
+                            ) : null}
+
+                            {!loadingRows && !errorText && visibleChoices.length === 0 ? (
+                                <div className={pickerStyles.abilityPickerState}>
+                                    No abilities currently match this search filter.
+                                </div>
+                            ) : null}
+
+                            {!loadingRows && visibleChoices.map(
+                                ({ entry, assessment }) => (
+                                    <div key={entry.id} className={styles.pickerChoiceRow}>
+                                        <div className={styles.pickerStatusRow}>
+                                            <span className={`${styles.pickerStatus} ${
+                                                assessment.status === "blocked"
+                                                    ? styles.pickerStatusBlocked
+                                                    : assessment.status === "unverified"
+                                                        ? styles.pickerStatusUnverified
+                                                        : assessment.status === "on-character"
+                                                            ? styles.pickerStatusAssigned
+                                                            : ""
+                                            }`}>
+                                                {assessment.status === "on-character" ? "On character"
+                                                    : assessment.status === "blocked" ? "Prerequisites missing"
+                                                        : assessment.status === "unverified" ? "Verification incomplete"
+                                                            : "Meets known prerequisites"}
+                                            </span>
+                                        </div>
+
+                                        <AbilityReferenceEntryRow
+                                            key={entry.id}
+                                            entry={entry}
+                                            expanded={Boolean(expandedAvailableIds[entry.id])}
+                                            selected={false}
+                                            onToggle={() =>
+                                                setExpandedAvailableIds((current) => ({
+                                                    ...current,
+                                                    [entry.id]: !current[entry.id],
+                                                }))
+                                            }
+                                            onSelect={() => assignAbility(entry.id)}
+                                            actionLabel={
+                                                assessment.status === "on-character" ? "Already added"
+                                                    : "Add"
+                                            }
+                                            actionDisabled={!assessment.passesExistingFilter}
+                                            costLabel="List catalog cost"
+                                        />
+
+                                        {assessment.blockers.length > 0 ? (
+                                            <ul className={styles.pickerReasons}>
+                                                {assessment.blockers.map((blocker) => (
+                                                    <li key={`${blocker.kind}:${blocker.id}`}>
+                                                        {describeAbilityBlocker(blocker, catalogById)}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : null}
+
+                                        {assessment.verificationIssues.length > 0 ? (
+                                            <p className={styles.pickerNotice}>
+                                                Some prerequisite relationships cannot
+                                                be fully verified from the loaded catalog.
+                                                The current assignment rules are unchanged.
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                ),
+                            )}
                         </div>
                     </section>
                 </div>

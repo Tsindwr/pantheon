@@ -44,6 +44,7 @@ type AbilityReferenceEntryRowProps = {
     actionLabel?: string;
     actionTone?: "default" | "danger";
     actionDisabled?: boolean;
+    costLabel?: string;
 };
 
 export default function AbilityReferenceEntryRow({
@@ -55,6 +56,7 @@ export default function AbilityReferenceEntryRow({
     actionLabel,
     actionTone = "default",
     actionDisabled,
+    costLabel
 }: AbilityReferenceEntryRowProps) {
     const isExpandable = entry.kind === "ability" || entry.kind === "origin";
     const resolvedActionLabel = actionLabel ?? (selected ? "Selected" : "Use");
@@ -95,7 +97,10 @@ export default function AbilityReferenceEntryRow({
             </div>
 
             <div className={styles.abilityEntryMeta}>
-                <span>{entry.experienceCost}</span>
+                <span>
+                    {costLabel ? `${costLabel}: ` : null}
+                    {entry.experienceCost}
+                </span>
                 <span>{entry.author}</span>
             </div>
 

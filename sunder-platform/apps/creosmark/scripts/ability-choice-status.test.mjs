@@ -13,7 +13,7 @@ const compiled = ts.transpileModule(source, {
     fileName: "ability-choice-status.ts",
     compilerOptions: {
         module: ts.ModuleKind.CommonJS,
-        target: ts.ScriptTarget.ES2002,
+        target: ts.ScriptTarget.ES2022,
     },
 }).outputText;
 
