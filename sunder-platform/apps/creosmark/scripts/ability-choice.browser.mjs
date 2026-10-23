@@ -154,8 +154,7 @@ export async function runAbilityBrowserCases({
         assert.ok(content.includes("Requires Origin selection"));
 
         const addButtons = dialog().getByRole("button", {
-            name: "Add",
-            exact: true,
+            name: /^Add /,
         });
 
         for (const button of await addButtons.all()) {
@@ -170,6 +169,13 @@ export async function runAbilityBrowserCases({
 
         assert.equal(await dialog().count(), 0);
         assert.deepEqual(await state(), before);
+
+        await page.waitForFunction(() => {
+            const active = document.activeElement;
+
+            return active instanceof HTMLButtonElement
+                && active.textContent?.trim() === "Add Ability";
+        })
     });
 
     await run("Add assigns an Ability without spending Experience", async () => {
@@ -177,7 +183,7 @@ export async function runAbilityBrowserCases({
         const before = await state();
 
         await dialog().getByRole("button", {
-            name: "Add",
+            name: "Add Unbound Spark",
             exact: true,
         }).click();
 
@@ -195,7 +201,8 @@ export async function runAbilityBrowserCases({
         assert.ok((await dialog().innerText()).includes("Unbound Spark"));
 
         const action = dialog().getByRole("button", {
-            name: "Already added",
+            name: "Unbound Spark already added",
+            exact: true,
         });
 
         assert.equal(await action.isDisabled(), true);

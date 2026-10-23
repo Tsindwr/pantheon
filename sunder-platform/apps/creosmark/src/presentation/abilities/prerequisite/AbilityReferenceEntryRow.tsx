@@ -42,6 +42,7 @@ type AbilityReferenceEntryRowProps = {
     onToggle: () => void;
     onSelect: () => void;
     actionLabel?: string;
+    actionAriaLabel?: string;
     actionTone?: "default" | "danger";
     actionDisabled?: boolean;
     costLabel?: string;
@@ -54,6 +55,7 @@ export default function AbilityReferenceEntryRow({
     onToggle,
     onSelect,
     actionLabel,
+    actionAriaLabel,
     actionTone = "default",
     actionDisabled,
     costLabel
@@ -91,6 +93,7 @@ export default function AbilityReferenceEntryRow({
                     className={`${styles.abilityEntrySelect} ${actionTone === "danger" ? styles.abilityEntrySelectDanger : ""}`}
                     onClick={onSelect}
                     disabled={resolvedActionDisabled}
+                    aria-label={actionAriaLabel}
                 >
                     {resolvedActionLabel}
                 </button>

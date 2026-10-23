@@ -61,7 +61,7 @@
 }
 
 .experienceSummary > strong {
-    color: var(--sunder-gold, #d2b2f4c);
+    color: var(--sunder-gold, #d2b24c);
     font-size: 0.85rem;
 }
 

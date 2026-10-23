@@ -464,6 +464,7 @@ export default function EditorAbilitiesSection({
                             }
                             onSelect={() => removeAbility(entry.id)}
                             actionLabel="Remove"
+                            actionAriaLabel={`Remove ${entry.title}`}
                             actionTone="danger"
                         />
                     ))
@@ -608,11 +609,13 @@ export default function EditorAbilitiesSection({
                                             }
                                             onSelect={() => assignAbility(entry.id)}
                                             actionLabel={
-                                                assessment.status === "on-character" ? "Already added"
-                                                    : "Add"
+                                                assessment.status === "on-character" ? "Already added" : "Add"
                                             }
+                                            actionAriaLabel={assessment.status === "on-character"
+                                                ? `${entry.title} already added`
+                                                : `Add ${entry.title}`}
                                             actionDisabled={!assessment.passesExistingFilter}
-                                            costLabel="List catalog cost"
+                                            costLabel="Listed catalog cost"
                                         />
 
                                         {assessment.blockers.length > 0 ? (
