@@ -6,7 +6,7 @@ import {
     calculateTotalFromCost,
     getBaseEnhancementLimits,
     assessEnhancementCapacity,
-} from "../src/index.ts";
+} from "../dist/index.js";
 
 test("Enhancement prices accumulate through Fibonacci progression", () => {
     const cases = [
@@ -92,7 +92,7 @@ test("undefined Tier levels fail closed", () => {
 });
 
 test("a purchase exactly at both Tier I limits is allowed", () => {
-    const result = assessEnhancementcapacity({
+    const result = assessEnhancementCapacity({
         characterLevel: 4,
         abilityCountedEnhancements: 1,
         otherAbilitiesCountedEnhancements: 2,
@@ -104,7 +104,7 @@ test("a purchase exactly at both Tier I limits is allowed", () => {
 });
 
 test("a purchase exceeding its individual limit is blocked", () => {
-    const result = assessEnhancementcapacity({
+    const result = assessEnhancementCapacity({
         characterLevel: 4,
         abilityCountedEnhancements: 2,
         otherAbilitiesCountedEnhancements: 0,
@@ -182,8 +182,11 @@ test("invalid upgrade bonuses cannot authorize acquisition", () => {
     });
 
     assert.equal(result.status, "unverified");
+    assert.equal(result.maxPerAbility, null);
+    assert.equal(result.maxTotal, null);
+    assert.equal(result.projectedTotal, null);
 
-    assert.ok(result.issues.includes("tier-unavailable"));
+    assert.ok(result.issues.includes("counts-unverified"));
 });
 
 test("capacity assessment does not mutate its inputs", () => {
