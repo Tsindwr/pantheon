@@ -8,7 +8,7 @@
     "build": "astro build",
     "preview": "astro preview --port 4174",
     "astro": "astro",
-    "check": "node scripts/ensure-checker.mjs && node --test scripts/editor-sections.test.mjs scripts/editor-navigation.test.mjs scripts/origin-choice-preview.test.mjs scripts/archetype-choice-preview.test.mjs scripts/ability-choice-status.test.mjs && astro check",
+    "check": "node scripts/ensure-checker.mjs && node --test scripts/editor-sections.test.mjs scripts/editor-navigation.test.mjs scripts/origin-choice-preview.test.mjs scripts/archetype-choice-preview.test.mjs scripts/ability-choice-status.test.mjs node scripts/character-custody.test.mjs && astro check",
     "test:editor-sections": "node --test scripts/editor-sections.test.mjs",
     "supabase:push": "dotenv -e .env -- supabase db push",
     "supabase:pull": "dotenv -e .env -- supabase db pull",

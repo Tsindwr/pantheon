@@ -241,3 +241,17 @@ test("a custody quote never mutates its input", () => {
     assert.equal(unclaimed.revision, 1);
     assert.equal(result.nextCustody.revision, 2);
 });
+
+test("unauthorized users cannot detach shared characters", () => {
+    const result = quoteCharacterCampaignDetachment({
+        custody: shared,
+        authority: authority("stranger", {
+            verifiedGmUserIds: [],
+            verifiedMemberUserIds: ["player"],
+            verifiedInvitedUserIds: [],
+        }),
+    });
+
+    assert.equal(result.status, "blocked");
+    assert.deepEqual(result.issues, ["detachment-not-authorized"]);
+});

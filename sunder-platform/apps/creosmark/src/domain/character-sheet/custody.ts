@@ -53,7 +53,7 @@ export type CustodyIssue =
 | "not-unclaimed"
 | "owner-required"
 | "assignment-not-authorized"
-| "detachmenet-not-authorized"
+| "detachment-not-authorized"
 | "claim-not-authorized"
 | "revision-overflow";
 
@@ -213,7 +213,7 @@ export function quoteCharacterCampaignDetachment(input: {
     const isGm = authority.verifiedGmUserIds.includes(authority.actorUserId);
 
     if (!isOwner && !isGm) {
-        return failure("detachmenet-not-authorized");
+        return failure("detachment-not-authorized");
     }
 
     const revision = nextRevision(custody);
