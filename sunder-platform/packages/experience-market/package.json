@@ -14,7 +14,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
-    "test:rules": "node --test scripts/enhancement-rules.test.mjs"
+    "test:rules": "node --test scripts/enhancement-rules.test.mjs scripts/ability-transactions.test.mjs"
   },
   "dependencies": {
     "@sunderttrpg/core": "workspace:*"
