@@ -27,3 +27,5 @@ export * from "./ability-cards/mappings.ts";
 export * from "./ability-cards/validation.ts";
 export * from './ability-cards/symbols.ts';
 export * from "./ability-cards/editor.ts";
+
+export * from "./character-sheet/custody.ts";

@@ -15,7 +15,8 @@
     "test:editor-navigation": "node --test scripts/editor-navigation.test.mjs",
     "test:origin-preview": "node --test scripts/origin-choice-preview.test.mjs",
     "test:ability-choice-status": "node --test scripts/ability-choice-status.test.mjs",
-    "test:archetype-preview": "node --test scripts/archetype-choice-preview.test.mjs"
+    "test:archetype-preview": "node --test scripts/archetype-choice-preview.test.mjs",
+    "test:character-custody": "node --test scripts/character-custody.test.mjs"
   },
   "dependencies": {
     "@3d-dice/dice-box": "^1.1.4",
