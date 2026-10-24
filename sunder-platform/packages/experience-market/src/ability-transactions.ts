@@ -256,12 +256,33 @@ export function quoteAbilityPurchase(input: PurchaseQuoteInput): PurchaseQuote {
         issues.push("eligibility-unverified");
     }
 
-    const capacity = input.capacity ? assessEnhancementCapacity(input.capacity) : null;
+    const capacity = input.capacity
+        ? assessEnhancementCapacity(input.capacity) : null;
 
-    if (!capacity || capacity.status === "unverified") {
-        issues.push("capacity-unverified");
-    } else if (capacity.status === "blocked") {
-        issues.push("capacity-blocked");
+    /**
+     * Tier 0 has no published Enhancement capacity table.
+     *
+     * A Tier 0 character can still purchase an Ability when
+     * the transaction consumes no counted Enhancement capacity
+     * and the character has no existing counted Enhancements.
+     *
+     * This exception does not establish a Tier 0 Enhancement
+     * allowance. Any nonzero or unverified count still fails
+     * closed until the rules define its treatment.
+     */
+    const tierZeroWithoutCountedEnhancements =
+        input.capacity?.characterLevel === 0 &&
+        input.capacity.abilityCountedEnhancements === 0 &&
+        input.capacity.otherAbilitiesCountedEnhancements === 0 &&
+        (input.capacity.verifiedPerAbilityBonus ?? 0) === 0 &&
+        (input.capacity.verifiedTotalBonus ?? 0) === 0;
+
+    if (!tierZeroWithoutCountedEnhancements) {
+        if (!capacity || capacity.status === "unverified") {
+            issues.push("capacity-unverified");
+        } else if (capacity.status === "blocked") {
+            issues.push("capacity-blocked");
+        }
     }
 
     const priceBeats = marketCostToBeats(input.paidCost);

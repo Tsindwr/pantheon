@@ -429,3 +429,70 @@ test("an Ability absent from the character cannot be removed", () => {
     assert.ok(result.issues.includes("not-assigned"));
     assert.equal(result.balanceAfter, null);
 });
+
+test("Tier 0 can purchase an Ability without counted Enhancements", () => {
+    const result = purchase({
+        capacity: {
+            characterLevel: 0,
+            abilityCountedEnhancements: 0,
+            otherAbilitiesCountedEnhancements: 0,
+        },
+    });
+
+    assert.equal(result.status, "ready");
+    assert.equal(result.priceBeats, 25);
+    assert.equal(result.remainingBeats, 75);
+});
+
+test("Tier 0 cannot authorize counted Enhancements without defined limits", () => {
+    const result = purchase({
+        capacity: {
+            characterLevel: 0,
+            abilityCountedEnhancements: 1,
+            otherAbilitiesCountedEnhancements: 0,
+        },
+    });
+
+    assert.equal(result.status, "unverified");
+    assert.ok(result.issues.includes("capacity-unverified"));
+});
+
+test("existing counted Enhancements prevent the Tier 0 exception", () => {
+    const result = purchase({
+        capacity: {
+            characterLevel: 0,
+            abilityCountedEnhancements: 0,
+            otherAbilitiesCountedEnhancements: 1,
+        },
+    });
+
+    assert.equal(result.status, "unverified");
+    assert.ok(result.issues.includes("capacity-unverified"));
+});
+
+test("unknown Tier 0 Enhancement counts fail closed", () => {
+    const result = purchase({
+        capacity: {
+            characterLevel: 0,
+            abilityCountedEnhancements: 0,
+            otherAbilitiesCountedEnhancements: null,
+        },
+    });
+
+    assert.equal(result.status, "unverified");
+    assert.ok(result.issues.includes("capacity-unverified"));
+});
+
+test("Tier 0 cannot claim undefined Enhancement limit upgrades", () => {
+    const result = purchase({
+        capacity: {
+            characterLevel: 0,
+            abilityCountedEnhancements: 0,
+            otherAbilitiesCountedEnhancements: 0,
+            verifiedPerAbilityBonus: 1,
+        },
+    });
+
+    assert.equal(result.status, "unverified");
+    assert.ok(result.issues.includes("capacity-unverified"));
+});
