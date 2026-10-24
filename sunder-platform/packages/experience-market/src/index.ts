@@ -10,3 +10,4 @@ export * from "./presets.js";
 export * from "./enhancement-limits.js";
 export * from "./ability-transactions.js";
 export * from "./experience-awards.js";
+export * from "./character-ability-presets.js";
