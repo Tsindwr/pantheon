@@ -7,38 +7,18 @@
 --
 -- Prerequisites:
 -- 1. Review the character custody write access audit.
--- 2. Apply the approved custody schema foundation.
--- 3. Validate this proposal against a disposable database.
--- 4. Verify existing character editing still works.
--- 5. Obtain authorization for production deployment.
+-- 2. Validate this proposal against a disposable database.
+-- 3. Verify ordinary character editing still works.
+-- 4. Obtain authorization for production deployment.
 --
--- Ordinary browser writes may change sheet content.
--- Ownership and custody metadata require separate,
--- authoritative database operations.
+-- This protection is independent of the proposed custody
+-- schema foundation and may be deployed before it.
+--
+-- Existing protected columns must be secured immediately.
+-- Future custody columns are protected automatically by
+-- the restricted UPDATE grant.
 
 BEGIN;
-
--- Confirm the custody foundation exists.
-
-DO $custody_schema_gate$
-BEGIN
-    IF (
-SELECT COUNT(*)
-FROM information_schema.columns
-WHERE table_schema = 'public'
-  AND table_name = 'character_sheets'
-  AND column_name IN (
-                      'created_by_user_id',
-                      'custodian_gm_user_id',
-                      'custody_revision'
-    )
-    ) <> 3 THEN
-        RAISE EXCEPTION
-            'Custody write boundary requires the custody schema foundation';
-END IF;
-END;
-$custody_schema_gate$;
-
 
 -- Remove broad browser UPDATE permissions.
 --
@@ -79,15 +59,25 @@ DO $custody_permission_gate$
 DECLARE
 protected_column text;
 BEGIN
-    FOREACH protected_column IN ARRAY ARRAY[
-        'id',
-        'owner_id',
-        'created_at',
-        'updated_at',
-        'created_by_user_id',
-        'custodian_gm_user_id',
-        'custody_revision'
-    ]
+    -- Check whichever protected columns currently exist.
+    --
+    -- This supports the legacy schema and the future
+    -- custody schema without requiring either version.
+
+FOR protected_column IN
+SELECT c.column_name
+FROM information_schema.columns AS c
+WHERE c.table_schema = 'public'
+  AND c.table_name = 'character_sheets'
+  AND c.column_name IN (
+                        'id',
+                        'owner_id',
+                        'created_at',
+                        'updated_at',
+                        'created_by_user_id',
+                        'custodian_gm_user_id',
+                        'custody_revision'
+    )
     LOOP
         IF has_column_privilege(
             'authenticated',
@@ -101,6 +91,8 @@ BEGIN
 END IF;
 END LOOP;
 
+    -- Anonymous users must have no effective UPDATE access.
+
     IF has_any_column_privilege(
         'anon',
         'public.character_sheets',
@@ -109,6 +101,9 @@ END LOOP;
         RAISE EXCEPTION
             'Anonymous users retain character UPDATE privileges';
 END IF;
+
+    -- Preserve the privileged backend's existing ability
+    -- to perform authorized database operations.
 
     IF NOT has_table_privilege(
         'service_role',
