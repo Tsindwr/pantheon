@@ -22,6 +22,7 @@ import {
     type CampaignLoomPatch,
     type CampaignLoomState,
 } from "../campaign-loom";
+import { assessCampaignLink } from "./campaign-link-decision.ts";
 
 export type CharacterSheetRow = {
     id: string;
@@ -512,10 +513,43 @@ export async function deleteCampaign(id: string): Promise<void> {
     if (error) throw error;
 }
 
+async function listVisibleCampaignIdsForCharacter(characterSheetId: string): Promise<unknown[]> {
+    const { data, error } = await supabase
+        .from("campaign_character_sheets")
+        .select("campaign_id")
+        .eq("character_sheet_id", characterSheetId)
+        .limit(2);
+
+    if (error) throw error;
+
+    return (
+        (data ?? []) as Array<{ campaign_id: unknown }>
+    ).map((row) => row.campaign_id);
+}
+
 export async function addCharacterToCampaign(
     campaignId: string,
     characterSheetId: string,
 ): Promise<void> {
+    // This check is useful for the interface but cannot
+    // replace the planned database uniqueness constraint.
+    const existingIds = await listVisibleCampaignIdsForCharacter(characterSheetId);
+
+    const initialDecision = assessCampaignLink(campaignId, existingIds);
+
+    if (initialDecision.status === "already-linked") {
+        return;
+    }
+
+    if (initialDecision.status === "blocked") {
+        throw new Error("This character already belongs to another campaign. " +
+            "Remove it from that campaign before assigning it here.");
+    }
+
+    if (initialDecision.status !== "available") {
+        throw new Error("The character's campaign assignment could not be verified.");
+    }
+
     const { error } = await supabase
         .from("campaign_character_sheets")
         .insert({
@@ -523,8 +557,27 @@ export async function addCharacterToCampaign(
             character_sheet_id: characterSheetId,
         });
 
-    if (error && error.code === "23505") return;
-    if (error) throw error;
+    if (!error) return;
+
+    if (error.code === "23505") {
+        // A simultaneous request may have inserted the exact same relationship.
+        // Recheck before accepting it.
+        const latestIds = await listVisibleCampaignIdsForCharacter(characterSheetId);
+
+        const latestDecision = assessCampaignLink(campaignId, latestIds);
+
+        if (latestDecision.status === "already-linked") {
+            return;
+        }
+
+        if (latestDecision.status === "blocked") {
+            throw new Error("This character was assigned to another campaign " +
+                "while your request was being processed.");
+        }
+    }
+
+    // Never reinterpret unrelated uniqueness errors as success.
+    throw error;
 }
 
 export async function removeCharacterFromCampaign(
@@ -789,10 +842,15 @@ export async function getCampaignForCharacter(
         .from("campaign_character_sheets")
         .select("campaign_id")
         .eq("character_sheet_id", characterSheetId)
-        .limit(1);
+        .limit(2);
 
     if (linksError) throw linksError;
     if (!links || links.length === 0) return null;
+
+    if (links.length > 1) {
+        throw new Error("This character has conflicting campaign assignments. " +
+            "The database relationship must be reconciled.");;
+    }
 
     const campaignId = links[0].campaign_id as string;
 
