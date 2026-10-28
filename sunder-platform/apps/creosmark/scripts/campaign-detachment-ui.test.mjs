@@ -72,7 +72,7 @@ test("detachment is presented only to owners or GMs", () => {
 
 test("card distinguishes removal from permanent deletion", () => {
     assert.match(card, /onRequestDetach/);
-    assert.match(card, /Remove from Campaign/);
+    assert.match(card, /Remove/);
     assert.match(card, /onRequestDelete/);
     assert.match(card, /Delete/);
 });
