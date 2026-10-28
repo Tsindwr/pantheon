@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 import ts from 'typescript';
 
@@ -195,5 +195,102 @@ test("editor mutations match the restricted database grant", () => {
         mutationColumns,
         grantedColumns,
         "Editor mutation columns differ from database UPDATE grants"
+    );
+});
+
+function readCustodyMigration() {
+    const directory = new URL(
+        "../supabase/migrations/",
+        import.meta.url
+    );
+
+    const matches = readdirSync(directory).filter(
+        (filename) =>
+            /^\d{14}_character_custody_write_guards\.sql$/.test(filename)
+    );
+
+    assert.equal(
+        matches.length,
+        1,
+        "Expected exactly one versioned custody write guards migration"
+    );
+
+    return readFileSync(
+        new URL(matches[0], directory),
+        "utf8"
+    );
+}
+
+test("the custody migration preserves restricted character updates", () => {
+    const sql = withoutComments(readCustodyMigration());
+
+    assert.match(sql, /^\s*BEGIN\s*;/i);
+    assert.match(sql, /\bCOMMIT\s*;\s*$/i);
+
+    assert.match(
+        sql,
+        /REVOKE\s+UPDATE\s+ON\s+TABLE\s+public\.character_sheets\s+FROM\s+PUBLIC,\s*anon,\s*authenticated\s*;/i
+    );
+
+    const grant = sql.match(
+        /GRANT\s+UPDATE\s*\(([^)]+)\)\s*ON\s+TABLE\s+public\.character_sheets\s+TO\s+authenticated\s*;/i
+    );
+
+    assert.ok(grant, "Restricted editor UPDATE grant is missing");
+
+    const actual = grant[1]
+        .split(",")
+        .map((column) => column.trim().toLowerCase())
+        .sort();
+
+    const expected = [
+        "name",
+        "archetype",
+        "origin",
+        "player_name",
+        "level",
+        "ability_ids",
+        "sheet_json"
+    ].sort();
+
+    assert.deepEqual(actual, expected);
+
+    assert.match(sql, /has_column_privilege\s*\(/i);
+    assert.match(sql, /has_any_column_privilege\s*\(/i);
+    assert.match(sql, /has_table_privilege\s*\(/i);
+    assert.match(sql, /RAISE\s+EXCEPTION/i);
+});
+
+test("the custody migration restricts anonymous helper execution", () => {
+    const sql = withoutComments(readCustodyMigration());
+
+    assert.match(
+        sql,
+        /REVOKE\s+EXECUTE\s+ON\s+FUNCTION\s+public\.join_campaign_by_code\(text\)\s+FROM\s+PUBLIC,\s*anon\s*;/i
+    );
+
+    assert.match(
+        sql,
+        /REVOKE\s+EXECUTE\s+ON\s+FUNCTION\s+public\.is_character_sheet_owner\(uuid,\s*uuid\)\s+FROM\s+PUBLIC,\s*anon\s*;/i
+    );
+
+    assert.match(
+        sql,
+        /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.join_campaign_by_code\(text\)\s+TO\s+authenticated\s*;/i
+    );
+
+    assert.match(
+        sql,
+        /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.is_character_sheet_owner\(uuid,\s*uuid\)\s+TO\s+authenticated\s*;/i
+    );
+
+    assert.match(
+        sql,
+        /has_function_privilege\s*\(\s*'anon'/i
+    );
+
+    assert.match(
+        sql,
+        /has_function_privilege\s*\(\s*'authenticated'/i
     );
 });
