@@ -527,12 +527,38 @@ async function listVisibleCampaignIdsForCharacter(characterSheetId: string): Pro
     ).map((row) => row.campaign_id);
 }
 
+async function readCustodyRevision(characterSheetId: string): Promise<number> {
+    await requireUserId();
+
+    const { data, error } = await supabase
+        .from("character_sheets")
+        .select("custody_revision")
+        .eq("id", characterSheetId)
+        .maybeSingle();
+
+    if (error) throw error;
+
+    if (!data) {
+        throw new Error("This character is unavailable or cannot be accessed.");
+    }
+
+    const rawRevision = (data as { custody_revision: number | string }).custody_revision;
+
+    const revision = Number(rawRevision);
+
+    if (!Number.isSafeInteger(revision) || revision < 0) {
+        throw new Error("The character's custody revision could not be verified.");
+    }
+
+    return revision;
+}
+
 export async function addCharacterToCampaign(
     campaignId: string,
     characterSheetId: string,
 ): Promise<void> {
-    // This check is useful for the interface but cannot
-    // replace the planned database uniqueness constraint.
+    await requireUserId();
+
     const existingIds = await listVisibleCampaignIdsForCharacter(characterSheetId);
 
     const initialDecision = assessCampaignLink(campaignId, existingIds);
@@ -550,11 +576,13 @@ export async function addCharacterToCampaign(
         throw new Error("The character's campaign assignment could not be verified.");
     }
 
-    const { error } = await supabase
-        .from("campaign_character_sheets")
-        .insert({
-            campaign_id: campaignId,
-            character_sheet_id: characterSheetId,
+    const revision = await readCustodyRevision(characterSheetId);
+
+    const { error } = await supabase.rpc("custody_assign_character",
+        {
+            p_campaign_id: campaignId,
+            p_character_sheet_id: characterSheetId,
+            p_expected_revision: revision,
         });
 
     if (!error) return;
@@ -570,10 +598,12 @@ export async function addCharacterToCampaign(
             return;
         }
 
-        if (latestDecision.status === "blocked") {
-            throw new Error("This character was assigned to another campaign " +
-                "while your request was being processed.");
-        }
+        throw new Error("This character was assigned to another campaign " +
+            "while your request was being processed.");
+    }
+
+    if (error.code === "P0001" && error.message.includes("custody_revision_conflict")) {
+        throw new Error("This character changed while you were assigning it. Refresh and try again.");
     }
 
     // Never reinterpret unrelated uniqueness errors as success.
@@ -584,13 +614,24 @@ export async function removeCharacterFromCampaign(
     campaignId: string,
     characterSheetId: string,
 ): Promise<void> {
-    const { error } = await supabase
-        .from("campaign_character_sheets")
-        .delete()
-        .eq("campaign_id", campaignId)
-        .eq("character_sheet_id", characterSheetId);
+    await requireUserId();
 
-    if (error) throw error;
+    const revision = await readCustodyRevision(characterSheetId);
+
+    const { error } = await supabase.rpc("custody_detach_character",
+        {
+            p_campaign_id: campaignId,
+            p_character_sheet_id: characterSheetId,
+            p_expected_revision: revision,
+        });
+
+    if (!error) return;
+
+    if (error.code === "P0001" && error.message.includes("custody_revision_conflict")) {
+        throw new Error("This character changed while you were removing it. Refresh and try again.");
+    }
+
+    throw error;
 }
 
 async function getCampaignPlayerCount(campaignId: string): Promise<number> {

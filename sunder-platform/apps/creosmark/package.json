@@ -8,7 +8,7 @@
     "build": "astro build",
     "preview": "astro preview --port 4174",
     "astro": "astro",
-    "check": "node scripts/ensure-checker.mjs && node --test scripts/editor-sections.test.mjs scripts/editor-navigation.test.mjs scripts/origin-choice-preview.test.mjs scripts/archetype-choice-preview.test.mjs scripts/ability-choice-status.test.mjs scripts/character-custody.test.mjs scripts/custody-schema-plan.test.mjs scripts/campaign-link-decision.test.mjs  scripts/custody-write-boundary.test.mjs && astro check",
+    "check": "node scripts/ensure-checker.mjs && node --test scripts/editor-sections.test.mjs scripts/editor-navigation.test.mjs scripts/origin-choice-preview.test.mjs scripts/archetype-choice-preview.test.mjs scripts/ability-choice-status.test.mjs scripts/character-custody.test.mjs scripts/custody-schema-plan.test.mjs scripts/campaign-link-decision.test.mjs scripts/custody-write-boundary.test.mjs scripts/custody-transition-boundary.test.mjs && astro check",
     "test:editor-sections": "node --test scripts/editor-sections.test.mjs",
     "supabase:push": "dotenv -e .env -- supabase db push",
     "supabase:pull": "dotenv -e .env -- supabase db pull",
@@ -19,7 +19,8 @@
     "test:character-custody": "node --test scripts/character-custody.test.mjs",
     "test:custody-schema-plan": "node --test scripts/custody-schema-plan.test.mjs",
     "test:campaign-link-decision": "node --test scripts/campaign-link-decision.test.mjs",
-    "test:custody-write-boundary": "node --test scripts/custody-write-boundary.test.mjs"
+    "test:custody-write-boundary": "node --test scripts/custody-write-boundary.test.mjs",
+    "test:custody-transition-boundary": "node --test scripts/custody-transition-boundary.test.mjs"
   },
   "dependencies": {
     "@3d-dice/dice-box": "^1.1.4",
@@ -43,7 +44,7 @@
   "devDependencies": {
     "@astrojs/check": "0.9.10",
     "dotenv-cli": "^11.0.0",
-    "supabase": "^2.78.1",
+    "supabase": "^2.122.0",
     "typescript": "6.0.2"
   }
 }
