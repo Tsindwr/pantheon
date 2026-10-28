@@ -104,16 +104,15 @@ SET LOCAL ROLE authenticated;
 SET LOCAL request.jwt.claim.sub =
     '12121212-1212-4121-8121-121212121212';
 
+
 SELECT lives_ok(
                $$
                    INSERT INTO public.character_sheets (
-            id,
             owner_id,
             name,
             sheet_json
         )
         VALUES (
-            gen_random_uuid(),
             '12121212-1212-4121-8121-121212121212',
             'Provenance Test Character',
             '{}'::jsonb
