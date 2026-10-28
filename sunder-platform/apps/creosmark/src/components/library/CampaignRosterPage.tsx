@@ -230,7 +230,7 @@ export default function CampaignRosterPage({
                             <CharacterSheetCard
                                 character={character}
                                 key={character.id}
-                                showEdit={isGm}
+                                showEdit={isGm || isOwner}
                                 onRequestDetach={
                                     canDetach && onDetachCharacter
                                         ? (entry) => setDetachTarget(entry)

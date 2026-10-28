@@ -8,7 +8,7 @@
     "build": "astro build",
     "preview": "astro preview --port 4174",
     "astro": "astro",
-    "check": "node scripts/ensure-checker.mjs && node --test scripts/editor-sections.test.mjs scripts/editor-navigation.test.mjs scripts/origin-choice-preview.test.mjs scripts/archetype-choice-preview.test.mjs scripts/ability-choice-status.test.mjs scripts/character-custody.test.mjs scripts/custody-schema-plan.test.mjs scripts/campaign-link-decision.test.mjs scripts/custody-write-boundary.test.mjs scripts/custody-transition-boundary.test.mjs scripts/campaign-detachment-ui.test.mjs scripts/custody-link-lockdown.test.mjs && astro check",
+    "check": "node scripts/ensure-checker.mjs && node --test scripts/editor-sections.test.mjs scripts/editor-navigation.test.mjs scripts/origin-choice-preview.test.mjs scripts/archetype-choice-preview.test.mjs scripts/ability-choice-status.test.mjs scripts/character-custody.test.mjs scripts/custody-schema-plan.test.mjs scripts/campaign-link-decision.test.mjs scripts/custody-write-boundary.test.mjs scripts/custody-transition-boundary.test.mjs scripts/campaign-detachment-ui.test.mjs scripts/custody-link-lockdown.test.mjs scripts/character-creation-provenance.test.mjs && astro check",
     "test:editor-sections": "node --test scripts/editor-sections.test.mjs",
     "supabase:push": "dotenv -e .env -- supabase db push",
     "supabase:pull": "dotenv -e .env -- supabase db pull",
@@ -22,7 +22,8 @@
     "test:custody-write-boundary": "node --test scripts/custody-write-boundary.test.mjs",
     "test:custody-transition-boundary": "node --test scripts/custody-transition-boundary.test.mjs",
     "test:campaign-detachment-ui": "node --test scripts/campaign-detachment-ui.test.mjs",
-    "test:custody-link-lockdown": "node --test scripts/custody-link-lockdown.test.mjs"
+    "test:custody-link-lockdown": "node --test scripts/custody-link-lockdown.test.mjs",
+    "test:character-creation-provenance": "node --test scripts/character-creation-provenance.test.mjs"
   },
   "dependencies": {
     "@3d-dice/dice-box": "^1.1.4",
