@@ -27,6 +27,8 @@ export default function CampaignRosterFromDb({
     const [actionError, setActionError] = useState<string | null>(null);
     const [addingCharacterId, setAddingCharacterId] = useState<string | null>(null);
     const [detachingCharacterId, setDetachingCharacterId] = useState<string | null>(null);
+    const [creatingUnclaimed, setCreatingUnclaimed] = useState(false);
+    const [claimingCharacterId, setClaimingCharacterId] = useState<string | null>(null);
 
     async function loadRosterSnapshot() {
         const [row, characterRows] = await Promise.all([
@@ -239,6 +241,58 @@ export default function CampaignRosterFromDb({
         }
     }
 
+    async function handleCreateUnclaimedCharacter(name: string): Promise<void> {
+        try {
+            setCreatingUnclaimed(true);
+            setActionError(null);
+
+            const sheet = supabaseLibraryCampaignService.createBlankSheet();
+
+            const newSheet = {
+                ...sheet,
+                header: {
+                    ...sheet.header,
+                    name: name.trim(),
+                },
+            };
+
+            await supabaseLibraryCampaignService
+                .createUnclaimedCharacterForCampaign(campaignId, newSheet);
+
+            const snapshot = await loadRosterSnapshot();
+
+            setCampaign(snapshot.campaign);
+            setOwnedCharacters(snapshot.ownedCharacters);
+        } catch (error) {
+            setActionError(error instanceof Error ? error.message
+                : "Failed to create the unclaimed character.");
+
+            throw error;
+        } finally {
+            setCreatingUnclaimed(false);
+        }
+    }
+
+    async function handleClaimCharacter(characterId: string, expectedRevision: number): Promise<void> {
+        try {
+            setClaimingCharacterId(characterId);
+            setActionError(null);
+
+            await supabaseLibraryCampaignService.claimUnclaimedCharacter(
+                campaignId, characterId, expectedRevision,
+            );
+
+            const snapshot = await loadRosterSnapshot();
+
+            setCampaign(snapshot.campaign);
+            setOwnedCharacters(snapshot.ownedCharacters);
+        } catch (error) {
+            setActionError(error instanceof Error ? error.message : "Failed to claim the character.");
+        } finally {
+            setClaimingCharacterId(null);
+        }
+    }
+
     async function handleGmToolsChange(tools: CampaignGmTools) {
         try {
             const nextTools = await supabaseLibraryCampaignService.updateCampaignGmTools(
@@ -308,6 +362,10 @@ export default function CampaignRosterFromDb({
             gmTools={gmTools}
             gmToolsError={gmToolsErrorText}
             onGmToolsChange={handleGmToolsChange}
+            onCreateUnclaimedCharacter={handleCreateUnclaimedCharacter}
+            creatingUnclaimed={creatingUnclaimed}
+            onClaimCharacter={handleClaimCharacter}
+            claimingCharacterId={claimingCharacterId}
         />
     );
 }

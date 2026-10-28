@@ -12,6 +12,10 @@ export type CharacterSheetSummary = {
     playerName: string;
     updatedLabel?: string;
     campaignIds?: string[];
+
+    // E09 custody
+    isUnclaimed?: boolean;
+    custodyRevision?: number;
 };
 
 export type CampaignSummary = {

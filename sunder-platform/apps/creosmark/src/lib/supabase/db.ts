@@ -26,7 +26,10 @@ import { assessCampaignLink } from "./campaign-link-decision.ts";
 
 export type CharacterSheetRow = {
     id: string;
-    owner_id: string;
+    owner_id: string | null;
+    created_by_user_id: string | null;
+    custodian_gm_user_id: string | null;
+    custody_revision: number | string;
     name: string;
     archetype: string;
     origin: string;
@@ -198,6 +201,8 @@ function archetypesToLevel(archetypesJson: string): number {
 
 function toCharacterSummary(row: CharacterSheetRow): CharacterSheetSummary {
     const archetypesLabel: string = archetypesToLabel(row.archetype);
+    const revision = Number(row.custody_revision);
+
     return {
         id: row.id,
         name: row.name,
@@ -206,6 +211,9 @@ function toCharacterSummary(row: CharacterSheetRow): CharacterSheetSummary {
         level: archetypesToLevel(row.archetype),
         playerName: row.player_name,
         updatedLabel: new Date(row.updated_at).toLocaleString(),
+
+        isUnclaimed: row.owner_id === null,
+        custodyRevision: Number.isSafeInteger(revision) ? revision : undefined,
     };
 }
 
@@ -322,6 +330,65 @@ export async function deleteCharacterSheet(id: string): Promise<void> {
         .eq("owner_id", userId);
 
     if (error) throw error;
+}
+
+export async function createUnclaimedCharacterForCampaign(campaignId: string, sheet: CharacterSheetState)
+    : Promise<string> {
+    await requireUserId();
+
+    const mutation = buildCharacterMutation(sheet);
+
+    const { data, error } = await supabase.rpc(
+        "custody_create_unclaimed_character",
+        {
+            p_campaign_id: campaignId,
+            p_name: mutation.name,
+            p_archetype: mutation.archetype,
+            p_origin: mutation.origin,
+            p_player_name: mutation.player_name,
+            p_level: mutation.level,
+            p_ability_ids: mutation.ability_ids,
+            p_sheet_json: mutation.sheet_json,
+        },
+    );
+
+    if (error) throw error;
+
+    if (typeof data !== "string" || !UUID_PATTERN.test(data)) {
+        throw new Error("The database did not return a valid character identifier.");
+    }
+
+    return data;
+}
+
+export async function claimUnclaimedCharacter(campaignId: string, characterSheetId: string, expectedRevision: number)
+    : Promise<void> {
+    await requireUserId();
+
+    if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {
+        throw new Error("The caharacter custody revision is invalid.");
+    }
+
+    const { error } = await supabase.rpc(
+        "custody_claim_character",
+        {
+            p_campaign_id: campaignId,
+            p_character_sheet_id: characterSheetId,
+            p_expected_revision: expectedRevision,
+        },
+    );
+
+    if (!error) return;
+
+    if (error.code === "P0001" && error.message.includes("custody_revision_conflict")) {
+        throw new Error("This character changed while you were claiming it. Refresh and try again.");
+    }
+
+    if (error.code === "P0001" && error.message.includes("custody_character_already_claimed")) {
+        throw new Error("This character has already been claimed.");
+    }
+
+    throw error;
 }
 
 /* -----------------------------

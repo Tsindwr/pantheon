@@ -25,6 +25,8 @@ export type LibraryCampaignRepository = {
   getMyCharacterSheet(id: string): Promise<StoredCharacterSheet | null>;
   getViewableCharacterSheet(id: string): Promise<StoredCharacterSheet | null>;
   createCharacterSheet(sheet: CharacterSheetState): Promise<StoredCharacterSheet>;
+  createUnclaimedCharacterForCampaign(campaignId: string, sheet: CharacterSheetState): Promise<string>;
+  claimUnclaimedCharacter(campaignId: string, characterSheetId: string, expectedRevision: number): Promise<void>;
   updateCharacterSheet(id: string, sheet: CharacterSheetState): Promise<void>;
   deleteCharacterSheet(id: string): Promise<void>;
   listMyCampaigns(): Promise<CampaignRecord[]>;

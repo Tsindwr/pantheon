@@ -1,9 +1,11 @@
 import type { LibraryCampaignRepository } from "../../application/library/repositories.ts";
 import {
   addCharacterToCampaign,
+  claimUnclaimedCharacter,
   createBlankSheet,
   createCampaignWithMembership,
   createCharacterSheet,
+  createUnclaimedCharacterForCampaign,
   deleteCharacterSheet,
   getCampaignGmTools,
   getCampaignLoom,
@@ -54,6 +56,12 @@ export const supabaseLibraryCampaignRepository: LibraryCampaignRepository = {
       id: row.id,
       sheet: row.sheet_json,
     };
+  },
+  async createUnclaimedCharacterForCampaign(campaignId, sheet) {
+    return createUnclaimedCharacterForCampaign(campaignId, sheet);
+  },
+  async claimUnclaimedCharacter(campaignId, characterSheetId, expectedRevision) {
+    await claimUnclaimedCharacter(campaignId, characterSheetId, expectedRevision);
   },
   async updateCharacterSheet(id, sheet) {
     await updateCharacterSheet(id, sheet);

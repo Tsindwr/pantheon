@@ -27,6 +27,11 @@ type CampaignRosterPageProps = {
     gmTools?: CampaignGmTools | null;
     gmToolsError?: string | null;
     onGmToolsChange?: (tools: CampaignGmTools) => Promise<void>;
+
+    onCreateUnclaimedCharacter?: (name: string) => Promise<void>;
+    creatingUnclaimed?: boolean;
+    onClaimCharacter?: (characterId: string, expectedRevision: number) => Promise<void>;
+    claimingCharacterId?: string | null;
 };
 
 export default function CampaignRosterPage({
@@ -43,11 +48,18 @@ export default function CampaignRosterPage({
     gmTools = null,
     gmToolsError = null,
     onGmToolsChange,
+
+    onCreateUnclaimedCharacter,
+    creatingUnclaimed = false,
+    onClaimCharacter,
+    claimingCharacterId = null,
 }: CampaignRosterPageProps) {
     const joinCode = campaign.joinCode?.trim().toUpperCase();
     const sheetCount = campaign.characterIds.length;
     const isGm = campaign.viewerRole === "gm";
     const [pickerOpen, setPickerOpen] = useState(false);
+    const [createUnclaimedOpen, setCreateUnclaimedOpen] = useState(false);
+    const [newCharacterName, setNewCharacterName] = useState("");
     const [detachTarget, setDetachTarget] = useState<CharacterSheetSummary | null>(null);
     const [activeTab, setActiveTab] = useState<"roster" | "loom" | "gm" | "settings">("roster");
     const [selectorOpen, setSelectorOpen] = useState(false);
@@ -108,6 +120,24 @@ export default function CampaignRosterPage({
             setPickerOpen(false);
         } catch {
             // The loader owns the visible action error so the modal can stay focused.
+        }
+    }
+
+    async function handleCreateUnclaimed(event: React.FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+
+        const name = newCharacterName.trim();
+
+        if (!name || !onCreateUnclaimedCharacter) return;
+
+        try {
+            await onCreateUnclaimedCharacter(name);
+
+            setCreateUnclaimedOpen(false);
+            setNewCharacterName("");
+        } catch {
+            // The parent displays the database error.
+            // Keep the dialog open for correction or retry.
         }
     }
 
@@ -215,6 +245,17 @@ export default function CampaignRosterPage({
                             <span>Add Character</span>
                         </button>
                     ) : null}
+
+                    {isGm && onCreateUnclaimedCharacter ? (
+                        <button
+                            type={"button"}
+                            className={styles.secondaryAction}
+                            onClick={() => setCreateUnclaimedOpen(true)}
+                        >
+                            <i className={"fa-solid fa-user-pen"} aria-hidden={"true"} />
+                            <span>Create Unclaimed Character</span>
+                        </button>
+                    ) : null}
                 </div>
 
                 {actionError ? (
@@ -232,11 +273,21 @@ export default function CampaignRosterPage({
                                 key={character.id}
                                 showEdit={isGm || isOwner}
                                 onRequestDetach={
-                                    canDetach && onDetachCharacter
+                                    !character.isUnclaimed && canDetach && onDetachCharacter
                                         ? (entry) => setDetachTarget(entry)
                                         : undefined
                                 }
                                 detaching={detachingCharacterId === character.id}
+
+                                onRequestClaim={
+                                    character.isUnclaimed && onClaimCharacter &&
+                                    Number.isSafeInteger(character.custodyRevision)
+                                        ? (entry) => {
+                                            void onClaimCharacter(entry.id, entry.custodyRevision!);
+                                        }
+                                        : undefined
+                                }
+                                claiming={claimingCharacterId === character.id}
                             />
                         );
                     })}
@@ -274,6 +325,94 @@ export default function CampaignRosterPage({
 
             {activeTab === "settings" && isGm ? (
                 <CampaignSettingsPanel campaign={campaign} />
+            ) : null}
+
+            {createUnclaimedOpen && isGm ? (
+                <div
+                    className={styles.modalOverlay}
+                    onKeyDown={(event) => {
+                        if (event.key === "Escape" && !creatingUnclaimed) {
+                            setCreateUnclaimedOpen(false);
+                        }
+                    }}
+                >
+                    <section
+                        className={styles.modalPanel}
+                        role={"dialog"}
+                        aria-modal={"true"}
+                        aria-labelledby={"create-unclaimed-title"}
+                    >
+                        <header className={styles.modalHeader}>
+                            <div>
+                                <div className={styles.eyebrow}>Campaign Roster</div>
+                                <h3 id={"create-unclaimed-title"}>
+                                    Create Unclaimed Character
+                                </h3>
+                            </div>
+
+                            <button
+                                type={"button"}
+                                className={styles.iconButton}
+                                onClick={() => setCreateUnclaimedOpen(false)}
+                                disabled={creatingUnclaimed}
+                                aria-label={"Close character creation dialog"}
+                            >
+                                <i className={"fa-solid fa-xmark"} aria-hidden={"true"} />
+                            </button>
+                        </header>
+
+                        <form
+                            className={styles.modalBody}
+                            onSubmit={handleCreateUnclaimed}
+                        >
+                            <label htmlFor={"unclaimed-character-name"}>
+                                Character Name
+                            </label>
+
+                            <input
+                                id={"unclaimed-character-name"}
+                                type={"text"}
+                                value={newCharacterName}
+                                onChange={(event) => setNewCharacterName(event.target.value)}
+                                maxLength={160}
+                                required
+                                disabled={creatingUnclaimed}
+                                autoFocus
+                            />
+
+                            <p>
+                                This character will belong to the campaign
+                                without a player owner. An authorized member
+                                can claim it later.
+                            </p>
+
+                            {actionError ? (
+                                <div className={styles.inlineError} role={"alert"}>
+                                    {actionError}
+                                </div>
+                            ) : null}
+
+                            <div className={styles.modalActions}>
+                                <button
+                                    type={"button"}
+                                    className={styles.secondaryAction}
+                                    onClick={() => setCreateUnclaimedOpen(false)}
+                                    disabled={creatingUnclaimed}
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    type={"submit"}
+                                    className={styles.primaryAction}
+                                    disabled={creatingUnclaimed || !newCharacterName.trim()}
+                                >
+                                    {creatingUnclaimed ? "Creating..." : "Create Character"}
+                                </button>
+                            </div>
+                        </form>
+                    </section>
+                </div>
             ) : null}
 
             {detachTarget ? (

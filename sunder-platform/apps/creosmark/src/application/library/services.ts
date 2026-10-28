@@ -18,6 +18,12 @@ export function createLibraryCampaignService(repository: LibraryCampaignReposito
     createCharacterSheet(sheet: CharacterSheetState) {
       return repository.createCharacterSheet(sheet);
     },
+    createUnclaimedCharacterForCampaign(campaignId: string, sheet: CharacterSheetState) {
+      return repository.createUnclaimedCharacterForCampaign(campaignId, sheet);
+    },
+    claimUnclaimedCharacter(campaignId: string, characterSheetId: string, expectedRevision: number) {
+      return repository.claimUnclaimedCharacter(campaignId, characterSheetId, expectedRevision);
+    },
     updateCharacterSheet(characterId: string, sheet: CharacterSheetState) {
       return repository.updateCharacterSheet(characterId, sheet);
     },

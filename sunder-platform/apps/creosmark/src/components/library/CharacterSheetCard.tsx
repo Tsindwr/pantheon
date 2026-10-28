@@ -10,6 +10,9 @@ type CharacterSheetCardProps = {
     onRequestDetach?: (character: CharacterSheetSummary) => void;
     detaching?: boolean;
     showEdit?: boolean;
+
+    onRequestClaim?: (character: CharacterSheetSummary) => void;
+    claiming?: boolean;
 };
 
 export default function CharacterSheetCard({
@@ -19,12 +22,16 @@ export default function CharacterSheetCard({
     onRequestDetach,
     detaching = false,
     showEdit = true,
+    onRequestClaim,
+    claiming = false,
 }: CharacterSheetCardProps) {
     return (
         <article className={styles.card}>
             <div className={styles.cardHeader}>
                 <div>
-                    <div className={styles.eyebrow}>Character Sheet</div>
+                    <div className={styles.eyebrow}>
+                        {character.isUnclaimed ? "Unclaimed Character" : "Character Sheet"}
+                    </div>
                     <h3 className={styles.title}>{character.name}</h3>
                 </div>
 
@@ -50,6 +57,21 @@ export default function CharacterSheetCard({
                         Edit
                     </a>
                 ) : null}
+                {onRequestClaim ? (
+                    <button
+                        type={"button"}
+                        className={styles.actionLinkSecondary}
+                        onClick={() => onRequestClaim(character)}
+                        disabled={claiming}
+                        aria-label={`Claim ${character.name}`}
+                    >
+                        <i
+                            className={"fa-solid fa-hand-holding"}
+                            aria-hidden={"true"}
+                        />
+                        <span>{claiming ? "Claiming..." : "Claim"}</span>
+                    </button>
+                ) : null}
                 {onRequestDetach ? (
                     <button
                         type={"button"}
@@ -63,7 +85,7 @@ export default function CharacterSheetCard({
                             aria-hidden={"true"}
                         />
                         <span>
-                            {detaching ? "Removing..." : "Remove from Campaign"}
+                            {detaching ? "Removing..." : "Remove"}
                         </span>
                     </button>
                 ) : null}
