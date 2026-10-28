@@ -485,4 +485,121 @@ CREATE TRIGGER character_custody_campaign_deletion
 -- Retain ordinary character SELECT and existing service grants.
 -- Do not grant direct writes to custody metadata or campaign links.
 
+-- An unclaimed character cannot use the legacy assignment RPC.
+-- Ownership must first be established through custody_claim_character.
+--
+-- This replaces the prior private implementation because PostgreSQL
+-- NULL comparisons must never determine authorization implicitly.
+
+CREATE OR REPLACE FUNCTION custody_private.custody_assign_character(
+    p_campaign_id uuid,
+    p_character_sheet_id uuid,
+    p_expected_revision bigint
+)
+RETURNS bigint
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+DECLARE
+v_actor uuid := auth.uid();
+    v_owner uuid;
+    v_revision bigint;
+    v_existing_campaign uuid;
+BEGIN
+    IF v_actor IS NULL THEN
+        RAISE EXCEPTION 'custody_authentication_required'
+            USING ERRCODE = '42501';
+END IF;
+
+    IF p_campaign_id IS NULL
+       OR p_character_sheet_id IS NULL
+       OR p_expected_revision IS NULL
+       OR p_expected_revision < 0 THEN
+        RAISE EXCEPTION 'custody_invalid_assignment'
+            USING ERRCODE = '22023';
+END IF;
+
+SELECT
+    s.owner_id,
+    s.custody_revision
+INTO
+    v_owner,
+    v_revision
+FROM public.character_sheets AS s
+WHERE s.id = p_character_sheet_id
+    FOR UPDATE OF s;
+
+IF NOT FOUND THEN
+        RAISE EXCEPTION 'custody_character_not_found'
+            USING ERRCODE = 'P0002';
+END IF;
+
+    IF v_owner IS NULL THEN
+        RAISE EXCEPTION 'custody_unclaimed_cannot_assign'
+            USING ERRCODE = '42501';
+END IF;
+
+    IF v_owner IS DISTINCT FROM v_actor THEN
+        RAISE EXCEPTION 'custody_owner_required'
+            USING ERRCODE = '42501';
+END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM public.campaigns AS c
+        WHERE c.id = p_campaign_id
+          AND c.owner_id = v_actor
+    )
+    AND NOT EXISTS (
+        SELECT 1
+        FROM public.campaign_members AS m
+        WHERE m.campaign_id = p_campaign_id
+          AND m.user_id = v_actor
+    ) THEN
+        RAISE EXCEPTION 'custody_membership_required'
+            USING ERRCODE = '42501';
+END IF;
+
+SELECT l.campaign_id
+INTO v_existing_campaign
+FROM public.campaign_character_sheets AS l
+WHERE l.character_sheet_id = p_character_sheet_id;
+
+IF v_existing_campaign = p_campaign_id THEN
+        RETURN v_revision;
+END IF;
+
+    IF v_existing_campaign IS NOT NULL THEN
+        RAISE EXCEPTION 'custody_already_assigned'
+            USING ERRCODE = '23505';
+END IF;
+
+    IF v_revision <> p_expected_revision THEN
+        RAISE EXCEPTION 'custody_revision_conflict'
+            USING ERRCODE = 'P0001';
+END IF;
+
+    IF v_revision = 9223372036854775807 THEN
+        RAISE EXCEPTION 'custody_revision_overflow'
+            USING ERRCODE = '22003';
+END IF;
+
+INSERT INTO public.campaign_character_sheets (
+    campaign_id,
+    character_sheet_id
+)
+VALUES (
+           p_campaign_id,
+           p_character_sheet_id
+       );
+
+UPDATE public.character_sheets
+SET custody_revision = v_revision + 1
+WHERE id = p_character_sheet_id;
+
+RETURN v_revision + 1;
+END;
+$function$;
+
 COMMIT;
