@@ -26,6 +26,7 @@ export default function CampaignRosterFromDb({
     const [gmToolsErrorText, setGmToolsErrorText] = useState<string | null>(null);
     const [actionError, setActionError] = useState<string | null>(null);
     const [addingCharacterId, setAddingCharacterId] = useState<string | null>(null);
+    const [detachingCharacterId, setDetachingCharacterId] = useState<string | null>(null);
 
     async function loadRosterSnapshot() {
         const [row, characterRows] = await Promise.all([
@@ -208,6 +209,36 @@ export default function CampaignRosterFromDb({
         }
     }
 
+    async function handleDetachCharacter(characterSheetId: string) {
+        try {
+            setDetachingCharacterId(characterSheetId);
+            setActionError(null);
+
+            await supabaseLibraryCampaignService.removeCharacterFromCampaign(
+                campaignId,
+                characterSheetId,
+            );
+
+            const snapshot = await loadRosterSnapshot();
+
+            setCampaign(snapshot.campaign);
+            setLoom(snapshot.loom);
+            setLoomErrorText(snapshot.loomError);
+            setGmTools(snapshot.gmTools);
+            setGmToolsErrorText(snapshot.gmToolsError);
+            setOwnedCharacters(snapshot.ownedCharacters);
+        } catch (error) {
+            console.error("Failed to detach character:", error);
+
+            setActionError(error instanceof Error ? error.message
+                : "Failed to remove character from campaign.");
+
+            throw error;
+        } finally {
+            setDetachingCharacterId(null);
+        }
+    }
+
     async function handleGmToolsChange(tools: CampaignGmTools) {
         try {
             const nextTools = await supabaseLibraryCampaignService.updateCampaignGmTools(
@@ -267,6 +298,8 @@ export default function CampaignRosterFromDb({
             campaign={campaign}
             ownedCharacters={ownedCharacters}
             onAddCharacter={handleAddCharacter}
+            onDetachCharacter={handleDetachCharacter}
+            detachingCharacterId={detachingCharacterId}
             addingCharacterId={addingCharacterId}
             actionError={actionError}
             loom={loom}

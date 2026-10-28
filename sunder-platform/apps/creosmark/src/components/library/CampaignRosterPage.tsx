@@ -18,6 +18,8 @@ type CampaignRosterPageProps = {
     ownedCharacters?: CharacterSheetSummary[];
     onAddCharacter?: (characterSheetId: string) => Promise<void>;
     addingCharacterId?: string | null;
+    onDetachCharacter?: (characterSheetId: string) => Promise<void>;
+    detachingCharacterId?: string | null;
     actionError?: string | null;
     loom?: CampaignLoomState | null;
     loomError?: string | null;
@@ -32,6 +34,8 @@ export default function CampaignRosterPage({
     ownedCharacters = [],
     onAddCharacter,
     addingCharacterId = null,
+    onDetachCharacter,
+    detachingCharacterId = null,
     actionError = null,
     loom = null,
     loomError = null,
@@ -44,12 +48,17 @@ export default function CampaignRosterPage({
     const sheetCount = campaign.characterIds.length;
     const isGm = campaign.viewerRole === "gm";
     const [pickerOpen, setPickerOpen] = useState(false);
+    const [detachTarget, setDetachTarget] = useState<CharacterSheetSummary | null>(null);
     const [activeTab, setActiveTab] = useState<"roster" | "loom" | "gm" | "settings">("roster");
     const [selectorOpen, setSelectorOpen] = useState(false);
     const [selectedCharacterId, setSelectedCharacterId] = useState("");
     const linkedCharacterIds = useMemo(
         () => new Set(campaign.characterIds),
         [campaign.characterIds],
+    );
+    const ownedCharacterIds = useMemo(
+        () => new Set(ownedCharacters.map((character) => character.id)),
+        [ownedCharacters]
     );
     const availableCharacters = useMemo(
         () =>
@@ -99,6 +108,18 @@ export default function CampaignRosterPage({
             setPickerOpen(false);
         } catch {
             // The loader owns the visible action error so the modal can stay focused.
+        }
+    }
+
+    async function handleConfirmDetach() {
+        if (!detachTarget || !onDetachCharacter) return;
+
+        try {
+            await onDetachCharacter(detachTarget.id);
+            setDetachTarget(null);
+        } catch {
+            // The data loader owns the visible error message.
+            // Keep the confirmation dialog open after failure.
         }
     }
 
@@ -201,13 +222,24 @@ export default function CampaignRosterPage({
                 ) : null}
 
                 <div className={styles.grid}>
-                    {campaign.characters.map((character) => (
-                        <CharacterSheetCard
-                            character={character}
-                            key={character.id}
-                            showEdit={isGm}
-                        />
-                    ))}
+                    {campaign.characters.map((character) => {
+                        const isOwner = ownedCharacterIds.has(character.id);
+                        const canDetach = isOwner || isGm;
+
+                        return (
+                            <CharacterSheetCard
+                                character={character}
+                                key={character.id}
+                                showEdit={isGm}
+                                onRequestDetach={
+                                    canDetach && onDetachCharacter
+                                        ? (entry) => setDetachTarget(entry)
+                                        : undefined
+                                }
+                                detaching={detachingCharacterId === character.id}
+                            />
+                        );
+                    })}
                 </div>
             </section>
             ) : null}
@@ -242,6 +274,92 @@ export default function CampaignRosterPage({
 
             {activeTab === "settings" && isGm ? (
                 <CampaignSettingsPanel campaign={campaign} />
+            ) : null}
+
+            {detachTarget ? (
+                <div
+                    className={styles.modalOverlay}
+                    onMouseDown={(event) => {
+                        if (event.target === event.currentTarget && !detachingCharacterId) {
+                            setDetachTarget(null);
+                        }
+                    }}
+                    onKeyDown={(event) => {
+                        if (event.key === "Escape" && !detachingCharacterId) {
+                            setDetachTarget(null);
+                        }
+                    }}
+                >
+                    <section
+                        className={styles.modalPanel}
+                        role={"dialog"}
+                        aria-modal={"true"}
+                        aria-labelledby={"detach-character-title"}
+                        aria-describedby={"detach-character-description"}
+                    >
+                        <header className={styles.modalHeader}>
+                            <div>
+                                <div className={styles.eyebrow}>
+                                    Campaign Roster
+                                </div>
+                                <h3 id={"detach-character-title"}>
+                                    Remove the Campaign
+                                </h3>
+                            </div>
+
+                            <button
+                                type={"button"}
+                                className={styles.iconButton}
+                                onClick={() => setDetachTarget(null)}
+                                disabled={Boolean(detachingCharacterId)}
+                                aria-label={"Close removal confirmation"}
+                            >
+                                <i className={"fa-solid fa-xmark"} aria-hidden={"true"} />
+                            </button>
+                        </header>
+
+                        <div className={styles.modalBody}>
+                            <p id={"detach-character-description"}>
+                                Remove <strong>{detachTarget.name}</strong> from{" "}
+                                <strong>{campaign.name}</strong>?
+                            </p>
+
+                            <p>
+                                The character sheet will not be deleted.
+                                Its existing owner will retain access to it,
+                                and it can be assigned to another campaign later.
+                            </p>
+
+                            {actionError ? (
+                                <div className={styles.inlineError} role={"alert"}>
+                                    {actionError}
+                                </div>
+                            ) : null}
+
+                            <div className={styles.modalActions}>
+                                <button
+                                    type={"button"}
+                                    className={styles.secondaryAction}
+                                    onClick={() => setDetachTarget(null)}
+                                    disabled={Boolean(detachingCharacterId)}
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    type={"button"}
+                                    className={styles.primaryAction}
+                                    onClick={() => void handleConfirmDetach()}
+                                    disabled={Boolean(detachingCharacterId)}
+                                >
+                                    {detachingCharacterId
+                                        ? "Removing..."
+                                        : "Remove from Campaign"}
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                </div>
             ) : null}
 
             {pickerOpen ? (

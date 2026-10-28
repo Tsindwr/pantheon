@@ -7,6 +7,8 @@ type CharacterSheetCardProps = {
     character: CharacterSheetSummary;
     onRequestDelete?: (character: CharacterSheetSummary) => void;
     deleting?: boolean;
+    onRequestDetach?: (character: CharacterSheetSummary) => void;
+    detaching?: boolean;
     showEdit?: boolean;
 };
 
@@ -14,6 +16,8 @@ export default function CharacterSheetCard({
     character,
     onRequestDelete,
     deleting = false,
+    onRequestDetach,
+    detaching = false,
     showEdit = true,
 }: CharacterSheetCardProps) {
     return (
@@ -45,6 +49,23 @@ export default function CharacterSheetCard({
                     <a className={styles.actionLinkSecondary} href={routes.characterEdit(character.id)}>
                         Edit
                     </a>
+                ) : null}
+                {onRequestDetach ? (
+                    <button
+                        type={"button"}
+                        className={styles.actionLinkSecondary}
+                        onClick={() => onRequestDetach(character)}
+                        disabled={detaching}
+                        aria-label={`Remove ${character.name} from this campaign`}
+                    >
+                        <i
+                            className={"fa-solid fa-arrow-right-from-bracket"}
+                            aria-hidden={"true"}
+                        />
+                        <span>
+                            {detaching ? "Removing..." : "Remove from Campaign"}
+                        </span>
+                    </button>
                 ) : null}
                 {onRequestDelete ? (
                     <button

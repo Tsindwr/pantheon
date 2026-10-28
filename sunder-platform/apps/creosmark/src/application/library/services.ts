@@ -42,6 +42,9 @@ export function createLibraryCampaignService(repository: LibraryCampaignReposito
     addCharacterToCampaign(campaignId: string, characterSheetId: string) {
       return repository.addCharacterToCampaign(campaignId, characterSheetId);
     },
+    removeCharacterFromCampaign(campaignId: string, characterSheetId: string) {
+      return repository.removeCharacterFromCampaign(campaignId, characterSheetId);
+    },
     getCampaignLoom(campaignId: string) {
       return repository.getCampaignLoom(campaignId);
     },

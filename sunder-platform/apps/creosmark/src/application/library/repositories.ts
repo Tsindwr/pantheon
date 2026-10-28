@@ -37,6 +37,7 @@ export type LibraryCampaignRepository = {
   getCampaignForCharacter(characterSheetId: string): Promise<CampaignAssignment | null>;
   getCampaignRoster(campaignId: string): Promise<CampaignRecord | null>;
   addCharacterToCampaign(campaignId: string, characterSheetId: string): Promise<void>;
+  removeCharacterFromCampaign(campaignId: string, characterSheetId: string): Promise<void>;
   getCampaignLoom(campaignId: string): Promise<CampaignLoomState>;
   updateCampaignLoom(campaignId: string, patch: CampaignLoomPatch): Promise<CampaignLoomState>;
   subscribeToCampaignLoom(campaignId: string, onChange: () => void): () => void;

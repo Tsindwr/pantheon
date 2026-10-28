@@ -14,6 +14,7 @@ import {
   joinCampaignByCode,
   listMyCampaigns,
   listMyCharacterSheets,
+  removeCharacterFromCampaign,
   subscribeToCampaignLoom,
   subscribeToCampaignGmTools,
   updateCharacterSheet,
@@ -77,6 +78,9 @@ export const supabaseLibraryCampaignRepository: LibraryCampaignRepository = {
   },
   async addCharacterToCampaign(campaignId, characterSheetId) {
     await addCharacterToCampaign(campaignId, characterSheetId);
+  },
+  async removeCharacterFromCampaign(campaignId, characterSheetId) {
+    await removeCharacterFromCampaign(campaignId, characterSheetId);
   },
   async getCampaignLoom(campaignId) {
     return getCampaignLoom(campaignId);
