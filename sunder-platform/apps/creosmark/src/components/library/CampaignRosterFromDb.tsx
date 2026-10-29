@@ -288,6 +288,8 @@ export default function CampaignRosterFromDb({
             setOwnedCharacters(snapshot.ownedCharacters);
         } catch (error) {
             setActionError(error instanceof Error ? error.message : "Failed to claim the character.");
+
+            throw error;
         } finally {
             setClaimingCharacterId(null);
         }

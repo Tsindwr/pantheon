@@ -61,6 +61,8 @@ export default function CampaignRosterPage({
     const [createUnclaimedOpen, setCreateUnclaimedOpen] = useState(false);
     const [newCharacterName, setNewCharacterName] = useState("");
     const [detachTarget, setDetachTarget] = useState<CharacterSheetSummary | null>(null);
+    const [claimTarget, setClaimTarget] = useState<CharacterSheetSummary | null>(null);
+    const [claimAttempted, setClaimAttempted] = useState(false);
     const [activeTab, setActiveTab] = useState<"roster" | "loom" | "gm" | "settings">("roster");
     const [selectorOpen, setSelectorOpen] = useState(false);
     const [selectedCharacterId, setSelectedCharacterId] = useState("");
@@ -138,6 +140,26 @@ export default function CampaignRosterPage({
         } catch {
             // The parent displays the database error.
             // Keep the dialog open for correction or retry.
+        }
+    }
+
+    async function handleConfirmClaim() {
+        if (!claimTarget || !onClaimCharacter || claimingCharacterId) return;
+
+        const revision = claimTarget.custodyRevision;
+
+        if (revision === undefined || !Number.isSafeInteger(revision) || revision < 0) return;
+
+        setClaimAttempted(true);
+
+        try {
+            await onClaimCharacter(claimTarget.id, revision);
+
+            setClaimTarget(null);
+            setClaimAttempted(false);
+        } catch {
+            // Keep the confirmation open.
+            // The data loader provides the visible error.
         }
     }
 
@@ -283,7 +305,8 @@ export default function CampaignRosterPage({
                                     character.isUnclaimed && onClaimCharacter &&
                                     Number.isSafeInteger(character.custodyRevision)
                                         ? (entry) => {
-                                            void onClaimCharacter(entry.id, entry.custodyRevision!);
+                                            setClaimAttempted(false);
+                                            setClaimTarget(entry);
                                         }
                                         : undefined
                                 }
@@ -415,6 +438,95 @@ export default function CampaignRosterPage({
                 </div>
             ) : null}
 
+            {claimTarget && onClaimCharacter ? (
+                <div className={styles.modalOverlay}
+                     onMouseDown={(event) => {
+                         if (event.target === event.currentTarget && !claimingCharacterId) {
+                             setClaimTarget(null);
+                         }
+                     }}
+                     onKeyDown={(event) => {
+                         if (event.key === "Escape" && !claimingCharacterId) {
+                             setClaimTarget(null);
+                         }
+                     }}
+                 >
+                    <section className={styles.modalPanel}
+                             role={"dialog"}
+                             aria-modal={"true"}
+                             aria-labelledby={"claim-character-title"}
+                             aria-describedby={"claim-character-description"}
+                     >
+                        <header className={styles.modalHeader}>
+                            <div>
+                                <div className={styles.eyebrow}>
+                                    Character Custody
+                                </div>
+
+                                <h3 id={"claim-character-title"}>
+                                    Claim Character
+                                </h3>
+                            </div>
+
+                            <button type={"button"}
+                                    className={styles.iconButton}
+                                    onClick={() => setClaimTarget(null)}
+                                    disabled={Boolean(claimingCharacterId)}
+                                    aria-label={"Close claiming confirmation"}
+                            >
+                                <i className={"fa-solid fa-xmark"} aria-hidden={"true"} />
+                            </button>
+                        </header>
+
+                        <div className={styles.modalBody}>
+                            <p id={"claim-character-description"}>
+                                Claim <strong>{claimTarget.name}</strong> as
+                                your character?
+                            </p>
+
+                            <p>
+                                You will become this character's owner,
+                                and the character will appear in your
+                                personal library.
+                            </p>
+
+                            <p>
+                                The character will remain in{" "}
+                                <strong>{campaign.name}</strong>.
+                                Its original creator will still be recorded.
+                                Ownership cannot be reversed from this roster.
+                            </p>
+
+                            {claimAttempted && actionError ? (
+                                <div className={styles.inlineError}
+                                     role={"alert"}>
+                                    {actionError}
+                                </div>
+                            ) : null}
+
+                            <div className={styles.modalActions}>
+                                <button type={"button"}
+                                        className={styles.secondaryAction}
+                                        onClick={() => setClaimTarget(null)}
+                                        disabled={Boolean(claimingCharacterId)}
+                                        autoFocus
+                                >
+                                    Cancel
+                                </button>
+
+                                <button type={"button"}
+                                        className={styles.primaryAction}
+                                        onClick={() => void handleConfirmClaim()}
+                                        disabled={Boolean(claimingCharacterId)}
+                                >
+                                    {claimingCharacterId ? "Claiming..." : "Confirm"}
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            ) : null}
+
             {detachTarget ? (
                 <div
                     className={styles.modalOverlay}
@@ -442,7 +554,7 @@ export default function CampaignRosterPage({
                                     Campaign Roster
                                 </div>
                                 <h3 id={"detach-character-title"}>
-                                    Remove the Campaign
+                                    Remove Character from Campaign
                                 </h3>
                             </div>
 
