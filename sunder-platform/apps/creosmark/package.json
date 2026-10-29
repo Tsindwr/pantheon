@@ -12,6 +12,7 @@
     "check:architecture": "node scripts/architecture-boundaries.mjs",
     "check:artifacts": "node scripts/tracked-artifacts.mjs --check",
     "audit:artifacts": "node scripts/tracked-artifacts.mjs",
+    "audit:dependencies": "node scripts/dependency-inventory.mjs",
     "test:editor-sections": "node --test scripts/editor-sections.test.mjs",
     "supabase:push": "dotenv -e .env -- supabase db push",
     "supabase:pull": "dotenv -e .env -- supabase db pull",
@@ -32,7 +33,8 @@
     "test:campaign-navigation": "node --test scripts/campaign-navigation-presentation.test.mjs",
     "test:architecture": "node --test scripts/architecture-boundaries.test.mjs",
     "test:artifacts": "node --test scripts/tracked-artifacts.test.mjs",
-    "test:character-mapping": "node --test scripts/character-sheet-summary.test.mjs"
+    "test:character-mapping": "node --test scripts/character-sheet-summary.test.mjs",
+    "test:dependency-inventory": "node --test scripts/dependency-inventory.test.mjs"
   },
   "dependencies": {
     "@3d-dice/dice-box": "^1.1.4",
