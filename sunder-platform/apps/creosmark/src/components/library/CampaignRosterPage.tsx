@@ -395,6 +395,7 @@ export default function CampaignRosterPage({
                             <input
                                 id={"unclaimed-character-name"}
                                 type={"text"}
+                                className={styles.gmInput}
                                 value={newCharacterName}
                                 onChange={(event) => setNewCharacterName(event.target.value)}
                                 maxLength={160}

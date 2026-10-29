@@ -68,6 +68,44 @@
   font-weight: 700;
 }
 
+.campaignLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+
+  max-width: min(22rem, 100%);
+  min-width: 0;
+
+  border-color: rgba(210, 178, 76, 0.38);
+  background: rgba(210, 178, 76, 0.1);
+  color: #f5dea0;
+
+  text-decoration: none;
+  cursor: pointer;
+
+  transition:
+      background 150ms ease,
+      border-color 150ms ease,
+      box-shadow 150ms ease;
+}
+
+.campaignLink:hover {
+  border-color: rgba(210, 178, 76, 0.65);
+  background: rgba(210, 178, 76, 0.18);
+}
+
+.campaignLink:focus-visible {
+  outline: 2px solid var(--sunder-gold, #d2b24c);
+  outline-offset: 3px;
+}
+
+.campaignLinkLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sheetActions {
   display: flex;
   flex-wrap: wrap;

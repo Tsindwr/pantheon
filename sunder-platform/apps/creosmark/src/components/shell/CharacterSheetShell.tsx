@@ -270,11 +270,28 @@ export default function CharacterSheetShell({
                                 : "No Archetype"}
                         </span>
                         <span>{sheet.header.origin}</span>
+                        {assignedCampaign && sheet.header.playerName.trim() ? (
+                            <span>Player · {sheet.header.playerName}</span>
+                        ) : null}
                     </div>
                 </div>
 
                 <div className={styles.sideMeta}>
-                    <div className={styles.badge}>Player · {sheet.header.playerName}</div>
+                    {assignedCampaign ? (
+                        <a className={`${styles.badge} ${styles.campaignLink}`}
+                           href={routes.campaignView(assignedCampaign.id)}
+                           aria-label={`Open ${assignedCampaign.name} campaign`}
+                           title={`Open ${assignedCampaign.name}`}
+                        >
+                            <i className={"fa-solid fa-users"}
+                               aria-hidden={"true"} />
+                            <span className={styles.campaignLinkLabel}>
+                                {assignedCampaign.name}
+                            </span>
+                        </a>
+                    ) : (
+                        <div className={styles.badge}>Player · {sheet.header.playerName}</div>
+                    )}
                     <div className={styles.badge}>Level {getLevels(sheet.header.archetypes)}</div>
                     <div className={styles.badge}>Tier {getTierFromArchetypes(sheet.header.archetypes)}</div>
                     <div className={styles.badge}>
