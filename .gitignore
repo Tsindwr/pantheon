@@ -1,7 +1,15 @@
-/sunder-platform/apps/gauntlet/node_modules/
-/sunder-platform/node_modules/
-/sunder-platform/apps/creosmark/node_modules/
+# Installed dependencies throughout the monorepo
+**/node_modules/
 
+# Generated application and shared-package output
+/sunder-platform/apps/*/dist/
+/sunder-platform/packages/*/dist/
+/sunder-platform/apps/creosmark/.astro/
+
+# Local development logs
+/.codex-logs/*.log
+
+# Local environment configuration
 .env
 .env.local
 .env.*.local
