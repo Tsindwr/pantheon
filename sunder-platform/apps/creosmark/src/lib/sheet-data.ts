@@ -3,10 +3,21 @@ import {
   type DomainData,
   type DomainId,
 } from "@sunderttrpg/core";
+
 import type { CharacterSheetState } from "../types/sheet.ts";
+
+import type {
+  ArchetypeData,
+  ArchetypeId
+} from "../types/archetypes.ts";
 
 export { DOMAINS };
 export type { DomainData, DomainId };
+
+export type {
+  ArchetypeData,
+  ArchetypeId,
+} from "../types/archetypes.ts";
 
 export const SHEET_TABS = [
   { id: "overview", label: "Overview" },
@@ -25,24 +36,6 @@ export {
   EDITOR_SECTIONS as EDITOR_TABS,
   type EditorSectionId as EditorTabId,
 } from "../presentation/character-editor/editor-sections.ts";
-
-export type ArchetypeId =
-  | "spellslinger"
-  | "summoner"
-  | "face"
-  | "control"
-  | "saboteur"
-  | "support"
-  | "frontliner"
-  | "halfcaster"
-  | "healer"
-  | "tank";
-
-export type ArchetypeData = {
-  id: ArchetypeId;
-  label: string;
-  levels: number;
-}
 
 export function getTierFromArchetypes(classData: ArchetypeData[]) {
   const totalLevels = classData.reduce(

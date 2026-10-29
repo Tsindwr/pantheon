@@ -10,9 +10,10 @@ import {
   type RiskinessLevel,
   type RollMode,
   type SkillKey,
+  type DomainId,
 } from "@sunderttrpg/core";
-import type { AssignedPerkMap, PerkId, VolatilityDieType } from "../lib/rolling/types";
-import type {ArchetypeData, DomainData, DomainId} from "../lib/sheet-data";
+import type { AssignedPerkMap, PerkId, VolatilityDieType } from "@sunderttrpg/core";
+import type {ArchetypeData} from "./archetypes.ts";
 
 export {
   POTENTIAL_ABBREVIATIONS,

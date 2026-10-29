@@ -9,20 +9,24 @@ import {
     buildVolatilityPoolState,
     resolveObservedSunderRoll,
     resolveSunderRoll
-} from "../../lib/rolling/resolveSunderRoll.ts";
-import type { TestResult } from "../../lib/rolling/types.ts";
+} from "@sunderttrpg/core";
+import type { TestResult } from "@sunderttrpg/core";
 import {
     buildDisplayRollMeta,
     buildTestStateFromDraft,
     type DisplayRoll,
 } from "./rollDisplay.ts";
-import { getVolatilityPlan } from "../../lib/rolling/resolveVolatility.ts"
+import { getVolatilityPlan } from "@sunderttrpg/core"
 import { parseDiceBoxResults } from "./diceBoxAdapter.ts";
 import SunderRollOverlay from "./SunderRollOverlay.tsx";
 import SunderDiceBoxOverlay from "./SunderDiceBoxOverlay.tsx";
 import { publicAssetPath } from "../../lib/public-assets.ts";
-import { getResistanceRecoveryPotentials } from "../../application/character-sheet/commands.ts";
+import { getResistanceRecoveryPotentials } from "../../application";
 import type { FalloutResolution } from "../../lib/rolling/fallout.ts";
+
+import type { RollPhase } from "./roll-phase.ts";
+
+export type { RollPhase } from "./roll-phase.ts";
 
 type DiceRollerProps = {
     sheet: CharacterSheetState;
@@ -35,8 +39,6 @@ type DiceRollerProps = {
         falloutResolution?: FalloutResolution,
     ) => void;
 };
-
-export type RollPhase = 'idle' | 'rolling' | 'resolved' | 'error';
 
 export default function DiceRoller({
     sheet,

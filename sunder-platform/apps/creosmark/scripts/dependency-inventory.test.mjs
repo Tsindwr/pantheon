@@ -1,7 +1,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { analyzeSources, extractImports } from "./dependency-inventory.mjs";
+import { analyzeSources, extractImports, readSources } from "./dependency-inventory.mjs";
 
 test("resolves extensionless and index imports without counting duplicates", () => {
     const result = analyzeSources(new Map([
@@ -82,4 +82,41 @@ test("maps TypeScript source behind JavaScript-style import specifiers", () => {
     ]));
     assert.equal(result.internalEdges, 1);
     assert.deepEqual(result.unresolved, []);
+});
+
+test("Creosmark source graph contains no circular dependencies", () => {
+    const report = analyzeSources(readSources());
+
+    assert.deepEqual(report.unresolved, [], "All local imports must resolve");
+    assert.deepEqual(report.cycles, [], `Unexpected dependency cycles: ${JSON.stringify(report.cycles)}`);
+});
+
+test("shared type contracts do not recreate consumer dependencies", () => {
+    const sources = readSources();
+
+    const sheetImports = extractImports("types/sheet.ts", sources.get("types/sheet.ts"))
+        .map((entry) => entry.specifier);
+
+    assert.ok(sheetImports.includes("./archetypes.ts"),
+        "Character sheet types must use the independent Archetype contract");
+
+    assert.ok(!sheetImports.some((specifier) => specifier?.includes("lib/sheet-data")),
+        "Character sheet types must not import the demo data module");
+
+    const rollerImports = extractImports("components/roll/DiceRoller.tsx",
+        sources.get("components/roll/DiceRoller.tsx"))
+        .map((entry) => entry.specifier);
+
+    const overlayImports = extractImports("components/roll/SunderDiceBoxOverlay.tsx",
+        sources.get("components/roll/SunderDiceBoxOverlay.tsx"))
+        .map((entry) => entry.specifier);
+
+    assert.ok(rollerImports.includes("./roll-phase.ts"),
+        "DiceRoller must use the shared RollPhase contract");
+
+    assert.ok(overlayImports.includes("./roll-phase.ts"),
+        "The overlay must use the shared RollPhase contract");
+
+    assert.ok(!overlayImports.includes("./DiceRoller.tsx"),
+        "The overlay must not depend on its parent renderer");
 });

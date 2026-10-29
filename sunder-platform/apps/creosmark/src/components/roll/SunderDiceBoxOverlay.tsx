@@ -3,7 +3,7 @@ import type { RefObject } from 'react';
 import type { DisplayRoll } from './rollDisplay';
 import { formatPerkLabel, formatSuccessLevel } from "./rollDisplay";
 import styles from './SunderDiceBoxOverlay.module.css';
-import type {RollPhase} from "./DiceRoller.tsx";
+import type { RollPhase } from "./roll-phase.ts";
 import type { PotentialKey } from "../../types/sheet.ts";
 import FalloutResolutionModal from "./FalloutResolutionModal";
 import type { FalloutResolution } from "../../lib/rolling/fallout";
