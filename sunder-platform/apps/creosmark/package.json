@@ -8,7 +8,7 @@
     "build": "astro build",
     "preview": "astro preview --port 4174",
     "astro": "astro",
-    "check": "node scripts/ensure-checker.mjs && node scripts/architecture-boundaries.mjs && node scripts/tracked-artifacts.mjs && node --test scripts/tracked-artifacts.test.mjs scripts/architecture-boundaries.test.mjs scripts/editor-sections.test.mjs scripts/editor-navigation.test.mjs scripts/origin-choice-preview.test.mjs scripts/archetype-choice-preview.test.mjs scripts/ability-choice-status.test.mjs scripts/character-custody.test.mjs scripts/custody-schema-plan.test.mjs scripts/campaign-link-decision.test.mjs scripts/custody-write-boundary.test.mjs scripts/custody-transition-boundary.test.mjs scripts/campaign-detachment-ui.test.mjs scripts/custody-link-lockdown.test.mjs scripts/character-creation-provenance.test.mjs scripts/character-unclaimed-transitions.test.mjs scripts/campaign-claim-confirmation-ui.test.mjs scripts/campaign-navigation-presentation.test.mjs && astro check",
+    "check": "node scripts/ensure-checker.mjs && node scripts/architecture-boundaries.mjs && node scripts/tracked-artifacts.mjs && node --test scripts/tracked-artifacts.test.mjs scripts/architecture-boundaries.test.mjs scripts/editor-sections.test.mjs scripts/editor-navigation.test.mjs scripts/origin-choice-preview.test.mjs scripts/archetype-choice-preview.test.mjs scripts/ability-choice-status.test.mjs scripts/character-custody.test.mjs scripts/custody-schema-plan.test.mjs scripts/campaign-link-decision.test.mjs scripts/custody-write-boundary.test.mjs scripts/custody-transition-boundary.test.mjs scripts/campaign-detachment-ui.test.mjs scripts/custody-link-lockdown.test.mjs scripts/character-creation-provenance.test.mjs scripts/character-unclaimed-transitions.test.mjs scripts/campaign-claim-confirmation-ui.test.mjs scripts/campaign-navigation-presentation.test.mjs scripts/character-sheet-summary.test.mjs && astro check",
     "check:architecture": "node scripts/architecture-boundaries.mjs",
     "check:artifacts": "node scripts/tracked-artifacts.mjs --check",
     "audit:artifacts": "node scripts/tracked-artifacts.mjs",
@@ -31,7 +31,8 @@
     "test:campaign-claim-ui": "node --test scripts/campaign-claim-confirmation-ui.test.mjs",
     "test:campaign-navigation": "node --test scripts/campaign-navigation-presentation.test.mjs",
     "test:architecture": "node --test scripts/architecture-boundaries.test.mjs",
-    "test:artifacts": "node --test scripts/tracked-artifacts.test.mjs"
+    "test:artifacts": "node --test scripts/tracked-artifacts.test.mjs",
+    "test:character-mapping": "node --test scripts/character-sheet-summary.test.mjs"
   },
   "dependencies": {
     "@3d-dice/dice-box": "^1.1.4",

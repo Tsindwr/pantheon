@@ -23,23 +23,13 @@ import {
     type CampaignLoomState,
 } from "../campaign-loom";
 import { assessCampaignLink } from "./campaign-link-decision.ts";
+import { toCharacterSummary } from "./character-sheet-summary.ts";
+import type { CharacterSheetRow } from "./character-sheet-summary.ts";
 
-export type CharacterSheetRow = {
-    id: string;
-    owner_id: string | null;
-    created_by_user_id: string | null;
-    custodian_gm_user_id: string | null;
-    custody_revision: number | string;
-    name: string;
-    archetype: string;
-    origin: string;
-    player_name: string;
-    level: number;
-    ability_ids: string[];
-    sheet_json: CharacterSheetState;
-    created_at: string;
-    updated_at: string;
-};
+export type {
+    CharacterSheetRow,
+    ArchetypeData,
+} from "./character-sheet-summary.ts";
 
 export type CampaignRow = {
     id: string;
@@ -74,12 +64,6 @@ export type CampaignGmToolsRow = {
     created_at: string;
     updated_at: string;
 };
-
-export type ArchetypeData = {
-    id: string;
-    label: string;
-    levels: number;
-}
 
 const UUID_PATTERN =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -177,44 +161,6 @@ async function requireUserId(): Promise<string> {
     if (!user) throw new Error("You must be signed in.");
 
     return user.id;
-}
-
-function archetypesToLabel(archetypesJson: string): string {
-    try {
-        const archetypes: ArchetypeData[] = JSON.parse(archetypesJson);
-        return archetypes.map((a) => a.label + " " + a.levels).join(" / ");
-    } catch (error) {
-        console.error("Failed to parse archetypes JSON:", error);
-        return archetypesJson;
-    }
-}
-
-function archetypesToLevel(archetypesJson: string): number {
-    try {
-        const archetypes: ArchetypeData[] = JSON.parse(archetypesJson);
-        return archetypes.reduce((sum, a) => sum + a.levels, 0);
-    } catch (error) {
-        console.error("Failed to parse archetypes JSON:", error);
-        return 1;
-    }
-}
-
-function toCharacterSummary(row: CharacterSheetRow): CharacterSheetSummary {
-    const archetypesLabel: string = archetypesToLabel(row.archetype);
-    const revision = Number(row.custody_revision);
-
-    return {
-        id: row.id,
-        name: row.name,
-        archetype: archetypesLabel,
-        origin: row.origin,
-        level: archetypesToLevel(row.archetype),
-        playerName: row.player_name,
-        updatedLabel: new Date(row.updated_at).toLocaleString(),
-
-        isUnclaimed: row.owner_id === null,
-        custodyRevision: Number.isSafeInteger(revision) ? revision : undefined,
-    };
 }
 
 function buildCharacterMutation(sheet: CharacterSheetState) {
