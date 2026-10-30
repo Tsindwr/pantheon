@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import styles from "./NavBar.module.css";
 import { routes } from "../../lib/routing.ts";
 import { getCurrentUser, onAuthStateChange } from "../../lib/auth.ts";
-import { supabase } from "../../lib/supabase/client.ts";
+import {supabaseUserRoleService} from "../../infrastructure/auth/supabase-user-role-service.ts";
 
 type NavLink = {
     label: string;
@@ -46,29 +46,26 @@ export default function NavBar({
 
     useEffect(() => {
         let mounted = true;
+        let roleRequestId = 0;
 
         async function loadRoleForCurrentUser() {
-            const user = await getCurrentUser();
-            if (!mounted) return;
+            const requestId = ++roleRequestId;
 
-            if (!user) {
-                setIsAdmin(false);
-                return;
+            try {
+                const user = await getCurrentUser();
+
+                if (!mounted || requestId !== roleRequestId) return;
+
+                const admin = user ? await supabaseUserRoleService.isAdmin(user.id) : false;
+
+                if (!mounted || requestId !== roleRequestId) return;
+
+                setIsAdmin(admin);
+            } catch {
+                if (mounted && requestId === roleRequestId) {
+                    setIsAdmin(false);
+                }
             }
-
-            const { data, error } = await supabase
-                .from("user_profiles")
-                .select("user_type")
-                .eq("user_id", user.id)
-                .maybeSingle();
-
-            if (!mounted) return;
-            if (error) {
-                setIsAdmin(false);
-                return;
-            }
-
-            setIsAdmin(data?.user_type === "admin");
         }
 
         void loadRoleForCurrentUser();
@@ -79,6 +76,7 @@ export default function NavBar({
 
         return () => {
             mounted = false;
+            roleRequestId++;
             unsubscribe();
         };
     }, []);
