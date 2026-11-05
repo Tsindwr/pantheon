@@ -25,6 +25,7 @@ import {
 import { assessCampaignLink } from "./campaign-link-decision.ts";
 import { toCharacterSummary } from "./character-sheet-summary.ts";
 import type { CharacterSheetRow } from "./character-sheet-summary.ts";
+import { createCharacterSheetQueries } from "./character-sheet-queries.ts";
 
 export type {
     CharacterSheetRow,
@@ -163,6 +164,13 @@ async function requireUserId(): Promise<string> {
     return user.id;
 }
 
+const characterSheetQueries = createCharacterSheetQueries({
+    client: supabase,
+    requireUserId,
+    hydrateCharacterSheetRow,
+    toCharacterSummary,
+});
+
 function buildCharacterMutation(sheet: CharacterSheetState) {
     const normalizedSheet = normalizeCharacterSheetState(sheet, sheet.abilityIds);
 
@@ -182,51 +190,15 @@ function buildCharacterMutation(sheet: CharacterSheetState) {
 ----------------------------- */
 
 export async function listMyCharacterSheets(): Promise<CharacterSheetSummary[]> {
-    const userId = await requireUserId();
-
-    const { data, error } = await supabase
-        .from("character_sheets")
-        .select("*")
-        .eq("owner_id", userId)
-        .order("updated_at", { ascending: false });
-
-    if (error) throw error;
-
-    return ((data ?? []) as CharacterSheetRow[])
-        .map(hydrateCharacterSheetRow)
-        .map(toCharacterSummary);
+    return characterSheetQueries.listMyCharacterSheets();
 }
 
 export async function getMyCharacterSheet(id: string): Promise<CharacterSheetRow | null> {
-    const userId = await requireUserId();
-
-    const { data, error } = await supabase
-        .from("character_sheets")
-        .select("*")
-        .eq("id", id)
-        .eq("owner_id", userId)
-        .maybeSingle();
-
-    if (error) throw error;
-
-    if (!data) return null;
-
-    return hydrateCharacterSheetRow(data as CharacterSheetRow);
+    return characterSheetQueries.getMyCharacterSheet(id);
 }
 
 export async function getViewableCharacterSheet(id: string): Promise<CharacterSheetRow | null> {
-    await requireUserId();
-
-    const { data, error } = await supabase
-        .from("character_sheets")
-        .select("*")
-        .eq("id", id)
-        .maybeSingle();
-
-    if (error) throw error;
-    if (!data) return null;
-
-    return hydrateCharacterSheetRow(data as CharacterSheetRow);
+    return characterSheetQueries.getViewableCharacterSheet(id);
 }
 
 export async function createCharacterSheet(
@@ -312,7 +284,7 @@ export async function claimUnclaimedCharacter(campaignId: string, characterSheet
     await requireUserId();
 
     if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {
-        throw new Error("The caharacter custody revision is invalid.");
+        throw new Error("The character custody revision is invalid.");
     }
 
     const { error } = await supabase.rpc(
