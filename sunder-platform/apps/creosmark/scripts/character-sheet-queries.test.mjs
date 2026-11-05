@@ -121,8 +121,6 @@ test("personal library lists only the current owner's sheets", async () => {
         ],
     );
 
-    console.log("Recorded query calls:", calls);
-
     assert.ok(hasCall(calls, "from", "character_sheets"));
     assert.ok(hasCall(calls, "select", "*"));
     assert.ok(hasCall(calls, "eq", "owner_id", "owner-123"));
