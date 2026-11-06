@@ -12,6 +12,8 @@ import {
     normalizeCharacterSheetState,
 } from "./character-sheet-normalization.ts";
 import { createCharacterSheetWrites } from "./character-sheet-writes.ts";
+import { createCampaignQueries } from "./campaign-queries.ts";
+import type { CampaignRow } from "./campaign-queries.ts";
 import {
     clampCampaignLoomState,
     clampLoomNumber,
@@ -37,22 +39,10 @@ export type {
     ArchetypeData,
 } from "./character-sheet-summary.ts";
 
-export type CampaignRow = {
-    id: string;
-    owner_id: string;
-    name: string;
-    gm_name: string | null;
-    pitch: string | null;
-    join_code: string;
-    created_at: string;
-    updated_at: string;
-};
-
-export type CampaignCharacterSheetRow = {
-    campaign_id: string;
-    character_sheet_id: string;
-    created_at: string;
-};
+export type {
+    CampaignRow,
+    CampaignCharacterSheetRow,
+} from "./campaign-queries.ts";
 
 export type CampaignLoomRow = {
     campaign_id: string;
@@ -87,6 +77,12 @@ const characterSheetQueries = createCharacterSheetQueries({
     client: supabase,
     requireUserId,
     hydrateCharacterSheetRow,
+    toCharacterSummary,
+});
+
+const campaignQueries = createCampaignQueries({
+    client: supabase,
+    requireUserId,
     toCharacterSummary,
 });
 
@@ -208,119 +204,7 @@ export async function claimUnclaimedCharacter(campaignId: string, characterSheet
 ----------------------------- */
 
 export async function listMyCampaigns(): Promise<CampaignRecord[]> {
-    const userId = await requireUserId();
-
-    const { data: memberships, error: membershipsError } = await supabase
-        .from("campaign_members")
-        .select("campaign_id, role")
-        .eq("user_id", userId);
-
-    if (membershipsError) throw membershipsError;
-
-    const memberCampaignIds = Array.from(
-        new Set(
-            ((memberships ?? []) as Array<{ campaign_id: string; role?: CampaignViewerRole }>)
-                .map((membership) => membership.campaign_id)
-                .filter(Boolean),
-        ),
-    );
-    const roleByCampaignId = new Map(
-        ((memberships ?? []) as Array<{
-            campaign_id: string;
-            role?: CampaignViewerRole;
-        }>).map((membership) => [membership.campaign_id, membership.role]),
-    );
-
-    const { data: ownedCampaigns, error: ownedCampaignsError } = await supabase
-        .from("campaigns")
-        .select("*")
-        .eq("owner_id", userId)
-        .order("updated_at", { ascending: false });
-
-    if (ownedCampaignsError) throw ownedCampaignsError;
-
-    const { data: memberCampaigns, error: memberCampaignsError } =
-        memberCampaignIds.length > 0
-            ? await supabase
-                .from("campaigns")
-                .select("*")
-                .in("id", memberCampaignIds)
-            : { data: [], error: null };
-
-    if (memberCampaignsError) throw memberCampaignsError;
-
-    const campaignRows = Array.from(
-        new Map(
-            [
-                ...((ownedCampaigns as CampaignRow[]) ?? []),
-                ...((memberCampaigns as CampaignRow[]) ?? []),
-            ].map((campaign) => [campaign.id, campaign]),
-        ).values(),
-    ).sort(
-        (a, b) =>
-            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
-    );
-    if (campaignRows.length === 0) return [];
-
-    const campaignIds = campaignRows.map((row) => row.id);
-
-    const { data: links, error: linksError } = await supabase
-        .from("campaign_character_sheets")
-        .select("*")
-        .in("campaign_id", campaignIds);
-
-    if (linksError) throw linksError;
-
-    const linkedCharacterIds = Array.from(
-        new Set(
-            ((links as CampaignCharacterSheetRow[]) ?? [])
-                .map((link) => link.character_sheet_id)
-                .filter(Boolean),
-        ),
-    );
-
-    const { data: sheets, error: sheetsError } =
-        linkedCharacterIds.length > 0
-            ? await supabase
-                .from("character_sheets")
-                .select("*")
-                .in("id", linkedCharacterIds)
-            : { data: [], error: null };
-
-    if (sheetsError) throw sheetsError;
-
-    const sheetMap = new Map(
-        ((sheets as CharacterSheetRow[]) ?? []).map((row) => [row.id, toCharacterSummary(row)]),
-    );
-
-    const linksByCampaign = new Map<string, string[]>();
-    ((links as CampaignCharacterSheetRow[]) ?? []).forEach((link) => {
-        const current = linksByCampaign.get(link.campaign_id) ?? [];
-        current.push(link.character_sheet_id);
-        linksByCampaign.set(link.campaign_id, current);
-    });
-
-    return campaignRows.map((campaign) => {
-        const characterIds = linksByCampaign.get(campaign.id) ?? [];
-        const characters = characterIds
-            .map((id) => sheetMap.get(id))
-            .filter(Boolean) as CharacterSheetSummary[];
-
-        return {
-            id: campaign.id,
-            name: campaign.name,
-            gmName: campaign.gm_name ?? undefined,
-            pitch: campaign.pitch ?? undefined,
-            joinCode: campaign.join_code,
-            characterIds,
-            characters,
-            viewerRole:
-                campaign.owner_id === userId
-                    ? "gm"
-                    : roleByCampaignId.get(campaign.id),
-            updatedLabel: new Date(campaign.updated_at).toLocaleString(),
-        };
-    });
+    return campaignQueries.listMyCampaigns();
 }
 
 export async function createCampaign(input: {
@@ -803,66 +687,7 @@ export async function getCampaignForCharacter(
 }
 
 export async function getCampaignRoster(campaignId: string): Promise<CampaignRecord | null> {
-    const userId = await requireUserId();
-
-    const { data: campaign, error: campaignError } = await supabase
-        .from("campaigns")
-        .select("*")
-        .eq("id", campaignId)
-        .maybeSingle();
-
-    if (campaignError) throw campaignError;
-    if (!campaign) return null;
-
-    const { data: links, error: linksError } = await supabase
-        .from("campaign_character_sheets")
-        .select("character_sheet_id")
-        .eq("campaign_id", campaignId);
-
-    if (linksError) throw linksError;
-
-    const characterIds = ((links ?? []) as Array<{ character_sheet_id: string }>).map(
-        (entry) => entry.character_sheet_id,
-    );
-
-    let characters: CharacterSheetSummary[] = [];
-
-    if (characterIds.length > 0) {
-        const { data: sheets, error: sheetsError } = await supabase
-            .from("character_sheets")
-            .select("*")
-            .in("id", characterIds);
-
-        if (sheetsError) throw sheetsError;
-
-        characters = ((sheets ?? []) as CharacterSheetRow[]).map(toCharacterSummary);
-    }
-
-    const row = campaign as CampaignRow;
-
-    const { data: membership, error: membershipError } = await supabase
-        .from("campaign_members")
-        .select("role")
-        .eq("campaign_id", campaignId)
-        .eq("user_id", userId)
-        .maybeSingle();
-
-    if (membershipError) throw membershipError;
-
-    return {
-        id: row.id,
-        name: row.name,
-        gmName: row.gm_name ?? undefined,
-        pitch: row.pitch ?? undefined,
-        joinCode: row.join_code,
-        characterIds,
-        characters,
-        viewerRole:
-            row.owner_id === userId
-                ? "gm"
-                : ((membership?.role as CampaignViewerRole | undefined) ?? undefined),
-        updatedLabel: new Date(row.updated_at).toLocaleString(),
-    };
+    return campaignQueries.getCampaignRoster(campaignId);
 }
 
 export function createBlankSheet(): CharacterSheetState {
