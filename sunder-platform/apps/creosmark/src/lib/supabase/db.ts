@@ -11,6 +11,7 @@ import {
     hydrateCharacterSheetRow,
     normalizeCharacterSheetState,
 } from "./character-sheet-normalization.ts";
+import { createCharacterSheetWrites } from "./character-sheet-writes.ts";
 import {
     clampCampaignLoomState,
     clampLoomNumber,
@@ -103,6 +104,13 @@ function buildCharacterMutation(sheet: CharacterSheetState) {
     };
 }
 
+const characterSheetWrites = createCharacterSheetWrites({
+    client: supabase,
+    requireUserId,
+    buildCharacterMutation,
+    hydrateCharacterSheetRow,
+});
+
 /* -----------------------------
    Character sheets
 ----------------------------- */
@@ -122,50 +130,18 @@ export async function getViewableCharacterSheet(id: string): Promise<CharacterSh
 export async function createCharacterSheet(
     sheet: CharacterSheetState,
 ): Promise<CharacterSheetRow> {
-    const userId = await requireUserId();
-
-    const { data, error } = await supabase
-        .from("character_sheets")
-        .insert({
-            owner_id: userId,
-            ...buildCharacterMutation(sheet),
-        })
-        .select()
-        .single();
-
-    if (error) throw error;
-
-    return hydrateCharacterSheetRow(data as CharacterSheetRow);
+    return characterSheetWrites.createCharacterSheet(sheet);
 }
 
 export async function updateCharacterSheet(
     id: string,
     sheet: CharacterSheetState,
 ): Promise<CharacterSheetRow> {
-    await requireUserId();
-
-    const { data, error } = await supabase
-        .from("character_sheets")
-        .update(buildCharacterMutation(sheet))
-        .eq("id", id)
-        .select()
-        .single();
-
-    if (error) throw error;
-
-    return hydrateCharacterSheetRow(data as CharacterSheetRow);
+    return characterSheetWrites.updateCharacterSheet(id, sheet);
 }
 
 export async function deleteCharacterSheet(id: string): Promise<void> {
-    const userId = await requireUserId();
-
-    const { error } = await supabase
-        .from("character_sheets")
-        .delete()
-        .eq("id", id)
-        .eq("owner_id", userId);
-
-    if (error) throw error;
+    await characterSheetWrites.deleteCharacterSheet(id);
 }
 
 export async function createUnclaimedCharacterForCampaign(campaignId: string, sheet: CharacterSheetState)

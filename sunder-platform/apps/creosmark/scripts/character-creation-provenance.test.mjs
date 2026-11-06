@@ -29,6 +29,14 @@ const db = readFileSync(
     "utf8",
 );
 
+const writes = readFileSync(
+    new URL(
+        "../src/lib/supabase/character-sheet-writes.ts",
+        import.meta.url,
+    ),
+    "utf8"
+);
+
 const roster = readFileSync(
     new URL(
         "../src/components/library/CampaignRosterPage.tsx",
@@ -78,19 +86,29 @@ test("only existing editor creation fields are granted", () => {
 });
 
 test("browser creation does not supply custody metadata", () => {
-    const creation = db.split(
-        "export async function createCharacterSheet("
+    const creation = writes.split(
+        "async createCharacterSheet("
     )[1]?.split(
-        "export async function updateCharacterSheet("
+        "async updateCharacterSheet("
     )[0];
 
-    assert.ok(creation);
+    assert.ok(
+        creation,
+        "The character creation query must exist in the write adapter",
+    );
+
     assert.match(creation, /\.insert\(\{/);
     assert.match(creation, /owner_id:\s*userId/);
 
     assert.doesNotMatch(
         creation,
         /created_by_user_id|custodian_gm_user_id|custody_revision/,
+    );
+
+    assert.match(
+        db,
+        /characterSheetWrites\.createCharacterSheet\(sheet\)/,
+        "The legacy database facade must delegate creation",
     );
 });
 
