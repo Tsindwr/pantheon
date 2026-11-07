@@ -109,6 +109,11 @@ function makeRepository(readAdapter) {
             "./supabase-character-writes.ts": {
                 supabaseCharacterWrites: {},
             },
+
+            "./supabase-campaign-state-operations.ts": {
+                supabaseCampaignLoomOperations: {},
+                supabaseCampaignGmToolsOperations: {},
+            },
         },
     ).supabaseLibraryCampaignRepository;
 }

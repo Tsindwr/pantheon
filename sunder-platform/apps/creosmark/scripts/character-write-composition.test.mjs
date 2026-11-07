@@ -113,6 +113,11 @@ function makeRepository(writeAdapter) {
             "./supabase-character-writes.ts": {
                 supabaseCharacterWrites: writeAdapter,
             },
+
+            "./supabase-campaign-state-operations.ts": {
+                supabaseCampaignLoomOperations: {},
+                supabaseCampaignGmToolsOperations: {},
+            },
         },
     ).supabaseLibraryCampaignRepository;
 }

@@ -4,15 +4,9 @@ import {
   claimUnclaimedCharacter,
   createCampaignWithMembership,
   createUnclaimedCharacterForCampaign,
-  getCampaignGmTools,
-  getCampaignLoom,
   getCampaignForCharacter,
   joinCampaignByCode,
   removeCharacterFromCampaign,
-  subscribeToCampaignLoom,
-  subscribeToCampaignGmTools,
-  updateCampaignGmTools,
-  updateCampaignLoom,
 } from "../../lib/supabase/db.ts";
 import {
   listCampaignRollEvents,
@@ -29,8 +23,12 @@ import {
   supabaseCharacterReadQueries,
 } from "./supabase-character-read-queries.ts";
 import {
-  supabaseCharacterWrites
+  supabaseCharacterWrites,
 } from "./supabase-character-writes.ts";
+import {
+  supabaseCampaignLoomOperations,
+  supabaseCampaignGmToolsOperations
+} from "./supabase-campaign-state-operations.ts";
 
 export const supabaseLibraryCampaignRepository: LibraryCampaignRepository = {
   createBlankSheet,
@@ -94,22 +92,22 @@ export const supabaseLibraryCampaignRepository: LibraryCampaignRepository = {
     await removeCharacterFromCampaign(campaignId, characterSheetId);
   },
   async getCampaignLoom(campaignId) {
-    return getCampaignLoom(campaignId);
+    return supabaseCampaignLoomOperations.getCampaignLoom(campaignId);
   },
   async updateCampaignLoom(campaignId, patch) {
-    return updateCampaignLoom(campaignId, patch);
+    return supabaseCampaignLoomOperations.updateCampaignLoom(campaignId, patch);
   },
   subscribeToCampaignLoom(campaignId, onChange) {
-    return subscribeToCampaignLoom(campaignId, onChange);
+    return supabaseCampaignLoomOperations.subscribeToCampaignLoom(campaignId, onChange);
   },
   async getCampaignGmTools(campaignId) {
-    return getCampaignGmTools(campaignId);
+    return supabaseCampaignGmToolsOperations.getCampaignGmTools(campaignId);
   },
   async updateCampaignGmTools(campaignId, tools) {
-    return updateCampaignGmTools(campaignId, tools);
+    return supabaseCampaignGmToolsOperations.updateCampaignGmTools(campaignId, tools);
   },
   subscribeToCampaignGmTools(campaignId, onChange) {
-    return subscribeToCampaignGmTools(campaignId, onChange);
+    return supabaseCampaignGmToolsOperations.subscribeToCampaignGmTools(campaignId, onChange);
   },
   async publishRollEvent(input) {
     await publishRollEvent(input);
