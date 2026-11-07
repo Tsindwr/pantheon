@@ -18,14 +18,13 @@ import { createCharacterSheetWrites } from "./character-sheet-writes.ts";
 import { createCampaignQueries } from "./campaign-queries.ts";
 import { createCampaignWrites } from "./campaign-writes.ts";
 import { createCampaignLoomOperations } from "./campaign-loom-operations.ts";
+import { createCampaignGmToolsOperations } from "./campaign-gm-tools-operations.ts";
 import type { CampaignRow } from "./campaign-rows.ts";
 import { requireUserId } from "./authenticated-user.ts";
-import {
-    getDefaultCampaignGmTools,
-    normalizeCampaignGmTools,
-    type CampaignGmTools,
-    type CampaignLoomPatch,
-    type CampaignLoomState,
+import type {
+    CampaignGmTools,
+    CampaignLoomPatch,
+    CampaignLoomState,
 } from "../campaign-loom";
 import { assessCampaignLink } from "./campaign-link-decision.ts";
 import { toCharacterSummary } from "./character-sheet-summary.ts";
@@ -45,12 +44,9 @@ export type {
     CampaignLoomRow,
 } from "./campaign-loom-operations.ts";
 
-export type CampaignGmToolsRow = {
-    campaign_id: string;
-    tools: unknown;
-    created_at: string;
-    updated_at: string;
-};
+export type {
+    CampaignGmToolsRow
+} from "./campaign-gm-tools-operations.ts";
 
 const characterSheetQueries = createCharacterSheetQueries({
     client: supabase,
@@ -78,6 +74,10 @@ const characterSheetWrites = createCharacterSheetWrites({
 });
 
 const campaignLoomOperations = createCampaignLoomOperations({
+    client: supabase,
+});
+
+const campaignGmToolsOperations = createCampaignGmToolsOperations({
     client: supabase,
 });
 
@@ -351,101 +351,30 @@ export function subscribeToCampaignLoom(
     );
 }
 
-function toCampaignGmTools(row: CampaignGmToolsRow): CampaignGmTools {
-    return normalizeCampaignGmTools(row.tools);
-}
-
-async function createDefaultCampaignGmTools(
-    campaignId: string,
-): Promise<CampaignGmToolsRow> {
-    const { data, error } = await supabase
-        .from("campaign_gm_tools")
-        .insert({
-            campaign_id: campaignId,
-            tools: getDefaultCampaignGmTools(),
-        })
-        .select()
-        .single();
-
-    if (error) {
-        if (error.code === "23505") {
-            const { data: existing, error: existingError } = await supabase
-                .from("campaign_gm_tools")
-                .select("*")
-                .eq("campaign_id", campaignId)
-                .single();
-
-            if (existingError) throw existingError;
-            return existing as CampaignGmToolsRow;
-        }
-
-        throw error;
-    }
-
-    return data as CampaignGmToolsRow;
-}
-
 export async function getCampaignGmTools(
     campaignId: string,
 ): Promise<CampaignGmTools> {
-    const { data, error } = await supabase
-        .from("campaign_gm_tools")
-        .select("*")
-        .eq("campaign_id", campaignId)
-        .maybeSingle();
-
-    if (error) throw error;
-
-    const row = data
-        ? (data as CampaignGmToolsRow)
-        : await createDefaultCampaignGmTools(campaignId);
-
-    return toCampaignGmTools(row);
+    return campaignGmToolsOperations.getCampaignGmTools(campaignId);
 }
 
 export async function updateCampaignGmTools(
     campaignId: string,
     tools: CampaignGmTools,
 ): Promise<CampaignGmTools> {
-    const nextTools = normalizeCampaignGmTools(tools);
-    const { data, error } = await supabase
-        .from("campaign_gm_tools")
-        .upsert(
-            {
-                campaign_id: campaignId,
-                tools: nextTools,
-            },
-            { onConflict: "campaign_id" },
-        )
-        .select()
-        .single();
-
-    if (error) throw error;
-
-    return toCampaignGmTools(data as CampaignGmToolsRow);
+    return campaignGmToolsOperations.updateCampaignGmTools(
+        campaignId,
+        tools,
+    );
 }
 
 export function subscribeToCampaignGmTools(
     campaignId: string,
     onChange: () => void,
-) {
-    const channel = supabase
-        .channel(`campaign-gm-tools:${campaignId}`)
-        .on(
-            "postgres_changes",
-            {
-                event: "*",
-                schema: "public",
-                table: "campaign_gm_tools",
-                filter: `campaign_id=eq.${campaignId}`,
-            },
-            () => onChange(),
-        )
-        .subscribe();
-
-    return () => {
-        supabase.removeChannel(channel);
-    };
+): () => void {
+    return campaignGmToolsOperations.subscribeToCampaignGmTools(
+        campaignId,
+        onChange,
+    );
 }
 
 export async function getCampaignForCharacter(
