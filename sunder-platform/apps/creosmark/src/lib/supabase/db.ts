@@ -9,8 +9,10 @@ import type {
 import {
     UUID_PATTERN,
     hydrateCharacterSheetRow,
-    normalizeCharacterSheetState,
 } from "./character-sheet-normalization.ts";
+import {
+    buildCharacterMutation
+} from "./character-sheet-mutation.ts";
 import { createCharacterSheetWrites } from "./character-sheet-writes.ts";
 import { createCampaignQueries } from "./campaign-queries.ts";
 import { createCampaignWrites } from "./campaign-writes.ts";
@@ -79,21 +81,7 @@ const campaignQueries = createCampaignQueries({
 const campaignWrites = createCampaignWrites({
     client: supabase,
     requireUserId,
-})
-
-function buildCharacterMutation(sheet: CharacterSheetState) {
-    const normalizedSheet = normalizeCharacterSheetState(sheet, sheet.abilityIds);
-
-    return {
-        name: normalizedSheet.header.name,
-        archetype: normalizedSheet.header.archetypes,
-        origin: normalizedSheet.header.origin,
-        player_name: normalizedSheet.header.playerName,
-        level: normalizedSheet.header.level,
-        ability_ids: normalizedSheet.abilityIds,
-        sheet_json: normalizedSheet,
-    };
-}
+});
 
 const characterSheetWrites = createCharacterSheetWrites({
     client: supabase,

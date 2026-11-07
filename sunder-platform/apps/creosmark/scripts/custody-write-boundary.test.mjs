@@ -15,6 +15,22 @@ const dbSource = readFileSync(
     new URL("../src/lib/supabase/db.ts", import.meta.url), "utf8"
 );
 
+const mutationSource = readFileSync(
+    new URL(
+        "../src/lib/supabase/character-sheet-mutation.ts",
+        import.meta.url,
+    ),
+    "utf8",
+);
+
+const compositionSource = readFileSync(
+    new URL(
+        "../src/infrastructure/library/supabase-character-writes.ts",
+        import.meta.url,
+    ),
+    "utf8",
+);
+
 function withoutComments(source) {
     return source
         .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -142,8 +158,8 @@ test("the proposal preserves privileged backend access", () => {
 
 test("editor mutations match the restricted database grant", () => {
     const sourceFile = ts.createSourceFile(
-        "db.ts",
-        dbSource,
+        "character-sheet-mutation.ts",
+        mutationSource,
         ts.ScriptTarget.Latest,
         true
     );
@@ -195,6 +211,45 @@ test("editor mutations match the restricted database grant", () => {
         mutationColumns,
         grantedColumns,
         "Editor mutation columns differ from database UPDATE grants"
+    );
+});
+
+test("legacy custody and infrastructure use one mutation builder", () => {
+    const sharedImport =
+        /import\s*\{\s*buildCharacterMutation,?\s*\}\s*from\s*["']([^"']+)["']/;
+
+    const legacyMatch = dbSource.match(sharedImport);
+    const infrastructureMatch = compositionSource.match(sharedImport);
+
+    assert.ok(legacyMatch, "Legacy facade must import the shared builder");
+    assert.ok(
+        infrastructureMatch,
+        "Infrastructure must import the shared builder",
+    );
+
+    assert.equal(
+        legacyMatch[1],
+        "./character-sheet-mutation.ts",
+    );
+
+    assert.equal(
+        infrastructureMatch[1],
+        "../../lib/supabase/character-sheet-mutation.ts",
+    );
+
+    assert.match(
+        dbSource,
+        /const mutation = buildCharacterMutation\(sheet\)/,
+    );
+
+    assert.match(
+        compositionSource,
+        /createCharacterSheetWrites\s*\(\s*\{/,
+    );
+
+    assert.match(
+        compositionSource,
+        /\bbuildCharacterMutation\s*,/,
     );
 });
 

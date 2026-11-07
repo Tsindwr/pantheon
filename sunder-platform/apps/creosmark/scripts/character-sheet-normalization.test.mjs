@@ -18,6 +18,14 @@ const databaseSource = readFileSync(
     "utf8",
 );
 
+const mutationSource = readFileSync(
+    new URL(
+        "../src/lib/supabase/character-sheet-mutation.ts",
+        import.meta.url,
+    ),
+    "utf8",
+);
+
 const compiled = ts.transpileModule(source, {
     fileName: "character-sheet-normalization.ts",
     compilerOptions: {
@@ -293,8 +301,13 @@ test("database facade retains the established normalization API", () => {
     );
 
     assert.match(
-        databaseSource,
+        mutationSource,
         /normalizeCharacterSheetState\(\s*sheet,\s*sheet\.abilityIds\s*\)/,
+    );
+
+    assert.match(
+        databaseSource,
+        /from\s+["']\.\/character-sheet-mutation\.ts["']/,
     );
 
     assert.match(

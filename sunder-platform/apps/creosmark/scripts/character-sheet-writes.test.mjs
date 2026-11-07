@@ -381,7 +381,12 @@ test("legacy database facade delegates writes and retains custody RPCs", () => {
 
     assert.match(
         dbSource,
-        /function\s+buildCharacterMutation\s*\(/,
+        /from\s+["']\.\/character-sheet-mutation\.ts["']/,
+    );
+
+    assert.match(
+        dbSource,
+        /const mutation = buildCharacterMutation\(sheet\)/,
     );
 
     assert.match(

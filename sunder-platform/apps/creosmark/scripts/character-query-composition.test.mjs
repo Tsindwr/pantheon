@@ -105,6 +105,10 @@ function makeRepository(readAdapter) {
             "./supabase-character-read-queries.ts": {
                 supabaseCharacterReadQueries: readAdapter,
             },
+
+            "./supabase-character-writes.ts": {
+                supabaseCharacterWrites: {},
+            },
         },
     ).supabaseLibraryCampaignRepository;
 }
@@ -337,15 +341,26 @@ test("repository no longer imports legacy character reads", () => {
         );
     }
 
-    // Writes and custody operations remain behind the facade.
+    // Custody operations still belong to the legacy facade.
+    for (const operation of [
+        "createUnclaimedCharacterForCampaign",
+        "claimUnclaimedCharacter",
+        "addCharacterToCampaign",
+        "removeCharacterFromCampaign",
+    ]) {
+        assert.match(
+            legacyImport[1],
+            new RegExp(`\\b${operation}\\b`),
+        );
+    }
+
+    // Ordinary character writes now belong to infrastructure.
     for (const operation of [
         "createCharacterSheet",
         "updateCharacterSheet",
         "deleteCharacterSheet",
-        "createUnclaimedCharacterForCampaign",
-        "claimUnclaimedCharacter",
     ]) {
-        assert.match(
+        assert.doesNotMatch(
             legacyImport[1],
             new RegExp(`\\b${operation}\\b`),
         );

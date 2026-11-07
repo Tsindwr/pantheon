@@ -3,9 +3,7 @@ import {
   addCharacterToCampaign,
   claimUnclaimedCharacter,
   createCampaignWithMembership,
-  createCharacterSheet,
   createUnclaimedCharacterForCampaign,
-  deleteCharacterSheet,
   getCampaignGmTools,
   getCampaignLoom,
   getCampaignForCharacter,
@@ -13,7 +11,6 @@ import {
   removeCharacterFromCampaign,
   subscribeToCampaignLoom,
   subscribeToCampaignGmTools,
-  updateCharacterSheet,
   updateCampaignGmTools,
   updateCampaignLoom,
 } from "../../lib/supabase/db.ts";
@@ -31,6 +28,9 @@ import {
 import {
   supabaseCharacterReadQueries,
 } from "./supabase-character-read-queries.ts";
+import {
+  supabaseCharacterWrites
+} from "./supabase-character-writes.ts";
 
 export const supabaseLibraryCampaignRepository: LibraryCampaignRepository = {
   createBlankSheet,
@@ -54,7 +54,7 @@ export const supabaseLibraryCampaignRepository: LibraryCampaignRepository = {
     };
   },
   async createCharacterSheet(sheet) {
-    const row = await createCharacterSheet(sheet);
+    const row = await supabaseCharacterWrites.createCharacterSheet(sheet);
     return {
       id: row.id,
       sheet: row.sheet_json,
@@ -67,10 +67,10 @@ export const supabaseLibraryCampaignRepository: LibraryCampaignRepository = {
     await claimUnclaimedCharacter(campaignId, characterSheetId, expectedRevision);
   },
   async updateCharacterSheet(id, sheet) {
-    await updateCharacterSheet(id, sheet);
+    await supabaseCharacterWrites.updateCharacterSheet(id, sheet);
   },
   async deleteCharacterSheet(id) {
-    await deleteCharacterSheet(id);
+    await supabaseCharacterWrites.deleteCharacterSheet(id);
   },
   async listMyCampaigns() {
     return supabaseCampaignReadQueries.listMyCampaigns();

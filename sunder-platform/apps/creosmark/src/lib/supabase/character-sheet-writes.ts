@@ -1,22 +1,9 @@
 import type { supabase } from "./client.ts";
 import type { CharacterSheetState } from "../../types/sheet.ts";
 import type { CharacterSheetRow } from "./character-sheet-summary.ts";
+import type { CharacterSheetMutation } from "./character-sheet-mutation.ts";
 
-/**
- * The seven editor columns permitted by the existing
- * character custody write boundary.
- *
- * Custody metadata is intentionally absent.
- */
-export type CharacterSheetMutation = {
-    name: string;
-    archetype: CharacterSheetState["header"]["archetypes"];
-    origin: string;
-    player_name: string;
-    level: number;
-    ability_ids: string[];
-    sheet_json: CharacterSheetState;
-};
+export type { CharacterSheetMutation } from "./character-sheet-mutation.ts";
 
 export type CharacterSheetWriteDependencies = {
     client: Pick<typeof supabase, "from">;
