@@ -9,10 +9,7 @@ import {
   getCampaignGmTools,
   getCampaignLoom,
   getCampaignForCharacter,
-  getMyCharacterSheet,
-  getViewableCharacterSheet,
   joinCampaignByCode,
-  listMyCharacterSheets,
   removeCharacterFromCampaign,
   subscribeToCampaignLoom,
   subscribeToCampaignGmTools,
@@ -31,14 +28,17 @@ import {
 import {
   supabaseCampaignReadQueries,
 } from "./supabase-campaign-read-queries.ts";
+import {
+  supabaseCharacterReadQueries,
+} from "./supabase-character-read-queries.ts";
 
 export const supabaseLibraryCampaignRepository: LibraryCampaignRepository = {
   createBlankSheet,
   async listMyCharacterSheets() {
-    return listMyCharacterSheets();
+    return supabaseCharacterReadQueries.listMyCharacterSheets();
   },
   async getMyCharacterSheet(id) {
-    const row = await getMyCharacterSheet(id);
+    const row = await supabaseCharacterReadQueries.getMyCharacterSheet(id);
     if (!row) return null;
     return {
       id: row.id,
@@ -46,7 +46,7 @@ export const supabaseLibraryCampaignRepository: LibraryCampaignRepository = {
     };
   },
   async getViewableCharacterSheet(id) {
-    const row = await getViewableCharacterSheet(id);
+    const row = await supabaseCharacterReadQueries.getViewableCharacterSheet(id);
     if (!row) return null;
     return {
       id: row.id,
