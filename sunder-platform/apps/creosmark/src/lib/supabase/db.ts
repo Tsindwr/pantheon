@@ -13,6 +13,7 @@ import {
 } from "./character-sheet-normalization.ts";
 import { createCharacterSheetWrites } from "./character-sheet-writes.ts";
 import { createCampaignQueries } from "./campaign-queries.ts";
+import { createCampaignWrites } from "./campaign-writes.ts";
 import type { CampaignRow } from "./campaign-queries.ts";
 import {
     clampCampaignLoomState,
@@ -85,6 +86,11 @@ const campaignQueries = createCampaignQueries({
     requireUserId,
     toCharacterSummary,
 });
+
+const campaignWrites = createCampaignWrites({
+    client: supabase,
+    requireUserId,
+})
 
 function buildCharacterMutation(sheet: CharacterSheetState) {
     const normalizedSheet = normalizeCharacterSheetState(sheet, sheet.abilityIds);
@@ -212,33 +218,7 @@ export async function createCampaign(input: {
     gmName?: string;
     pitch?: string;
 }): Promise<CampaignSummary> {
-    const userId = await requireUserId();
-
-    const { data, error } = await supabase
-        .from("campaigns")
-        .insert({
-            owner_id: userId,
-            name: input.name,
-            gm_name: input.gmName ?? null,
-            pitch: input.pitch ?? null,
-        })
-        .select()
-        .single();
-
-    if (error) throw error;
-
-    const row = data as CampaignRow;
-
-    return {
-        id: row.id,
-        name: row.name,
-        gmName: row.gm_name ?? undefined,
-        pitch: row.pitch ?? undefined,
-        joinCode: row.join_code,
-        characterIds: [],
-        viewerRole: "gm",
-        updatedLabel: new Date(row.updated_at).toLocaleString(),
-    };
+    return campaignWrites.createCampaign(input);
 }
 
 export async function updateCampaign(
@@ -249,31 +229,11 @@ export async function updateCampaign(
         pitch?: string;
     },
 ): Promise<void> {
-    const userId = await requireUserId();
-
-    const { error } = await supabase
-        .from("campaigns")
-        .update({
-            ...(patch.name !== undefined ? { name: patch.name } : {}),
-            ...(patch.gmName !== undefined ? { gm_name: patch.gmName } : {}),
-            ...(patch.pitch !== undefined ? { pitch: patch.pitch } : {}),
-        })
-        .eq("id", id)
-        .eq("owner_id", userId);
-
-    if (error) throw error;
+    return campaignWrites.updateCampaign(id, patch);
 }
 
 export async function deleteCampaign(id: string): Promise<void> {
-    const userId = await requireUserId();
-
-    const { error } = await supabase
-        .from("campaigns")
-        .delete()
-        .eq("id", id)
-        .eq("owner_id", userId);
-
-    if (error) throw error;
+    return campaignWrites.deleteCampaign(id);
 }
 
 async function listVisibleCampaignIdsForCharacter(characterSheetId: string): Promise<unknown[]> {
