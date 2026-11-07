@@ -9,11 +9,9 @@ import {
   getCampaignGmTools,
   getCampaignLoom,
   getCampaignForCharacter,
-  getCampaignRoster,
   getMyCharacterSheet,
   getViewableCharacterSheet,
   joinCampaignByCode,
-  listMyCampaigns,
   listMyCharacterSheets,
   removeCharacterFromCampaign,
   subscribeToCampaignLoom,
@@ -30,6 +28,9 @@ import {
 import {
   createBlankSheet,
 } from "../../domain/character-sheet/create-blank-sheet.ts";
+import {
+  supabaseCampaignReadQueries,
+} from "./supabase-campaign-read-queries.ts";
 
 export const supabaseLibraryCampaignRepository: LibraryCampaignRepository = {
   createBlankSheet,
@@ -72,7 +73,7 @@ export const supabaseLibraryCampaignRepository: LibraryCampaignRepository = {
     await deleteCharacterSheet(id);
   },
   async listMyCampaigns() {
-    return listMyCampaigns();
+    return supabaseCampaignReadQueries.listMyCampaigns();
   },
   async createCampaignWithMembership(input) {
     return createCampaignWithMembership(input);
@@ -84,7 +85,7 @@ export const supabaseLibraryCampaignRepository: LibraryCampaignRepository = {
     return getCampaignForCharacter(characterSheetId);
   },
   async getCampaignRoster(campaignId) {
-    return getCampaignRoster(campaignId);
+    return supabaseCampaignReadQueries.getCampaignRoster(campaignId);
   },
   async addCharacterToCampaign(campaignId, characterSheetId) {
     await addCharacterToCampaign(campaignId, characterSheetId);

@@ -15,6 +15,7 @@ import { createCharacterSheetWrites } from "./character-sheet-writes.ts";
 import { createCampaignQueries } from "./campaign-queries.ts";
 import { createCampaignWrites } from "./campaign-writes.ts";
 import type { CampaignRow } from "./campaign-rows.ts";
+import { requireUserId } from "./authenticated-user.ts";
 import {
     clampCampaignLoomState,
     clampLoomNumber,
@@ -61,18 +62,6 @@ export type CampaignGmToolsRow = {
     created_at: string;
     updated_at: string;
 };
-
-async function requireUserId(): Promise<string> {
-    const {
-        data: { user },
-        error,
-    } = await supabase.auth.getUser();
-
-    if (error) throw error;
-    if (!user) throw new Error("You must be signed in.");
-
-    return user.id;
-}
 
 const characterSheetQueries = createCharacterSheetQueries({
     client: supabase,
