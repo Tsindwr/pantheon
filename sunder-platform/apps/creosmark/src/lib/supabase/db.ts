@@ -14,7 +14,7 @@ import {
 import { createCharacterSheetWrites } from "./character-sheet-writes.ts";
 import { createCampaignQueries } from "./campaign-queries.ts";
 import { createCampaignWrites } from "./campaign-writes.ts";
-import type { CampaignRow } from "./campaign-queries.ts";
+import type { CampaignRow } from "./campaign-rows.ts";
 import {
     clampCampaignLoomState,
     clampLoomNumber,
@@ -43,7 +43,7 @@ export type {
 export type {
     CampaignRow,
     CampaignCharacterSheetRow,
-} from "./campaign-queries.ts";
+} from "./campaign-rows.ts";
 
 export type CampaignLoomRow = {
     campaign_id: string;

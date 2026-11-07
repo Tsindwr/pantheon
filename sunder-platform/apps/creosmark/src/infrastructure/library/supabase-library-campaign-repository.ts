@@ -2,7 +2,6 @@ import type { LibraryCampaignRepository } from "../../application/library/reposi
 import {
   addCharacterToCampaign,
   claimUnclaimedCharacter,
-  createBlankSheet,
   createCampaignWithMembership,
   createCharacterSheet,
   createUnclaimedCharacterForCampaign,
@@ -28,6 +27,9 @@ import {
   publishRollEvent,
   subscribeToCampaignRollEvents,
 } from "../../lib/supabase/rolls.ts";
+import {
+  createBlankSheet,
+} from "../../domain/character-sheet/create-blank-sheet.ts";
 
 export const supabaseLibraryCampaignRepository: LibraryCampaignRepository = {
   createBlankSheet,

@@ -6,22 +6,15 @@ import type {
     CharacterSheetSummary,
 } from "../../types/library.ts";
 
-export type CampaignRow = {
-    id: string;
-    owner_id: string;
-    name: string;
-    gm_name: string | null;
-    pitch: string | null;
-    join_code: string;
-    created_at: string;
-    updated_at: string;
-};
+import type {
+    CampaignRow,
+    CampaignCharacterSheetRow,
+} from "./campaign-rows.ts";
 
-export type CampaignCharacterSheetRow = {
-    campaign_id: string;
-    character_sheet_id: string;
-    created_at: string;
-};
+export type {
+    CampaignRow,
+    CampaignCharacterSheetRow,
+} from "./campaign-rows.ts";
 
 export type CampaignQueryDependencies = {
     client: Pick<typeof supabase, "from">;

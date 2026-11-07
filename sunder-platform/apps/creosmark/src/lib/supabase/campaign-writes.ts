@@ -1,6 +1,6 @@
 import type { supabase } from "./client.ts";
 import type { CampaignSummary } from "../../types/library.ts";
-import type { CampaignRow } from "./campaign-queries.ts";
+import type { CampaignRow } from "./campaign-rows.ts";
 
 export type CampaignCreateInput = {
     name: string;

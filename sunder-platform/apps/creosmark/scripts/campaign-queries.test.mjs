@@ -474,7 +474,7 @@ test("legacy database facade delegates campaign reads", () => {
 
     assert.match(
         databaseSource,
-        /CampaignRow[\s\S]*from\s+["']\.\/campaign-queries\.ts["']/,
+        /CampaignRow[\s\S]*from\s+["']\.\/campaign-rows\.ts["']/,
     );
 
     assert.match(
