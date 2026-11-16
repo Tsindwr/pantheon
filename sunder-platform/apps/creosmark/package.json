@@ -51,7 +51,8 @@
     "test:campaign-state-composition": "node --test scripts/campaign-state-composition.test.mjs",
     "test:custody-audit": "node --test scripts/campaign-custody-architecture-audit.test.mjs",
     "test:campaign-creation-preflight": "node --test scripts/campaign-creation-preflight.test.mjs",
-    "test:campaign-creation-rpc": "node --test scripts/campaign-creation-rpc.test.mjs"
+    "test:campaign-creation-rpc": "node --test scripts/campaign-creation-rpc.test.mjs",
+    "test:campaign-creation-concurrency": "node --test scripts/campaign-creation-concurrency.test.mjs"
   },
   "dependencies": {
     "@3d-dice/dice-box": "^1.1.4",
