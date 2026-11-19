@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import type { CampaignRecord } from "../../types/library.ts";
 import CampaignCard from "./CampaignCard.tsx";
+import CampaignCreateDialog from "./CampaignCreateDialog.tsx";
+import type {
+    CampaignCreationInput
+} from "../../application/library/campaign-creation-attempt.ts";
 import styles from './CampaignsLibraryFromDb.module.css';
 import {routes} from "../../lib/routing.ts";
-import { supabaseLibraryCampaignService } from "../../infrastructure/library/supabase-library-campaign-service.ts";
+import { supabaseLibraryCampaignService } from "../../infrastructure";
 
 export default function CampaignsLibraryFromDb() {
     const [campaigns, setCampaigns] = useState<CampaignRecord[]>([]);
@@ -11,6 +15,7 @@ export default function CampaignsLibraryFromDb() {
     const [errorText, setErrorText] = useState<string | null>(null);
     const [joinCode, setJoinCode] = useState("");
     const [busy, setBusy] = useState(false);
+    const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
     function formatJoinCode(value: string): string {
         return value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
@@ -34,19 +39,16 @@ export default function CampaignsLibraryFromDb() {
         void load();
     }, []);
 
-    async function handleCreateCampaign() {
-        const name = window.prompt("Campaign name?");
-        if (!name?.trim()) return;
+    async function handleCreateCampaign(input: CampaignCreationInput) {
+        setCreateDialogOpen(false);
 
         try {
             setBusy(true);
-            const campaign = await supabaseLibraryCampaignService.createCampaignWithMembership({
-                name: name.trim(),
-            });
+            const campaign = await supabaseLibraryCampaignService.createCampaignWithMembership(input);
             window.location.href = routes.campaignView(campaign.id);
         } catch (error) {
             console.error(error);
-            alert(error instanceof Error ? error.message : "Failed to create campaign.");
+            setErrorText(error instanceof Error ? error.message : "Failed to create campaign.")
         } finally {
             setBusy(false);
         }
@@ -83,7 +85,10 @@ export default function CampaignsLibraryFromDb() {
                     <button
                         type={'button'}
                         className={styles.primary}
-                        onClick={handleCreateCampaign}
+                        onClick={() => {
+                            setErrorText(null);
+                            setCreateDialogOpen(true);
+                        }}
                         disabled={busy}
                         >
                         New Campaign
@@ -120,6 +125,15 @@ export default function CampaignsLibraryFromDb() {
                     <p>Your campaigns will appear here once you create or join one.</p>
                 </section>
             )}
+
+            <CampaignCreateDialog
+                open={createDialogOpen}
+                busy={busy}
+                onDismiss={() => setCreateDialogOpen(false)}
+                onCreate={(input) => {
+                    void handleCreateCampaign(input);
+                }}
+            />
         </div>
     )
 }

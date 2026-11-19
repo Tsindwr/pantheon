@@ -256,7 +256,8 @@ test("storage failure prevents an attempt from beginning", () => {
     );
 });
 
-test("the active campaign UI remains unchanged", () => {
+
+test("legacy campaign creation retains its persistence boundary", () => {
     const ui = read(
         "src/components/library/CampaignsLibraryFromDb.tsx",
     );
@@ -265,14 +266,32 @@ test("the active campaign UI remains unchanged", () => {
         "src/infrastructure/library/supabase-library-campaign-repository.ts",
     );
 
-    assert.doesNotMatch(
+    // B28 allows both interfaces to use the same dialog input type.
+    // This is a compile-time import, not atomic workflow execution.
+    assert.match(
         ui,
-        /campaign-creation-attempt/,
+        /import type\s*\{[\s\S]*?\bCampaignCreationInput\b[\s\S]*?\}\s*from\s*["'][^"']*campaign-creation-attempt\.ts["']/,
     );
 
+    // The legacy interface must retain its established service.
+    assert.match(
+        ui,
+        /supabaseLibraryCampaignService\.createCampaignWithMembership\(input\)/,
+    );
+
+    // Neither the UI nor its repository may adopt the new
+    // atomic creation infrastructure during this batch.
+    for (const source of [ui, repository]) {
+        assert.doesNotMatch(
+            source,
+            /\b(?:createCampaignCreationAttemptManager|createCampaignCreationCoordinator|supabaseCampaignCreationComposition|supabaseCampaignCreationRpc)\b/,
+        );
+    }
+
+    // The legacy repository must not invoke the new RPC.
     assert.doesNotMatch(
         repository,
-        /campaign-creation-attempt/,
+        /create_campaign_with_membership/,
     );
 });
 

@@ -17,6 +17,10 @@ import {
 } from "../../infrastructure";
 import { routes } from "../../lib/routing.ts";
 import CampaignCard from "./CampaignCard.tsx";
+import CampaignCreateDialog from "./CampaignCreateDialog.tsx";
+import type {
+    CampaignCreationInput,
+} from "../../application/library/campaign-creation-attempt.ts";
 import styles from "./CampaignsLibraryFromDb.module.css";
 
 type CreationWorkflow = Awaited<ReturnType<typeof supabaseCampaignCreationComposition.prepare>>;
@@ -40,6 +44,7 @@ export default function AtomicCampaignsLibraryFromDb() {
     const [errorText, setErrorText] = useState<string | null>(null);
     const [pending, setPending] = useState<CampaignCreationAttempt | null>(null);
     const [joinCode, setJoinCode] = useState("");
+    const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
     const workflowRef = useRef<CreationWorkflow | null>(null);
     const busyRef = useRef(false);
@@ -156,12 +161,16 @@ export default function AtomicCampaignsLibraryFromDb() {
             return;
         }
 
-        const name = window.prompt("Campaign name?");
-        if (!name?.trim()) return;
+        setErrorText(null);
+        setCreateDialogOpen(true);
+    }
 
-        void executeCreation((current) =>
-            current.create({ name: name.trim() }),
-        );
+    function handleSubmitCreate(input: CampaignCreationInput) {
+        if (busyRef.current) return;
+
+        setCreateDialogOpen(false);
+
+        void executeCreation((current) => current.create(input));
     }
 
     function handleRetry() {
@@ -360,6 +369,13 @@ export default function AtomicCampaignsLibraryFromDb() {
                     </p>
                 </section>
             )}
+
+            <CampaignCreateDialog
+                open={createDialogOpen}
+                busy={busy}
+                onDismiss={() => setCreateDialogOpen(false)}
+                onCreate={handleSubmitCreate}
+            />
         </div>
     );
 }

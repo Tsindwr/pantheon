@@ -274,7 +274,7 @@ test("atomic errors do not invoke legacy campaign creation", () => {
 
     assert.match(
         atomicUi,
-        /current\.create\(\{ name: name\.trim\(\) \}\)/,
+        /current\.create\(input\)/,
     );
 
     assert.match(

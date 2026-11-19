@@ -1,0 +1,234 @@
+
+.dialog {
+    width: min(36rem, calc(100vw - 2rem));
+    max-height: calc(100dvh - 2rem);
+    margin: auto;
+    padding: 0;
+    border: 1px solid rgba(210, 178, 76, 0.32);
+    border-radius: 1rem;
+    background: linear-gradient(
+            180deg,
+            rgba(21, 24, 35, 0.99),
+            rgba(11, 14, 21, 0.99)
+    );
+    color: var(--sunder-text);
+    box-shadow:
+            0 24px 80px rgba(0, 0, 0, 0.58),
+            inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    overflow: hidden;
+}
+
+.dialog:not([open]) {
+    display: none;
+}
+
+.dialog::backdrop {
+    background: rgba(3, 5, 10, 0.78);
+    backdrop-filter: blur(8px);
+}
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 2rem);
+    min-width: 0;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.3rem 1.4rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.eyebrow {
+    color: var(--sunder-purple);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+}
+
+.header h2 {
+    margin: 0.35rem 0 0;
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    line-height: 1.15;
+    color: var(--sunder-text);
+}
+
+.closeButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 2.3rem;
+    height: 2.3rem;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--sunder-text);
+    cursor: pointer;
+}
+
+.body {
+    display: grid;
+    gap: 1.15rem;
+    padding: 1.35rem 1.4rem;
+    overflow-y: auto;
+}
+
+.description {
+    margin: 0;
+    color: var(--sunder-text-dim);
+    line-height: 1.55;
+}
+
+.field {
+    display: grid;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+.field label {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    color: var(--sunder-text);
+    font-size: 0.85rem;
+    font-weight: 800;
+}
+
+.required {
+    color: var(--sunder-gold);
+}
+
+.optional {
+    color: var(--sunder-text-dim);
+    font-size: 0.72rem;
+    font-weight: 400;
+}
+
+.field input,
+.field textarea {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 0.8rem;
+    background: rgba(255, 255, 255, 0.055);
+    color: var(--sunder-text);
+    font: inherit;
+    line-height: 1.45;
+    outline: none;
+    transition:
+            border-color 140ms ease,
+            box-shadow 140ms ease;
+}
+
+.field input {
+    min-height: 2.8rem;
+}
+
+.field textarea {
+    min-height: 6rem;
+    resize: vertical;
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+    color: var(--sunder-text-dim);
+    opacity: 0.8;
+}
+
+.field input:focus-visible,
+.field textarea:focus-visible {
+    border-color: var(--sunder-gold);
+    box-shadow: 0 0 0 3px rgba(210, 178, 76, 0.16);
+}
+
+.field input[aria-invalid="true"] {
+    border-color: #f0a3a3;
+}
+
+.validation {
+    margin: 0;
+    color: #ffc1c1;
+    font-size: 0.85rem;
+}
+
+.footer {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+    padding: 1rem 1.4rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.primary,
+.secondary {
+    min-height: 2.75rem;
+    padding: 0.6rem 1.1rem;
+    border-radius: 0.8rem;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.primary {
+    border: none;
+    background: linear-gradient(
+            135deg,
+            var(--sunder-gold),
+            #f0daa0
+    );
+    color: #141821;
+}
+
+.secondary {
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--sunder-text);
+}
+
+.primary:hover:not(:disabled),
+.secondary:hover:not(:disabled) {
+    filter: brightness(1.08);
+}
+
+.primary:focus-visible,
+.secondary:focus-visible,
+.closeButton:focus-visible {
+    outline: 2px solid var(--sunder-gold);
+    outline-offset: 3px;
+}
+
+.primary:disabled,
+.secondary:disabled,
+.closeButton:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+    .header,
+    .body,
+    .footer {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .footer button {
+        flex: 1 1 auto;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .field input,
+    .field textarea {
+        transition: none;
+    }
+}
