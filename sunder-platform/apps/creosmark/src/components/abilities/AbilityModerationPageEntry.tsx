@@ -573,15 +573,14 @@ function InnerAbilityModerationPage() {
                             <button
                                 type="button"
                                 className={styles.primary}
-                                disabled={approvalBlocked || saveState === "saving"}
+                                disabled
                                 onClick={() => void handleApprove()}
                                 title={
-                                    approvalBlocked
-                                        ? "Resolve rule warnings, blocking card issues, and pending JSON edits before publishing."
-                                        : "Approve and publish this ability."
+                                    "Publication is temporarily unavailable while authoritative validation and secure " +
+                                    "administrator approval are being implemented. Draft review and editing remain available."
                                 }
                             >
-                                Approve & Publish
+                                Secure Approval Pending
                             </button>
                             <span className={styles.saveState}>
                                 {saveState === "saving"

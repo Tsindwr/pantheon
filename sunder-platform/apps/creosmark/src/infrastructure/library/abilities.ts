@@ -627,10 +627,8 @@ export async function publishAbilityDocument(
             owner_id: userId,
             title: document.title,
             ability_kind: document.abilityKind,
-            status: "draft",
             ability_json: document,
             card_json: document.card,
-            published_at: new Date().toISOString(),
         })
         .select("id, title, updated_at")
         .single();
@@ -972,16 +970,20 @@ export async function saveModerationAbilityDraft(params: {
     if (error) throw error;
 }
 
-export async function approveAbilityDraft(abilityId: string): Promise<void> {
-    const { error } = await supabase
-        .from("abilities")
-        .update({
-            status: "published",
-            published_at: new Date().toISOString(),
-        })
-        .eq("id", abilityId);
-
-    if (error) throw error;
+/**
+ * CM-ABIL-B01-02
+ *
+ * Browser publication is intentionally unavailable until the authoritative approval service is implemented.
+ *
+ * Do not restore a direct abilities.status UPDATE.
+ * B01-04 will provide a server approval gateway.
+ */
+export async function approveAbilityDraft(_abilityId: string): Promise<void> {
+    throw new Error(
+        "Secure Ability approval is not yet available. " +
+        "Drafts can still be reviewed and saved, but " +
+        "publication requires the forthcoming server approval service."
+    )
 }
 
 export async function listAbilityPlayCardsByIds(
