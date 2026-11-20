@@ -58,7 +58,11 @@
     "test:campaign-creation-coordinator": "node --test scripts/campaign-creation-coordinator.test.mjs",
     "test:campaign-creation-composition": "node --test scripts/campaign-creation-composition.test.mjs",
     "test:campaign-creation-local-rollout": "node --test scripts/campaign-creation-local-rollout.test.mjs",
-    "test:campaign-create-dialog": "node --test scripts/campaign-create-dialog.test.mjs"
+    "test:campaign-create-dialog": "node --test scripts/campaign-create-dialog.test.mjs",
+
+    "ability:compat:build": "node scripts/ability-edge-compatibility/build.mjs",
+    "ability:compat:test": "node scripts/ability-edge-compatibility/test.mjs",
+    "ability:compat:edge": "node scripts/ability-edge-compatibility/test.mjs --edge"
   },
   "dependencies": {
     "@3d-dice/dice-box": "^1.1.4",
@@ -82,6 +86,7 @@
   "devDependencies": {
     "@astrojs/check": "0.9.10",
     "dotenv-cli": "^11.0.0",
+    "esbuild": "0.28.2",
     "supabase": "^2.122.0",
     "typescript": "6.0.2"
   }

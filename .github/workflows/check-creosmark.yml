@@ -123,6 +123,11 @@ jobs:
       - name: Test Experience Market pricing and Enhancement limits
         run: pnpm --filter @sunderttrpg/experience-market test:rules
 
+      - name: Verify portable Ability rules bundle
+        run: |
+          pnpm --filter @sunderttrpg/creosmark ability:compat:build
+          pnpm --filter @sunderttrpg/creosmark ability:compat:test
+
       - name: Check and build Schema
         run: |
           pnpm --filter @sunderttrpg/schema check

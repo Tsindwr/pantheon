@@ -5,7 +5,8 @@
   ],
   "exclude": [
     "dist",
-    "assets/Potential Sheet_files"
+    "assets/Potential Sheet_files",
+    "supabase/functions/ability-compatibility-local"
   ],
   "compilerOptions": {
     "module": "ESNext",

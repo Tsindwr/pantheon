@@ -28,3 +28,7 @@ pnpm-debug.log*
 
 build/
 .vscode/
+
+# B01-01 local Edge Runtime compatibility artifacts.
+# This generated diagnostic function must never be deployed.
+/supabase/functions/ability-compatibility-local/

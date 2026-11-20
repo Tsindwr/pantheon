@@ -1,0 +1,104 @@
+
+import {
+    assessPortableAbility,
+} from "./rules.mjs";
+
+const MAX_BODY_BYTES = 256 * 1024;
+
+function json(
+    body: unknown,
+    status = 200,
+): Response {
+    return Response.json(body, {
+        status,
+        headers: {
+            "cache-control": "no-store",
+        },
+    });
+}
+
+/**
+ * Local diagnostic endpoint ONLY.
+ *
+ * The builder copies this file into an ignored directory.
+ * It must not be deployed or reused as an authenticated
+ * publication endpoint.
+ */
+Deno.serve(async (request: Request) => {
+    if (
+        Deno.env.get(
+            "CREOSMARK_ABILITY_COMPATIBILITY_LOCAL",
+        ) !== "enabled"
+    ) {
+        return json(
+            { error: "Compatibility endpoint disabled." },
+            404,
+        );
+    }
+
+    if (request.method !== "POST") {
+        return json(
+            { error: "POST required." },
+            405,
+        );
+    }
+
+    try {
+        const raw = await request.text();
+
+        if (
+            new TextEncoder().encode(raw).byteLength >
+            MAX_BODY_BYTES
+        ) {
+            return json(
+                { error: "Request exceeds size limit." },
+                413,
+            );
+        }
+
+        const input: unknown = JSON.parse(raw);
+
+        if (
+            typeof input !== "object" ||
+            input === null ||
+            !("nodes" in input) ||
+            !("card" in input) ||
+            !Array.isArray(input.nodes) ||
+            typeof input.card !== "object" ||
+            input.card === null
+        ) {
+            return json(
+                { error: "Invalid compatibility input." },
+                400,
+            );
+        }
+
+        /*
+         * The compatibility probe uses controlled fixtures.
+         * This cast is not safe for production publication:
+         * a runtime schema parser is required in B01-03.
+         */
+        const result = assessPortableAbility(
+            input.nodes as Parameters<
+                typeof assessPortableAbility
+            >[0],
+            input.card as Parameters<
+                typeof assessPortableAbility
+            >[1],
+        );
+
+        return json(result);
+    } catch (error) {
+        console.error(
+            "[B01-01] Compatibility probe failed:",
+            error instanceof Error
+                ? error.message
+                : "Unknown error",
+        );
+
+        return json(
+            { error: "Compatibility execution failed." },
+            500,
+        );
+    }
+});
