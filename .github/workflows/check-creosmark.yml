@@ -21,6 +21,7 @@ on:
       - "sunder-platform/pnpm-workspace.yaml"
       - "sunder-platform/tsconfig*.json"
       - "sunder-platform/turbo.json"
+      - "sunder-platform/packages/abilities/**"
 
   pull_request:
     branches:
@@ -38,6 +39,7 @@ on:
       - "sunder-platform/pnpm-workspace.yaml"
       - "sunder-platform/tsconfig*.json"
       - "sunder-platform/turbo.json"
+      - "sunder-platform/packages/abilities/**"
 
   workflow_dispatch:
 
@@ -94,9 +96,10 @@ jobs:
             sunder-platform/packages/schema/dist \
             sunder-platform/packages/discord/dist \
             sunder-platform/apps/creosmark/dist \
-            sunder-platform/apps/creosmark/.astro
+            sunder-platform/apps/creosmark/.astro \
+            sunder-platform/packages/abilities/dist
 
-          for package in core experience-market schema discord; do
+          for package in core experience-market abilities schema discord; do
             test ! -e "sunder-platform/packages/$package/dist"
           done
 
@@ -123,6 +126,12 @@ jobs:
       - name: Test Experience Market pricing and Enhancement limits
         run: pnpm --filter @sunderttrpg/experience-market test:rules
 
+      - name: Check and build shared Abilities
+        run: |
+          pnpm --filter @sunderttrpg/abilities check
+          pnpm --filter @sunderttrpg/abilities build
+          pnpm --filter @sunderttrpg/abilities test:rules
+
       - name: Verify portable Ability rules bundle
         run: |
           pnpm --filter @sunderttrpg/creosmark ability:compat:build
@@ -138,8 +147,10 @@ jobs:
           pnpm --filter @sunderttrpg/discord check
           pnpm --filter @sunderttrpg/discord build
 
-      - name: Check Creosmark source
-        run: pnpm --filter @sunderttrpg/creosmark check
+      - name: Check Creosmark source and types
+        run: |
+          pnpm --filter @sunderttrpg/creosmark check
+          pnpm --filter @sunderttrpg/creosmark exec astro check
 
       - name: Build Creosmark static site
         env:

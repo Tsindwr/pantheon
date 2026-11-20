@@ -1,41 +1,46 @@
-import type { Edge } from "@xyflow/react";
-import type { AbilityBuilderNode, AbilityKind, CostState } from "./types.ts";
-import type { AbilitySummary } from "./pricing.ts";
-import type { AbilityCardState } from "../ability-cards/types.ts";
+import type {
+    Edge,
+} from "@xyflow/react";
 
-export type PublishedAbilityEdge = {
-    id: string;
-    source: string;
-    target: string;
-    sourceHandle?: string | null;
-    targetHandle?: string | null;
-};
+import type {
+    AbilityPublishDocument as SharedAbilityPublishDocument,
+} from "@sunderttrpg/abilities/document";
 
-export type AbilityPublishDocument = {
-    version: 2;
-    abilityId?: string;
-    title: string;
-    abilityKind: AbilityKind | "unknown";
-    activationProfile: {
-        actionEconomyId: string;
-        resetConditionId: string;
-    };
+import type {
+    AbilityBuilderNode,
+    AbilityKind,
+} from "./types.ts";
+
+import type {
+    AbilitySummary,
+} from "./pricing.ts";
+
+import type {
+    AbilityCardState,
+} from "../ability-cards/types.ts";
+
+export type {
+    PublishedAbilityEdge,
+} from "@sunderttrpg/abilities/document";
+
+/**
+ * Shared Ability documents are portable.
+ *
+ * Creosmark retains the React Flow node representation
+ * used by its existing editor and moderation interface.
+ */
+export type AbilityPublishDocument =
+    Omit<
+        SharedAbilityPublishDocument,
+        "graph"
+    > & {
     graph: {
         nodes: AbilityBuilderNode[];
-        edges: PublishedAbilityEdge[];
-    };
-    card: AbilityCardState;
-    computed: {
-        total: CostState;
-        paid: CostState;
-        focus: CostState;
-        flipside: CostState;
-        body: CostState;
-        isAction: boolean;
-        flipsideBudgetStrings: number;
-        flipsideBudgetEnhancements: number;
-        warnings: string[];
-        notes: string[];
+
+        edges:
+            SharedAbilityPublishDocument[
+                "graph"
+                ]["edges"];
     };
 };
 

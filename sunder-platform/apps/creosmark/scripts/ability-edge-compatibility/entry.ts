@@ -66,3 +66,20 @@ export function assessPortableAbility(
         ),
     };
 }
+
+/**
+ * B01-03 shared Ability validation.
+ */
+export {
+    validateAbilityDocument,
+    assessStandardAbility,
+    canonicalJson,
+    ABILITY_RULESET_VERSION,
+} from "@sunderttrpg/abilities";
+
+/**
+ * Creosmark persisted record consistency adapter.
+ */
+export {
+    assessPersistedAbilityForPublication,
+} from "../../src/application/abilities/assess-publication.ts";

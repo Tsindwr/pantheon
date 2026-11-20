@@ -22,6 +22,9 @@ import {
     resolveModifierData,
 } from "../ability-builder/palette.ts";
 import { CARD_SYMBOLS } from "./symbols.ts";
+import {
+    canIgnoreModifierInCard,
+} from "@sunderttrpg/abilities/card";
 
 export type CardModifierRenderKind = 'inline' | 'rail' | 'overlay' | 'ignorable';
 
@@ -561,17 +564,9 @@ export function getDefaultFaceForLane(
     return 'single';
 }
 
-export function canIgnoreModifierInCard(node: ModifierNodeType): boolean {
-    const resolved = resolveModifierData(node.data);
-
-    return (
-        (resolved.optionPoolId === "narrativeWeight" &&
-            (resolved.selectedOptionId === "utility" ||
-                resolved.selectedOptionId === "interpretable")) ||
-        (resolved.optionPoolId === "caveatType" &&
-            resolved.selectedOptionId === "prerequisite")
-    );
-}
+export {
+    canIgnoreModifierInCard
+};
 
 export function getCardModifierDisplay(
     node: ModifierNodeType,

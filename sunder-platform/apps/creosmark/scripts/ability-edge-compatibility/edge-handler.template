@@ -1,6 +1,6 @@
-
 import {
     assessPortableAbility,
+    assessPersistedAbilityForPublication,
 } from "./rules.mjs";
 
 const MAX_BODY_BYTES = 256 * 1024;
@@ -57,6 +57,30 @@ Deno.serve(async (request: Request) => {
         }
 
         const input: unknown = JSON.parse(raw);
+
+        if (
+            typeof input === "object" &&
+            input !== null &&
+            "mode" in input &&
+            input.mode === "publication"
+        ) {
+            if (!("record" in input)) {
+                return json(
+                    {
+                        error:
+                            "Publication record is required.",
+                    },
+                    400,
+                );
+            }
+
+            const assessment =
+                await assessPersistedAbilityForPublication(
+                    input.record,
+                );
+
+            return json(assessment);
+        }
 
         if (
             typeof input !== "object" ||

@@ -114,10 +114,19 @@ assert.ok(
 assert.ok(
     inputs.some((entry) =>
         entry.includes(
-            "src/domain/ability-cards/validation.ts",
+            "packages/abilities/dist/card-validation.js",
         ),
     ),
-    "Bundle must include existing Ability card validation.",
+    "Bundle must include shared Ability card validation.",
+);
+
+assert.ok(
+    inputs.some((entry) =>
+        entry.includes(
+            "packages/abilities/dist/validation.js",
+        ),
+    ),
+    "Bundle must include shared document validation.",
 );
 
 const forbiddenDependencies = [
