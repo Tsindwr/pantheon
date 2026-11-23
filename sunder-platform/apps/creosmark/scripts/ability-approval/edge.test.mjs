@@ -27,6 +27,23 @@ async function request(
     });
 }
 
+async function assertStatus(response, expectedStatus) {
+    const body = await response.clone().text();
+
+    assert.equal(
+        response.status,
+        expectedStatus,
+        [
+            `Expected HTTP ${expectedStatus}.`,
+            `Received HTTP ${response.status}.`,
+            `Supabase error: ${
+                response.headers.get("sb-error-code") ?? "none"
+            }`,
+            `Response body: ${body}`,
+        ].join("\n"),
+    );
+}
+
 test(
     "Approval supports CORS preflight",
     async () => {
@@ -34,7 +51,7 @@ test(
             "OPTIONS",
         );
 
-        assert.equal(response.status, 204);
+        await assertStatus(response, 204);
     },
 );
 
@@ -43,7 +60,7 @@ test(
     async () => {
         const response = await request("GET");
 
-        assert.equal(response.status, 405);
+        await assertStatus(response, 405);
     },
 );
 
@@ -61,7 +78,7 @@ test(
             },
         );
 
-        assert.equal(response.status, 401);
+        await assertStatus(response, 401);
     },
 );
 
@@ -74,7 +91,7 @@ test(
             "Bearer not-a-user-token",
         );
 
-        assert.equal(response.status, 401);
+        await assertStatus(response, 401);
     },
 );
 
@@ -93,6 +110,6 @@ test(
             "Bearer aaa.bbb.ccc",
         );
 
-        assert.equal(response.status, 401);
+        await assertStatus(response, 401);
     },
 );

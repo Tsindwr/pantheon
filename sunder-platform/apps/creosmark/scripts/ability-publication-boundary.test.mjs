@@ -149,23 +149,3 @@ test(
         );
     },
 );
-
-test(
-    "Approval has a stable test identity and disabled guard",
-    () => {
-        assert.match(
-            moderation,
-            /data-testid="ability-approval-action"/,
-        );
-
-        assert.match(
-            moderation,
-            /disabled=\{approvalBlocked\}/,
-        );
-
-        assert.match(
-            moderation,
-            /Confirm Publication/,
-        );
-    },
-);

@@ -330,15 +330,16 @@ END IF;
                     USING ERRCODE = '23514';
 END IF;
 
-            IF NOT EXISTS (
-                SELECT 1
-                FROM public.origin_selections AS ref
-                WHERE ref.id = v_origin_prerequisite::uuid
-                  AND ref.status = 'published'
-            ) THEN
-                RAISE EXCEPTION 'ABILITY_ORIGIN_UNAVAILABLE'
+            PERFORM 1
+            FROM public.origin_selections AS ref
+            WHERE ref.id = v_origin_prerequisite::uuid
+                AND ref.status = 'published'
+            FOR SHARE;
+
+            IF NOT FOUND THEN
+               RAISE EXCEPTION 'ABILITY_ORIGIN_UNAVAILABLE'
                     USING ERRCODE = '23503';
-END IF;
+           END IF;
 END IF;
 
         -- Archetype prerequisite names currently come from
