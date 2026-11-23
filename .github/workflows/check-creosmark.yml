@@ -142,6 +142,10 @@ jobs:
           pnpm --filter @sunderttrpg/creosmark ability:approval:build
           test -f apps/creosmark/supabase/functions/approve-ability/rules.mjs
 
+      - name: Verify Ability approval boundaries
+        run: |
+          pnpm --filter @sunderttrpg/creosmark ability:approval:readiness
+
       - name: Check and build Schema
         run: |
           pnpm --filter @sunderttrpg/schema check
