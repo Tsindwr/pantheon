@@ -130,9 +130,6 @@ export function getAbilityCardSlots(
         case "option":
             return OPTION_SLOTS;
         case "action":
-        case "twoActions":
-        case "minute":
-        case "ritual":
         default:
             return ACTION_SLOTS;
     }

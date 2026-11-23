@@ -70,9 +70,6 @@ export default function AbilityCardFrame({
 
 const FORMAT_CLASS_BY_FORMAT: Record<AbilityCardFormat, string> = {
     action: styles.cardFrameAction,
-    twoActions: styles.cardFrameTwoActions,
-    minute: styles.cardFrameMinute,
-    ritual: styles.cardFrameRitual,
     surge: styles.cardFrameSurge,
     trait: styles.cardFrameTrait,
     option: styles.cardFrameOption,
