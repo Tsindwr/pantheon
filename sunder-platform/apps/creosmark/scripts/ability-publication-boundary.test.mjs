@@ -1,50 +1,34 @@
-
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const abilitiesPath = new URL(
-    "../src/infrastructure/library/abilities.ts",
-    import.meta.url,
-);
-
-const moderationPath = new URL(
-    "../src/components/abilities/AbilityModerationPageEntry.tsx",
-    import.meta.url,
-);
-
 const abilities = await readFile(
-    abilitiesPath,
+    new URL(
+        "../src/infrastructure/library/abilities.ts",
+        import.meta.url,
+    ),
     "utf8",
 );
 
 const moderation = await readFile(
-    moderationPath,
+    new URL(
+        "../src/components/abilities/AbilityModerationPageEntry.tsx",
+        import.meta.url,
+    ),
     "utf8",
 );
 
-function section(
-    source,
-    startMarker,
-    endMarker,
-) {
-    const start = source.indexOf(startMarker);
-    const end = source.indexOf(
-        endMarker,
-        start + startMarker.length,
+function section(source, begin, end) {
+    const start = source.indexOf(begin);
+    const finish = source.indexOf(
+        end,
+        start + begin.length,
     );
 
-    assert.ok(
-        start >= 0,
-        `Missing source marker: ${startMarker}`,
-    );
+    assert.ok(start >= 0, `Missing ${begin}`);
+    assert.ok(finish > start, `Missing ${end}`);
 
-    assert.ok(
-        end > start,
-        `Missing ending marker: ${endMarker}`,
-    );
-
-    return source.slice(start, end);
+    return source.slice(start, finish);
 }
 
 const draftCreation = section(
@@ -59,8 +43,20 @@ const approval = section(
     "export async function listAbilityPlayCardsByIds(",
 );
 
+const draftSave = section(
+    abilities,
+    "export async function saveModerationAbilityDraft(",
+    "export type AbilityApprovalReceipt",
+);
+
+const approvalHandler = section(
+    moderation,
+    "async function handleApprove() {",
+    "if (loadingAccess)",
+);
+
 test(
-    "Ability submission creates drafts without publication metadata",
+    "Ability submission creates drafts, never published records",
     () => {
         assert.match(
             draftCreation,
@@ -74,19 +70,24 @@ test(
 
         assert.doesNotMatch(
             draftCreation,
-            /published_at\s*:/,
+            /status:\s*["']published["']/,
         );
 
         assert.doesNotMatch(
             draftCreation,
-            /status:\s*["']published["']/,
+            /published_at\s*:/,
         );
     },
 );
 
 test(
-    "Browser approval cannot write publication status",
+    "Browser approval invokes the authorized Edge gateway",
     () => {
+        assert.match(
+            approval,
+            /\.functions\.invoke\(\s*["']approve-ability["']/,
+        );
+
         assert.doesNotMatch(
             approval,
             /\.from\(\s*["']abilities["']\s*\)/,
@@ -99,34 +100,72 @@ test(
 
         assert.match(
             approval,
-            /throw new Error\(/,
+            /expectedRevision/,
+        );
+
+        assert.match(
+            approval,
+            /requestId/,
         );
     },
 );
 
-
-
 test(
-    "Moderation presents approval as unavailable",
+    "Draft saving uses optimistic revision concurrency",
     () => {
-        // Find button elements without assuming their visible text.
-        const buttons = [
-            ...moderation.matchAll(
-                /<button([^>]*)>([\s\S]*?)<\/button>/g,
-            ),
-        ];
-
-        // Identify the approval action by the meaning
-        // of its data, rather than its current label.
-        const approvalButton = buttons.find(
-            (attributes) =>
-                /\btitle=([^>]*)(?:approv\w*|publish\w*|publication)/i
-                    .test(attributes),
+        assert.match(
+            draftSave,
+            /\.eq\(\s*["']revision["']\s*,\s*expectedRevision\s*\)/,
         );
 
-        assert.ok(
-            approvalButton,
-            "Moderation must provide an approval action.",
+        assert.match(
+            draftSave,
+            /\.eq\(\s*["']status["']\s*,\s*["']draft["']\s*\)/,
+        );
+
+        assert.doesNotMatch(
+            draftSave,
+            /published_at\s*:/,
+        );
+    },
+);
+
+test(
+    "Moderation approval does not silently save pending changes",
+    () => {
+        assert.match(
+            approvalHandler,
+            /approvalBlocked/,
+        );
+
+        assert.match(
+            approvalHandler,
+            /expectedRevision:\s*selectedRow\.revision/,
+        );
+
+        assert.doesNotMatch(
+            approvalHandler,
+            /saveModerationAbilityDraft\(/,
+        );
+    },
+);
+
+test(
+    "Approval has a stable test identity and disabled guard",
+    () => {
+        assert.match(
+            moderation,
+            /data-testid="ability-approval-action"/,
+        );
+
+        assert.match(
+            moderation,
+            /disabled=\{approvalBlocked\}/,
+        );
+
+        assert.match(
+            moderation,
+            /Confirm Publication/,
         );
     },
 );

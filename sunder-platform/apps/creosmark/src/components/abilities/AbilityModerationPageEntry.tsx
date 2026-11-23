@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import type { Edge } from "@xyflow/react";
 import AppShell from "../app/AppShell.tsx";
 import AuthGate from "../auth/AuthGate.tsx";
@@ -167,6 +167,14 @@ function InnerAbilityModerationPage() {
     const [documentText, setDocumentText] = useState("");
     const [jsonDirty, setJsonDirty] = useState(false);
     const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [approvalConfirmation, setApprovalConfirmation] = useState(false);
+
+    const approvalRequestRef = useRef<{
+        abilityId: string;
+        revision: number;
+        requestId: string;
+    } | null>(null);
 
     const selectedRow = useMemo(
         () => rows.find((row) => row.id === selectedAbilityId) ?? null,
@@ -220,8 +228,11 @@ function InnerAbilityModerationPage() {
         }
     }, [documentText, jsonDirty]);
     const approvalBlocked = Boolean(
+        !selectedRow ||
         !draftDocument ||
         jsonDirty ||
+        hasUnsavedChanges ||
+        saveState === "saving" ||
         (summary && summary.warnings.length > 0) ||
         blockingCardIssues.length > 0,
     );
@@ -283,6 +294,9 @@ function InnerAbilityModerationPage() {
 
     useEffect(() => {
         if (!selectedRow) {
+            setHasUnsavedChanges(false);
+            setApprovalConfirmation(false);
+            approvalRequestRef.current = null;
             setDraftDocument(null);
             setSelectedNodeId(null);
             setDocumentText("");
@@ -328,6 +342,9 @@ function InnerAbilityModerationPage() {
         },
     ) => {
         setSaveState("idle");
+        setHasUnsavedChanges(true);
+        setApprovalConfirmation(false);
+        approvalRequestRef.current = null;
         setJsonDirty(false);
         setDraftDocument((current) => {
             if (!current) return current;
@@ -419,6 +436,9 @@ function InnerAbilityModerationPage() {
                 selectedRow.id,
             );
             setDraftDocument(nextDocument);
+            setHasUnsavedChanges(true);
+            setApprovalConfirmation(false);
+            approvalRequestRef.current = null;
             setSelectedNodeId((current) =>
                 current && nextDocument.graph.nodes.some((node) => node.id === current)
                     ? current
@@ -437,7 +457,8 @@ function InnerAbilityModerationPage() {
     }, [draftDocument, refreshDocumentText]);
 
     async function handleSaveDraft() {
-        if (!selectedRow || !draftDocument || jsonDirty) return;
+        if (!selectedRow || !draftDocument || jsonDirty ||
+            !hasUnsavedChanges || saveState === "saving") return;
 
         const latestDocument = rebuildReviewDocument(
             draftDocument,
@@ -448,8 +469,11 @@ function InnerAbilityModerationPage() {
 
         try {
             setSaveState("saving");
-            await saveModerationAbilityDraft({
+            setErrorText(null);
+
+            const newRevision = await saveModerationAbilityDraft({
                 abilityId: selectedRow.id,
+                expectedRevision: selectedRow.revision,
                 title: latestDocument.title,
                 abilityKind: latestDocument.abilityKind,
                 abilityDocument: latestDocument,
@@ -457,11 +481,13 @@ function InnerAbilityModerationPage() {
 
             setDraftDocument(latestDocument);
             refreshDocumentText(latestDocument);
+
             setRows((currentRows) =>
                 currentRows.map((row) =>
                     row.id === selectedRow.id
                         ? {
                             ...row,
+                            revision: newRevision,
                             title: latestDocument.title,
                             abilityKind: latestDocument.abilityKind,
                             abilityDocument: latestDocument,
@@ -470,6 +496,10 @@ function InnerAbilityModerationPage() {
                         : row,
                 ),
             );
+
+            setHasUnsavedChanges(false);
+            setApprovalConfirmation(false);
+            approvalRequestRef.current = null;
             setSaveState("saved");
         } catch (error) {
             setSaveState("error");
@@ -478,25 +508,36 @@ function InnerAbilityModerationPage() {
     }
 
     async function handleApprove() {
-        if (!selectedRow || !draftDocument || approvalBlocked) return;
+        if (!selectedRow || !draftDocument || approvalBlocked || !approvalConfirmation) return;
 
-        const latestDocument = rebuildReviewDocument(
-            draftDocument,
-            draftDocument.graph.nodes,
-            toBuilderEdges(draftDocument.graph.edges),
-            draftDocument.card,
-        );
+        // Retain the request ID across retries of the same revision, but never reuse it for another version.
+        const previous = approvalRequestRef.current;
+
+        const requestId = previous?.abilityId === selectedRow.id &&
+            previous.revision === selectedRow.revision
+                ? previous.requestId : crypto.randomUUID();
+
+        approvalRequestRef.current = {
+            abilityId: selectedRow.id,
+            revision: selectedRow.revision,
+            requestId,
+        };
 
         try {
             setSaveState("saving");
-            await saveModerationAbilityDraft({
+            setErrorText(null);
+
+            await approveAbilityDraft({
                 abilityId: selectedRow.id,
-                title: latestDocument.title,
-                abilityKind: latestDocument.abilityKind,
-                abilityDocument: latestDocument,
+                expectedRevision: selectedRow.revision,
+                requestId,
             });
-            await approveAbilityDraft(selectedRow.id);
+
+            setApprovalConfirmation(false);
+            approvalRequestRef.current = null;
             setSaveState("saved");
+
+            // Published records leave the draft queue.
             await loadRows(null);
         } catch (error) {
             setSaveState("error");
@@ -564,24 +605,53 @@ function InnerAbilityModerationPage() {
                             <button
                                 type="button"
                                 className={styles.secondary}
-                                disabled={jsonDirty || saveState === "saving"}
+                                disabled={jsonDirty || !hasUnsavedChanges || saveState === "saving"}
                                 onClick={() => void handleSaveDraft()}
                                 title={jsonDirty ? "Apply or reset JSON edits before saving." : "Save moderation edits."}
                             >
                                 Save Draft
                             </button>
                             <button
+                                data-testid={"ability-approval-action"}
                                 type="button"
                                 className={styles.primary}
-                                disabled
-                                onClick={() => void handleApprove()}
+                                disabled={approvalBlocked}
+                                onClick={() => setApprovalConfirmation(true)}
                                 title={
-                                    "Publication is temporarily unavailable while authoritative validation and secure " +
-                                    "administrator approval are being implemented. Draft review and editing remain available."
+                                    approvalBlocked ? "Save pending edits and resolve validation issues before approval."
+                                        : "Review the final publication confirmation."
                                 }
                             >
-                                Secure Approval Pending
+                                Approval & Publish
                             </button>
+                            {approvalConfirmation ? (
+                                <div role={"group"}
+                                     aria-label={"Confirm Ability publication"}
+                                     className={styles.actions}
+                                >
+                                    <span>
+                                        Publish this saved Ability revision?
+                                        Publication cannot be undone through the draft editor.
+                                    </span>
+
+                                    <button
+                                        type={"button"}
+                                        className={styles.secondary}
+                                        onClick={() => setApprovalConfirmation(false)}
+                                    >
+                                        Cancel
+                                    </button>
+
+                                    <button
+                                        type={"button"}
+                                        className={styles.primary}
+                                        disabled={approvalBlocked}
+                                        onClick={() => void handleApprove()}
+                                    >
+                                        Confirm Publication
+                                    </button>
+                                </div>
+                            ) : null}
                             <span className={styles.saveState}>
                                 {saveState === "saving"
                                     ? "Saving..."

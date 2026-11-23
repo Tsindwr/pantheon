@@ -365,7 +365,7 @@ for (const actionEconomyId of [
 
             const document = row.ability_json;
 
-            assert.equal(document.abilityId, "action");
+            assert.equal(document.abilityKind, "action");
             assert.equal(document.activationProfile.actionEconomyId, actionEconomyId);
 
             const assessment = await assessPersistedAbilityForPublication(row);

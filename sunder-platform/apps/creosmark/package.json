@@ -65,7 +65,9 @@
     "ability:compat:test": "node scripts/ability-edge-compatibility/test.mjs",
     "ability:compat:edge": "node scripts/ability-edge-compatibility/test.mjs --edge",
     "ability:publication:test": "node --test scripts/ability-edge-compatibility/publication.test.mjs",
-    "ability:publication:edge": "node --test scripts/ability-edge-compatibility/publication.test.mjs --edge"
+    "ability:publication:edge": "node --test scripts/ability-edge-compatibility/publication.test.mjs --edge",
+    "ability:approval:edge": "node --test scripts/ability-approval/edge.test.mjs",
+    "ability:approval:build": "node scripts/ability-approval/build.mjs"
   },
   "dependencies": {
     "@3d-dice/dice-box": "^1.1.4",

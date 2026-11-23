@@ -22,6 +22,7 @@ export type AbilityRow = {
     created_at: string;
     updated_at: string;
     published_at: string | null;
+    revision: number;
 };
 
 type AbilityReferenceSummaryRow = Pick<
@@ -78,6 +79,7 @@ type AbilityModerationRow = Pick<
     | "created_at"
     | "updated_at"
     | "published_at"
+    | "revision"
 >;
 
 export type AbilityModerationSummary = {
@@ -90,6 +92,7 @@ export type AbilityModerationSummary = {
     updatedAt: string;
     publishedAt: string | null;
     abilityDocument: AbilityPublishDocument;
+    revision: number;
 };
 
 export type AbilityPlayCard = {
@@ -103,7 +106,7 @@ export type AbilityPlayCard = {
 const ABILITY_REFERENCE_FIELDS =
     "id, owner_id, title, ability_kind, status, ability_json, card_json, published_at, updated_at";
 const ABILITY_MODERATION_FIELDS =
-    "id, owner_id, title, ability_kind, status, ability_json, card_json, created_at, updated_at, published_at";
+    "id, owner_id, title, ability_kind, status, revision, ability_json, card_json, created_at, updated_at, published_at";
 const ABILITY_PLAY_CARD_FIELDS =
     "id, title, ability_kind, ability_json, card_json, updated_at";
 const UUID_PATTERN =
@@ -428,6 +431,7 @@ function toAbilityModerationSummary(row: AbilityModerationRow): AbilityModeratio
         updatedAt: row.updated_at,
         publishedAt: row.published_at,
         abilityDocument: resolveAbilityDocument(row),
+        revision: row.revision,
     };
 }
 
@@ -950,14 +954,15 @@ export async function listModerationAbilities(
 
 export async function saveModerationAbilityDraft(params: {
     abilityId: string;
+    expectedRevision: number;
     title: string;
     abilityKind: string;
     abilityDocument: AbilityPublishDocument;
-}): Promise<void> {
-    const { abilityId, title, abilityKind, abilityDocument } = params;
+}): Promise<number> {
+    const { abilityId, title, expectedRevision, abilityKind, abilityDocument } = params;
     const normalizedDocument = withDocumentAbilityId(abilityDocument, abilityId);
 
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from("abilities")
         .update({
             title,
@@ -965,25 +970,75 @@ export async function saveModerationAbilityDraft(params: {
             ability_json: normalizedDocument,
             card_json: normalizedDocument.card,
         })
-        .eq("id", abilityId);
+        .eq("id", abilityId)
+        .eq("revision", expectedRevision)
+        .eq("status", "draft")
+        .select("revision")
+        .maybeSingle();
 
     if (error) throw error;
+
+    if (!data) {
+        throw new Error("This draft changed since you opened it. " +
+            "Reload the moderation queue before saving.")
+    }
+
+    return Number(data.revision);
 }
 
+export type AbilityApprovalReceipt = {
+    ok: true;
+    abilityId: string;
+    requestId: string;
+    publishedRevision: number;
+    publishedAt: string;
+    contentDigest: string;
+    idempotent: boolean;
+};
+
 /**
- * CM-ABIL-B01-02
+ * Invoke the authoritative Edge approval service.
  *
- * Browser publication is intentionally unavailable until the authoritative approval service is implemented.
- *
- * Do not restore a direct abilities.status UPDATE.
- * B01-04 will provide a server approval gateway.
+ * The browser supplies only identifiers and the expected revision. It never supplies a validation verdict, published
+ * timestamp, or administrator identity.
  */
-export async function approveAbilityDraft(_abilityId: string): Promise<void> {
-    throw new Error(
-        "Secure Ability approval is not yet available. " +
-        "Drafts can still be reviewed and saved, but " +
-        "publication requires the forthcoming server approval service."
-    )
+export async function approveAbilityDraft(params: {
+    abilityId: string;
+    expectedRevision: number;
+    requestId: string;
+}): Promise<AbilityApprovalReceipt> {
+    const { data, error } = await supabase.functions.invoke(
+        "approve-ability",
+        {
+            body: params,
+        },
+    );
+
+    if (error) {
+        let message = error.message;
+
+        if ("context" in error && error.context instanceof Response) {
+            try {
+                const body = await error.context.json();
+
+                if (body && typeof body.error === "string") {
+                    message = body.error;
+                }
+            } catch {
+                // Preserve the SDK error if the response body cannot be parsed.
+            }
+        }
+
+        throw new Error(message);
+    }
+
+    if (!data || data.ok !== true || data.abilityId !== params.abilityId ||
+        data.requestId !== params.requestId || !Number.isSafeInteger(data.publishedRevision) ||
+        typeof data.contentDigest !== "string") {
+        throw new Error("Approval service returned an invalid receipt.");
+    }
+
+    return data as AbilityApprovalReceipt;
 }
 
 export async function listAbilityPlayCardsByIds(

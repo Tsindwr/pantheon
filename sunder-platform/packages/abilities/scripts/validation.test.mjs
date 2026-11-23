@@ -307,7 +307,7 @@ test("The runtime schema accepts a complete Action document", () => {
 
 const ACTION_ECONOMIES = [
     "action",
-    "twoAction",
+    "twoActions",
     "minute",
     "ritual",
 ];
@@ -332,7 +332,7 @@ for (const actionEconomyId of ACTION_ECONOMIES) {
     );
 }
 
-for (const activationEconomyId of ["twoAction", "minute", "ritual"]) {
+for (const activationEconomyId of ["twoActions", "minute", "ritual"]) {
     test(`${activationEconomyId} is not itself a card type`,
         () => {
             const document = fixtureWithActivation(activationEconomyId);
