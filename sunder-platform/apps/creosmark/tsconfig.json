@@ -18,10 +18,8 @@
     "types": []
   },
   "include": [
-    "src",
-    ".astro/types.d.ts",
-    "**/*",
-    "**/*.ts",
-    "**/*.tsx"
+    "dist",
+    "assets/Potential Sheet_files",
+    "supabase/functions/**",
   ]
 }
