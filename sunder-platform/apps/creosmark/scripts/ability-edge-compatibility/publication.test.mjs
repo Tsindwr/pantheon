@@ -12,6 +12,7 @@ import {
 
 import {
     computeAbilitySummary,
+    getModifierOptionPool,
 } from "@sunderttrpg/experience-market";
 
 import {
@@ -87,7 +88,7 @@ function computed(summary) {
     };
 }
 
-function validRow() {
+function validRow(actionEconomyId = "action") {
     const fixture =
         makeCompatibilityFixtures().find(
             (entry) =>
@@ -98,6 +99,23 @@ function validRow() {
 
     const nodes = clone(fixture.nodes);
     const card = clone(fixture.card);
+
+    const activationNode = nodes.find((node) => node.id === "activation");
+    assert.ok(activationNode, "Fixture requires an activation modifier.");
+
+    const pool = getModifierOptionPool("activationType");
+    assert.ok(pool);
+
+    const option = pool.options.find((entry) => entry.id === actionEconomyId);
+    assert.ok(option, `Unknown activation economy: ${actionEconomyId}`);
+
+    activationNode.data = {
+        ...activationNode.data,
+        label: option.resolvedLabel ?? option.label,
+        description: option.description,
+        selectedOptionId: actionEconomyId,
+        cost: clone(option.cost),
+    };
 
     const summary =
         computeAbilitySummary(nodes);
@@ -332,6 +350,53 @@ for (const scenario of scenarios) {
                 );
             },
         );
+    }
+}
+
+for (const actionEconomyId of [
+    "action",
+    "twoActions",
+    "minute",
+    "ritual",
+]) {
+    test(`Publication accepts Action with ${actionEconomyId} activation`,
+        async () => {
+            const row = validRow(actionEconomyId);
+
+            const document = row.ability_json;
+
+            assert.equal(document.abilityId, "action");
+            assert.equal(document.activationProfile.actionEconomyId, actionEconomyId);
+
+            const assessment = await assessPersistedAbilityForPublication(row);
+
+            assert.equal(assessment.valid, true, JSON.stringify(assessment.issues, null, 2));
+            assert.equal(assessment.eligible, true, JSON.stringify(assessment.issues, null, 2));
+        });
+
+    if (edgeMode) {
+        test(`Edge parity preserves ${actionEconomyId} activation`,
+            async () => {
+                const row = validRow(actionEconomyId);
+
+                const expected = await assessPersistedAbilityForPublication(row);
+
+                const response = await fetch(endpoint, {
+                    method: "POST",
+                    headers: {
+                        "content-type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        mode: "publication",
+                        record: row,
+                    }),
+                });
+
+                const body = await response.text();
+
+                assert.equal(response.status, 200, body);
+                assert.deepEqual(JSON.parse(body), expected);
+            });
     }
 }
 

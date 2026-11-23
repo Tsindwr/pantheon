@@ -10,6 +10,10 @@ import {
     validateAbilityDocument,
     assessStandardAbility,
     canonicalJson,
+    actionEconomyToCardFormat,
+    isSplitCardFormat,
+    AbilityCardSchema,
+    AbilityDocumentSchema,
 } from "../dist/index.js";
 
 function clone(value) {
@@ -25,19 +29,13 @@ function modifier(
 ) {
     const pool = getModifierOptionPool(poolId);
 
-    assert.ok(
-        pool,
-        `Missing catalog pool: ${poolId}`,
-    );
+    assert.ok(pool, `Missing catalog pool: ${poolId}`);
 
     const option = pool.options.find(
         (entry) => entry.id === optionId,
     );
 
-    assert.ok(
-        option,
-        `Missing option: ${poolId}/${optionId}`,
-    );
+    assert.ok(option, `Missing option: ${poolId}/${optionId}`);
 
     return {
         id,
@@ -182,6 +180,42 @@ function fixture() {
     };
 }
 
+/**
+ * Construct an Action with a chosen activation economy.
+ *
+ * The card category does not change when the time or number of Actions required for activation changes.
+ */
+function fixtureWithActivation(actionEconomyId) {
+    const document = fixture();
+
+    const activationIndex = document.graph.nodes.findIndex(
+        (node) => node.id === "activation"
+    );
+
+    assert.notEqual(activationIndex, -1, "Fixture must contain its activation modifier.");
+
+    document.graph.nodes[activationIndex] = modifier(
+        "activation",
+        "activationType",
+        actionEconomyId,
+        "body",
+        "activation",
+    );
+
+    const summary = computeAbilitySummary(document.graph.nodes);
+
+    document.activationProfile = {
+        actionEconomyId: summary.actionEconomyId,
+        resetConditionId: summary.resetConditionId,
+    };
+
+    document.computed = computed(summary);
+
+    // Intentionally do not change document.card.format.
+    // Activation economy and card type are distinct.
+    return document;
+}
+
 function codes(result) {
     return result.issues.map(
         (entry) => entry.code,
@@ -260,6 +294,63 @@ test(
         assert.equal(result.eligible, true);
     },
 );
+
+test("The runtime schema accepts a complete Action document", () => {
+    const result = AbilityDocumentSchema.safeParse(fixture());
+
+    assert.equal(
+        result.success,
+        true,
+        result.success ? undefined : JSON.stringify(result.error.issues),
+    );
+});
+
+const ACTION_ECONOMIES = [
+    "action",
+    "twoAction",
+    "minute",
+    "ritual",
+];
+
+for (const actionEconomyId of ACTION_ECONOMIES) {
+    test(
+        `${actionEconomyId} activation retains the Action card type`,
+        async () => {
+            const document = fixtureWithActivation(actionEconomyId);
+
+            assert.equal(document.abilityKind, "action");
+            assert.equal(document.card.format, "action");
+            assert.equal(document.activationProfile.actionEconomyId, actionEconomyId);
+            assert.equal(actionEconomyToCardFormat(actionEconomyId), "action");
+            assert.equal(isSplitCardFormat(document.card.format), true);
+
+            const result = await validateAbilityDocument(document);
+
+            assert.equal(result.valid, true, JSON.stringify(result.issues, null, 2));
+            assert.equal(result.issues.some((issue) => issue.code === "card.format.mismatch"), false);
+        },
+    );
+}
+
+for (const activationEconomyId of ["twoAction", "minute", "ritual"]) {
+    test(`${activationEconomyId} is not itself a card type`,
+        () => {
+            const document = fixtureWithActivation(activationEconomyId);
+
+            const incorrectCard = {
+                ...document.card,
+                format: activationEconomyId,
+            };
+
+            const result = AbilityCardSchema.safeParse(incorrectCard);
+
+            assert.equal(
+                result.success,
+                false,
+                "Activation economy must not be accepted as a card type.",
+            );
+        });
+}
 
 test(
     "Canonical JSON ignores object key order",

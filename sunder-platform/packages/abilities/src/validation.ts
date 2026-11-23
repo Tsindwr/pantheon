@@ -556,7 +556,7 @@ export async function validateAbilityDocument(
                 issues,
                 "card.format.mismatch",
                 "card.format",
-                "Card format differs from activation rules.",
+                "Card format conflicts with the Ability category.",
             );
         }
 

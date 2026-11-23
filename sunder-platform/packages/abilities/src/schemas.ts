@@ -65,7 +65,7 @@ const modifierNode = z.object({
         lane,
         description: longText,
 
-        descriptionOverride: longText.optional,
+        descriptionOverride: longText.optional(),
         cost: AbilityCostSchema,
         costOverride: AbilityCostSchema.optional(),
 
