@@ -220,6 +220,10 @@ SELECT is(
     '12: Publication records its administrator'
     );
 
+--- Inspect committed audit records as the privileged test runner.
+--- service_role intentionally lacks direct SELECT privileges on publication audit history.
+RESET ROLE;
+
 SELECT is(
     (
     SELECT count(*)
@@ -242,6 +246,9 @@ SELECT is(
     '14: Audit preserves the accepted digest'
     );
 
+--- Execute the idempotency retry using the actual service role, not PostgreSQL's privileged test runner.
+SET LOCAL ROLE service_role;
+
 SELECT is(
     (
     SELECT (
@@ -258,6 +265,9 @@ SELECT is(
     '15: Identical approval retry is idempotent'
     );
 
+--- Return to the test runner for direct audit inspection.
+RESET ROLE;
+
 SELECT is(
     (
     SELECT count(*)
@@ -268,6 +278,9 @@ SELECT is(
     1::bigint,
     '16: Retry creates no duplicate audit event'
     );
+
+--- Continue exercising the restricted publication RPC as service_role.
+SET LOCAL ROLE service_role;
 
 SELECT throws_ok(
                $$
