@@ -3,12 +3,12 @@ import { ReactFlowProvider, useReactFlow, type Edge, type NodeProps } from "@xyf
 import "@xyflow/react/dist/style.css";
 import styles from "./AbilityBuilderShell.module.css";
 import { ARCHETYPES } from "../../lib/sheet-data.ts";
-import type {
+import {
     AbilityBuilderNode,
     AbilityCardValidationIssue,
     AbilityCardState,
     AbilitySummary,
-    ModifierNodeType,
+    ModifierNodeType, createAbilityPublishDocument, AbilityPublishDocument,
 } from "../../domain";
 import {
     buildPaletteSections,
@@ -40,10 +40,25 @@ import {
     type AbilityBuilderValidationSummary,
     type BuilderView,
     type AbilityBuilderContextValue,
-    type SidebarMode,
+    type SidebarMode, AbilityBuilderModerationControls,
 } from "./AbilityBuilderContext";
 import BuilderSidebar from "./BuilderSidebar";
 import BuilderWorkspace from "./BuilderWorkspace";
+import {
+    approveAbilityDraft,
+    saveModerationAbilityDraft,
+    type AbilityModerationSummary,
+} from "../../infrastructure";
+import {
+    inspectModerationPrices,
+    reconcileModerationPrices,
+} from "@sunderttrpg/abilities";
+import type { AbilityValidationIssue } from "@sunderttrpg/abilities";
+import { AbilityPublicationValidationError } from "../../infrastructure";
+import {
+    appendModerationValidationIssues,
+    deriveModerationValidationIssues,
+} from "./moderation-validation";
 
 type AbilityBuilderSnapshot = {
     nodes: AbilityBuilderNode[];
@@ -73,10 +88,44 @@ export type AbilityBuilderBudgetConstraint = {
     maxTotalEnhancements: number;
 };
 
+export type AbilityBuilderModerationSession = {
+    record: AbilityModerationSummary;
+    onSaved: (record: AbilityModerationSummary) => void;
+    onPublished: (abilityId: string) => void;
+    onStateChange: (state: {
+        dirty: boolean;
+        busy: boolean;
+    }) => void;
+};
+
 type AbilityBuilderShellProps = {
     initialPrerequisite?: AbilityBuilderInitialPrerequisite;
     budgetConstraint?: AbilityBuilderBudgetConstraint;
+    moderation?: AbilityBuilderModerationSession;
 };
+
+function reviewContentSignature(
+    nodes: AbilityBuilderNode[],
+    edges: Edge[],
+    cardState: AbilityCardState,
+): string {
+    return JSON.stringify({
+        nodes: nodes.map((node) => ({
+            id: node.id,
+            type: node.type,
+            position: node.position,
+            data: node.data,
+        })),
+        edges: edges.map((edge) => ({
+            id: edge.id,
+            source: edge.source,
+            target: edge.target,
+            sourceHandle: edge.sourceHandle ?? null,
+            targetHandle: edge.targetHandle ?? null,
+        })),
+        card: cardState,
+    });
+}
 
 function cloneSnapshot(snapshot: AbilityBuilderSnapshot): AbilityBuilderSnapshot {
     if (typeof structuredClone === "function") {
@@ -512,6 +561,7 @@ function deriveAbilityBuilderValidationSummary({
 function AbilityBuilderInner({
     initialPrerequisite,
     budgetConstraint,
+    moderation,
 }: AbilityBuilderShellProps) {
     const wrapperRef = useRef<HTMLDivElement | null>(null);
     const currentSnapshotRef = useRef<AbilityBuilderSnapshot | null>(null);
@@ -523,6 +573,23 @@ function AbilityBuilderInner({
     const [historyState, setHistoryState] = useState<AbilityBuilderHistoryState>(
         historyRef.current,
     );
+    const [reviewHasUserEdit, setReviewHasUserEdit] = useState(false);
+    const [reviewLoadedId, setReviewLoadedId] = useState<string | null>(null);
+    const [reviewRevision, setReviewRevision] = useState(0);
+    const [reviewSavedSignature, setReviewSavedSignature] = useState<string | null>(null);
+    const [reviewBusy, setReviewBusy] = useState(false);
+    const [reviewConfirmation, setReviewConfirmation] = useState(false);
+    const [reviewStatus, setReviewStatus] = useState<string | null>(null);
+    const [reviewError, setReviewError] = useState<string | null>(null);
+
+    const [serverReviewIssues, setServerReviewIssues] = useState<{
+        abilityId: string;
+        savedNodes: AbilityBuilderNode[];
+        issues: AbilityValidationIssue[];
+    } | null>(null);
+
+    const reviewRequestRef = useRef<{ revision: number; requestId: string; } | null>(null);
+
     const [sidebarMode, setSidebarMode] = useState<"palette" | "inspector">("palette");
     const [openPaletteId, setOpenPaletteId] = useState("activation");
     const [prerequisitePickerState, setPrerequisitePickerState] = useState<{
@@ -548,12 +615,14 @@ function AbilityBuilderInner({
         const current = currentSnapshotRef.current;
         if (!current) return;
 
+        if (moderation && reviewLoadedId === moderation.record.id) setReviewHasUserEdit(true);
+
         const snapshot = cloneSnapshot(current);
         updateHistoryState((history) => ({
             past: [...history.past, snapshot].slice(-HISTORY_LIMIT),
             future: [],
         }));
-    }, [updateHistoryState]);
+    }, [moderation, reviewLoadedId, updateHistoryState]);
 
     const graph = useAbilityBuilderGraph({
         onBeforeChange: pushHistorySnapshot,
@@ -588,6 +657,114 @@ function AbilityBuilderInner({
         deleteEdgeById,
     } = graph;
 
+    const applyCatalogPrices = useCallback(
+        (onlyNodeId?: string) => {
+            if (!moderation) return;
+
+            const result = reconcileModerationPrices(nodes);
+
+            const correctedIds = new Set(
+                result.correctedNodeIds.filter((nodeId) => !onlyNodeId || nodeId === onlyNodeId));
+
+            if (correctedIds.size === 0) return;
+
+            // Extract only the corrected costs. The shared package uses portable Ability nodes,
+            // whereas React Flow requires additional metadata.
+            const correctedCosts = new Map<string, {
+                strings: number;
+                beats: number;
+                enhancements: number;
+            }>();
+
+            for (const node of result.nodes) {
+                if (node.type !== "marketModifier" || !correctedIds.has(node.id)) continue;
+
+                correctedCosts.set(node.id, { ...node.data.cost });
+            }
+
+            // Preserve the original React Flow node types, positions, dimensions, and presentation state.
+            const updatedNodes: AbilityBuilderNode[] = nodes.map(
+                (node): AbilityBuilderNode => {
+                    if (node.type !== "marketModifier") return node;
+
+                    const correctedCost = correctedCosts.get(node.id);
+
+                    if (!correctedCost) return node;
+
+                    return {
+                        ...node,
+                        data: {
+                            ...node.data,
+                            cost: correctedCost
+                        },
+                    };
+                }
+            );
+
+            const previousSelectedNodeId = selectedNodeId;
+            const previousSelectedEdgeId = selectedEdgeId;
+
+            // Exactly one history entry for this action.
+            pushHistorySnapshot();
+
+            restoreGraph(updatedNodes, edges);
+
+            // Graph restoration ordinarily selects its root. Preserve the administrator's current inspection.
+            setSelectedNodeId(previousSelectedNodeId);
+            setSelectedEdgeId(previousSelectedEdgeId);
+
+            setReviewHasUserEdit(true);
+            setReviewConfirmation(false);
+            setReviewError(null);
+
+            // Previous server errors describe an older revision.
+            setServerReviewIssues(null);
+        },
+        [
+            moderation,
+            nodes,
+            edges,
+            selectedNodeId,
+            selectedEdgeId,
+            pushHistorySnapshot,
+            restoreGraph,
+            setSelectedNodeId,
+            setSelectedEdgeId,
+        ],
+    );
+
+    const moderationPriceFindings = useMemo(() => moderation ? inspectModerationPrices(nodes) : [],
+        [moderation, nodes]);
+
+    const reconcilableNodeIds = useMemo(
+        () => moderationPriceFindings
+            .filter((finding) => finding.kind === "catalog-mismatch")
+            .map((finding) => finding.nodeId),
+        [moderationPriceFindings]
+    );
+
+    const reviewRequiredCount = moderationPriceFindings.filter((finding) => finding.kind !== "catalog-mismatch")
+        .length;
+
+    const moderationValidationIssues = useMemo(() =>
+        moderation ? deriveModerationValidationIssues(
+            nodes,
+            serverReviewIssues?.abilityId === moderation.record.id ? serverReviewIssues : null,
+        ) : [],
+        [moderation, nodes, serverReviewIssues]
+    );
+
+    const moderationPricing = useMemo(
+        () =>
+            moderation ? {
+                reconcilableNodeIds,
+                reviewRequiredCount,
+                reconcileNode: (nodeId: string) => applyCatalogPrices(nodeId),
+                reconcileAll: () => applyCatalogPrices(),
+            } : undefined,
+        [moderation, reconcilableNodeIds, reviewRequiredCount, applyCatalogPrices],
+    );
+
     const summary = useMemo(() => computeAbilitySummary(nodes), [nodes]);
     const budgetValidation = useMemo(
         () => validateBudgetConstraint(summary, budgetConstraint),
@@ -620,15 +797,128 @@ function AbilityBuilderInner({
 
     const { fitView } = useReactFlow<AbilityBuilderNode, Edge>();
 
+    const currentReviewSignature = useMemo(() => reviewContentSignature(nodes, edges, card.cardState),
+        [nodes, edges, card.cardState]);
+
+    const reviewReady = Boolean(moderation) && reviewLoadedId === moderation?.record.id;
+    const reviewDirty = reviewReady && reviewHasUserEdit && currentReviewSignature !== reviewSavedSignature;
+
+    useEffect(() => {
+        if (reviewDirty) {
+            setServerReviewIssues(null);
+        }
+    }, [reviewDirty]);
+
+    useEffect(() => {
+        if (!moderation) return;
+
+        const document = moderation.record.abilityDocument;
+
+        if (!document || !document.graph || !Array.isArray(document.graph.nodes) ||
+            !Array.isArray(document.graph.edges) || !document.card) {
+            setReviewLoadedId(null);
+            setReviewError("The submitted Ability document is malformed.");
+            return;
+        }
+
+        const initial = cloneSnapshot({
+            nodes: document.graph.nodes,
+            edges: document.graph.edges.map((edge) => ({
+                id: edge.id,
+                source: edge.source,
+                target: edge.target,
+                sourceHandle: edge.sourceHandle ?? undefined,
+                targetHandle: edge.targetHandle ?? undefined,
+            })),
+            cardState: document.card,
+        });
+
+        // Restore persisted content without recording an edit.
+        restoreGraph(initial.nodes, initial.edges);
+
+        const normalizedInitialCard = normalizeAbilityCardState(initial.nodes, initial.cardState);
+
+        card.restoreCardState(normalizedInitialCard);
+
+        const freshHistory: AbilityBuilderHistoryState = {
+            past: [],
+            future: [],
+        };
+
+        historyRef.current = freshHistory;
+        setHistoryState(freshHistory);
+
+        setReviewSavedSignature(
+            reviewContentSignature(
+                initial.nodes,
+                initial.edges,
+                normalizedInitialCard,
+            ),
+        );
+
+        setReviewRevision(moderation.record.revision);
+        setReviewLoadedId(moderation.record.id);
+        setReviewConfirmation(false);
+        setReviewBusy(false);
+        setReviewError(null);
+        setReviewStatus(null);
+        setReviewHasUserEdit(false);
+        reviewRequestRef.current = null;
+
+        requestAnimationFrame(() => {
+            fitView({
+                padding: 0.2,
+                duration: 200,
+            });
+        });
+
+        // The page remounts the builder when the selected
+        // Ability or persisted revision changes.
+    }, [moderation?.record.id]);
+
+    useEffect(() => {
+        if (!moderation) return;
+
+        moderation.onStateChange({
+            dirty: reviewDirty,
+            busy: reviewBusy,
+        });
+    }, [moderation?.onStateChange, reviewDirty, reviewBusy]);
+
+    useEffect(() => {
+        if (!reviewDirty) return;
+
+        setReviewConfirmation(false);
+        setReviewStatus(null);
+    }, [reviewDirty]);
+
+    useEffect(() => {
+        if (!moderation || (!reviewDirty && !reviewBusy)) return;
+
+        const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+            event.preventDefault();
+            event.returnValue = "";
+        };
+
+        window.addEventListener("beforeunload", warnBeforeLeaving);
+
+        return () => {
+            window.removeEventListener("beforeunload", warnBeforeLeaving);
+        };
+    }, [moderation, reviewDirty, reviewBusy]);
+
     const validationSummary = useMemo(
-        () =>
-            deriveAbilityBuilderValidationSummary({
+        () => {
+            const base = deriveAbilityBuilderValidationSummary({
                 nodes,
                 summary,
                 budgetValidation,
                 cardIssues: card.cardIssues,
-            }),
-        [nodes, summary, budgetValidation, card.cardIssues],
+            });
+
+            return appendModerationValidationIssues(base, moderationValidationIssues);
+        },
+        [nodes, summary, budgetValidation, card.cardIssues, moderationValidationIssues],
     );
     const nodeValidationIssuesById = useMemo(() => {
         const result: Record<string, AbilityBuilderValidationIssue[]> = {};
@@ -648,6 +938,8 @@ function AbilityBuilderInner({
     }, [validationSummary]);
     const hasInvalidState = displaySummary.warnings.length > 0;
     const canPublish = validationSummary.blocking.length === 0 && !publish.isPublishing;
+    const reviewCanApprove = reviewReady && !reviewDirty && !reviewBusy &&
+        summary.warnings.length === 0 && validationSummary.blocking.length === 0;
     const canUndo = historyState.past.length > 0;
     const canRedo = historyState.future.length > 0;
 
@@ -901,6 +1193,135 @@ function AbilityBuilderInner({
         }
     }, [canPublish, publish, nodes, edges, displaySummary, card.cardState]);
 
+    async function handleSaveReview() {
+        if (!moderation || !reviewReady || !reviewDirty || reviewBusy) return;
+
+        const signatureAtSave = currentReviewSignature;
+
+        const generated = createAbilityPublishDocument({
+            nodes, edges, summary, cardState: card.cardState,
+        });
+
+        const document: AbilityPublishDocument = {
+            ...moderation.record.abilityDocument,
+            ...generated,
+            abilityId: moderation.record.id,
+        };
+
+        try {
+            setReviewBusy(true);
+            setReviewError(null);
+            setReviewStatus(null);
+
+            const newRevision = await saveModerationAbilityDraft({
+                abilityId: moderation.record.id,
+                expectedRevision: reviewRevision,
+                title: document.title,
+                abilityKind: document.abilityKind,
+                abilityDocument: document,
+            });
+
+            if (!Number.isSafeInteger(newRevision) || newRevision <= reviewRevision) {
+                throw new Error("The database did not confirm a new draft revision.");
+            }
+
+            setReviewRevision(newRevision);
+            setReviewSavedSignature(signatureAtSave);
+            setReviewConfirmation(false);
+            reviewRequestRef.current = null;
+
+            setReviewStatus(`Draft saved as revision ${newRevision}.`);
+
+            moderation.onSaved({
+                ...moderation.record,
+                revision: newRevision,
+                title: document.title,
+                abilityKind: document.abilityKind,
+                abilityDocument: document,
+                updatedAt: new Date().toISOString(),
+            });
+        } catch (error) {
+            setReviewError(error instanceof Error ? error.message : "Failed to save the draft.");
+        } finally {
+            setReviewBusy(false);
+        }
+    }
+
+    async function handleApproveReview() {
+        if (!moderation || !reviewCanApprove || !reviewConfirmation) return;
+
+        const previous = reviewRequestRef.current;
+
+        const requestId = previous?.revision === reviewRevision
+            ? previous.requestId : crypto.randomUUID();
+
+        reviewRequestRef.current = {
+            revision: reviewRevision,
+            requestId,
+        };
+
+        try {
+            setReviewBusy(true);
+            setReviewError(null);
+            setReviewStatus(null);
+
+            await approveAbilityDraft({
+                abilityId: moderation.record.id,
+                expectedRevision: reviewRevision,
+                requestId,
+            });
+
+            setReviewConfirmation(false);
+            moderation.onPublished(moderation.record.id);
+        } catch (error) {
+            if (error instanceof AbilityPublicationValidationError) {
+                setServerReviewIssues({
+                    abilityId: moderation.record.id,
+                    savedNodes: nodes,
+                    issues: error.issues,
+                });
+
+                setReviewConfirmation(false);
+
+                // Return the administrator to the graph.
+                card.setBuilderView('tree');
+            }
+            // Retain the same request ID for a safe retry.
+            setReviewError(error instanceof Error ? error.message : "Approval could not be completed.");
+        } finally {
+            setReviewBusy(false);
+            setServerReviewIssues(null);
+        }
+    }
+
+    const moderationControls: AbilityBuilderModerationControls | null = moderation ? {
+            ready: reviewReady,
+            revision: reviewRevision,
+            dirty: reviewDirty,
+            busy: reviewBusy,
+            canSave: reviewReady && reviewDirty && !reviewBusy,
+            canApprove: reviewCanApprove,
+            confirming: reviewConfirmation,
+            status: reviewStatus,
+            error: reviewError,
+
+            onSave: () => {
+                void handleSaveReview();
+            },
+
+            onRequestApproval: () => {
+                if (reviewCanApprove) setReviewConfirmation(true);
+            },
+
+            onCancelApproval: () => {
+                setReviewConfirmation(false);
+            },
+
+            onConfirmApproval: () => {
+                void handleApproveReview();
+            }
+        } : null;
+
     useEffect(() => {
         if (!initialPrerequisite) return;
 
@@ -1040,8 +1461,23 @@ function AbilityBuilderInner({
         setPrerequisitePickerState(null);
     }, [prerequisitePickerState, updateModifierSelectionValues]);
 
+    const publicationDialog = moderation ? {
+        open: reviewConfirmation,
+        busy: reviewBusy,
+        revision: reviewRevision,
+        canConfirm: reviewCanApprove && !reviewDirty && validationSummary.blocking.length === 0,
+        onCancel: () => {
+            if (!reviewBusy) setReviewConfirmation(false);
+        },
+        onConfirm: () => {
+            void handleApproveReview();
+        },
+    } : undefined;
+
     const contextValue = useMemo<AbilityBuilderContextValue>(
         () => ({
+            editorMode: moderation ? "moderation" : "creator",
+            moderationControls,
             builderView: card.builderView,
             setBuilderView: card.setBuilderView,
             sidebarMode,
@@ -1092,8 +1528,12 @@ function AbilityBuilderInner({
             onImportJson,
             onDragOver: workspace.onDragOver,
             onDrop: workspace.onDrop,
+            moderationPricing,
+            publicationDialog,
         }),
         [
+            moderation,
+            moderationControls,
             card.builderView,
             card.setBuilderView,
             sidebarMode,
@@ -1144,6 +1584,8 @@ function AbilityBuilderInner({
             onImportJson,
             workspace.onDragOver,
             workspace.onDrop,
+            moderationPricing,
+            publicationDialog,
         ],
     );
 
@@ -1167,12 +1609,14 @@ function AbilityBuilderInner({
 export default function AbilityBuilderShell({
     initialPrerequisite,
     budgetConstraint,
+    moderation
 }: AbilityBuilderShellProps) {
     return (
         <ReactFlowProvider>
             <AbilityBuilderInner
                 initialPrerequisite={initialPrerequisite}
                 budgetConstraint={budgetConstraint}
+                moderation={moderation}
             />
         </ReactFlowProvider>
     );

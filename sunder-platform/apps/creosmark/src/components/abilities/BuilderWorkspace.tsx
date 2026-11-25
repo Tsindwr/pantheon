@@ -9,14 +9,16 @@ import { useRef } from "react";
 import styles from "./AbilityBuilderShell.module.css";
 import {
     calculateTotalFromCost,
-    formatMarketCost,
+    formatTotalAbilityCost,
     type AbilityBuilderNode,
 } from "../../domain";
 import AbilityCardCanvas from "../../presentation/abilities/cards/AbilityCardCanvas";
 import { useAbilityBuilderContext } from "./AbilityBuilderContext";
+import AbilityPublicationDialog from "./AbilityPublicationDialog";
 
 export default function BuilderWorkspace() {
     const {
+        moderationControls,
         builderView,
         setBuilderView,
         setSidebarMode,
@@ -47,6 +49,8 @@ export default function BuilderWorkspace() {
         onImportJson,
         onDragOver,
         onDrop,
+        moderationPricing,
+        publicationDialog,
     } = useAbilityBuilderContext();
     const importInputRef = useRef<HTMLInputElement | null>(null);
     const primaryBlocker = validationSummary.blocking[0];
@@ -66,7 +70,7 @@ export default function BuilderWorkspace() {
                     <>
                         <div className={styles.summaryBlock}>
                             <span className={styles.toolbarLabel}>Paid (Focus + Base)</span>
-                            <strong>{formatMarketCost(summary.paid)}</strong>
+                            <strong>{formatTotalAbilityCost(summary.paid)}</strong>
                         </div>
                         <div className={`${styles.summaryBlock} ${summary.isFlipsideOverBudget ? styles.summaryBlockOver : ""}`}>
                             <span className={styles.toolbarLabel}>
@@ -83,7 +87,7 @@ export default function BuilderWorkspace() {
                 ) : (
                     <div className={styles.summaryBlock}>
                         <span className={styles.toolbarLabel}>Paid</span>
-                        <strong>{formatMarketCost(summary.paid)}</strong>
+                        <strong>{formatTotalAbilityCost(summary.paid)}</strong>
                     </div>
                 )}
 
@@ -122,22 +126,63 @@ export default function BuilderWorkspace() {
                             Card View
                         </button>
                     )}
-                    <button
-                        type={"button"}
-                        className={styles.publishButton}
-                        onClick={onPublish}
-                        disabled={!canPublish}
-                        title={
-                            publishBlockerTitle ??
-                            (hasBlockingCardIssues
-                                ? "Apply all required modifiers to the card before publishing."
-                                : hasInvalidState
-                                  ? "Fix rule errors"
-                                  : "Send to cloud")
-                        }
-                    >
-                        {isPublishing ? "Sending..." : "Upload"}
-                    </button>
+                    {moderationPricing && moderationPricing.reconcilableNodeIds.length > 0 ? (
+                        <button
+                            type={"button"}
+                            className={styles.secondaryButton}
+                            onClick={moderationPricing.reconcileAll}
+                            title={"Update stale modifier prices to the current catalog"}
+                        >
+                            Reconcile Prices ({moderationPricing.reconcilableNodeIds.length})
+                        </button>
+                    ) : null}
+                    {moderationControls ? (
+                        <>
+                            <button
+                                type="button"
+                                className={styles.secondaryButton}
+                                onClick={moderationControls.onSave}
+                                disabled={!moderationControls.canSave}
+                                title="Save changes to this submitted draft."
+                            >
+                                {moderationControls.busy
+                                    ? "Working..."
+                                    : "Save Draft"}
+                            </button>
+
+                            <button
+                                type="button"
+                                className={styles.publishButton}
+                                onClick={moderationControls.onRequestApproval}
+                                disabled={!moderationControls.canApprove}
+                                title={
+                                    moderationControls.dirty
+                                        ? "Save your edits before approval."
+                                        : publishBlockerTitle ??
+                                        "Approve this saved revision."
+                                }
+                            >
+                                Approve &amp; Publish
+                            </button>
+                        </>
+                    ) : (
+                        <button
+                            type="button"
+                            className={styles.publishButton}
+                            onClick={onPublish}
+                            disabled={!canPublish}
+                            title={
+                                publishBlockerTitle ??
+                                (hasBlockingCardIssues
+                                    ? "Resolve required card placements."
+                                    : hasInvalidState
+                                        ? "Fix rule errors."
+                                        : "Upload your Ability draft.")
+                            }
+                        >
+                            {isPublishing ? "Sending..." : "Upload"}
+                        </button>
+                    )}
 
                     <button type={"button"} className={styles.exportButton} onClick={onExportJson}>
                         Export
@@ -183,6 +228,58 @@ export default function BuilderWorkspace() {
                 {publishResult ? (
                     <div className={`${styles.publishStatus} ${styles.publishStatusSuccess}`}>
                         Published "{publishResult.title}".
+                    </div>
+                ) : null}
+
+                {moderationControls?.confirming ? (
+                    <div
+                        role="group"
+                        aria-label="Confirm Ability publication"
+                        className={styles.publishStatus}
+                    >
+                        <strong>
+                            Publish saved revision {moderationControls.revision}?
+                        </strong>
+                        <p>
+                            This operation creates a permanent publication audit
+                            record. Unsaved changes are never included.
+                        </p>
+                        <button
+                            type="button"
+                            className={styles.secondaryButton}
+                            onClick={moderationControls.onCancelApproval}
+                            disabled={moderationControls.busy}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            className={styles.publishButton}
+                            onClick={moderationControls.onConfirmApproval}
+                            disabled={!moderationControls.canApprove}
+                            data-testid="ability-approval-action"
+                        >
+                            Confirm Publication
+                        </button>
+                    </div>
+                ) : null}
+
+                {moderationControls?.error ? (
+                    <div
+                        className={`${styles.publishStatus} ${styles.publishStatusError}`}
+                        role="alert"
+                        style={{ whiteSpace: "pre-line" }}
+                    >
+                        {moderationControls.error}
+                    </div>
+                ) : null}
+
+                {moderationControls?.status ? (
+                    <div
+                        className={`${styles.publishStatus} ${styles.publishStatusSuccess}`}
+                        role="status"
+                    >
+                        {moderationControls.status}
                     </div>
                 ) : null}
             </div>
@@ -243,6 +340,19 @@ export default function BuilderWorkspace() {
                     onRedo={onRedo}
                 />
             )}
+
+            {publicationDialog ? (
+                <AbilityPublicationDialog
+                    open={publicationDialog.open}
+                    busy={publicationDialog.busy}
+                    revision={publicationDialog.revision}
+                    abilityTitle={summary.root?.data.title || "Untitled Ability"}
+                    priceLabel={formatTotalAbilityCost(summary.paid)}
+                    canConfirm={publicationDialog.canConfirm}
+                    onCancel={publicationDialog.onCancel}
+                    onConfirm={publicationDialog.onConfirm}
+                />
+            ) : null}
         </section>
     );
 }

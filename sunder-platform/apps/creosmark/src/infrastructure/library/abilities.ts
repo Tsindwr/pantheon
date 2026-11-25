@@ -1,4 +1,4 @@
-import { supabase } from "./../../lib/supabase/client";
+import { supabase } from "../../lib/supabase/client";
 import { formatMarketCost } from "../../domain";
 import type { AbilityPublishDocument } from "../../domain";
 import type { PublishedAbilityResult} from "../../application";
@@ -10,6 +10,7 @@ import {
 } from "../../lib/supabase/db.ts";
 import { ARCHETYPES, type ArchetypeId } from "../../lib/sheet-data.ts";
 import type { CharacterSheetSummary } from "../../types/library.ts";
+import type { AbilityValidationIssue } from "@sunderttrpg/abilities";
 
 export type AbilityRow = {
     id: string;
@@ -996,6 +997,32 @@ export type AbilityApprovalReceipt = {
     idempotent: boolean;
 };
 
+export class AbilityPublicationValidationError extends Error {
+    readonly code = "ABILITY_INVALID";
+
+    constructor(message: string, readonly issues: AbilityValidationIssue[]) {
+        super(message);
+        this.name = "AbilityPublicationValidationError";
+    }
+}
+
+function isPublicationIssue(input: unknown): input is AbilityValidationIssue {
+    if (input === null || typeof input !== "object" || Array.isArray(input)) return false;
+
+    const value = input as Record<string, unknown>;
+
+    return (
+        typeof value.code === "string" &&
+        typeof value.path === "string" &&
+        typeof value.message === "string" &&
+        (
+            value.severity === "blocking" ||
+            value.severity === "warning" ||
+            value.severity === "note"
+        )
+    );
+}
+
 /**
  * Invoke the authoritative Edge approval service.
  *
@@ -1017,16 +1044,31 @@ export async function approveAbilityDraft(params: {
     if (error) {
         let message = error.message;
 
+        let validationIssues: AbilityValidationIssue[] | null = null;
+
         if ("context" in error && error.context instanceof Response) {
             try {
-                const body = await error.context.json();
+                const payload: unknown = await error.context.json();
 
-                if (body && typeof body.error === "string") {
-                    message = body.error;
+                if (payload !== null && typeof payload === "object" && !Array.isArray(payload)) {
+                    const body = payload as Record<string, unknown>;
+
+                    if (typeof body.error === "string") {
+                        message = body.error;
+                    }
+
+                    if (body.code === "ABILITY_INVALID") {
+                        validationIssues = Array.isArray(body.issues)
+                            ? body.issues.filter(isPublicationIssue) : [];
+                    }
                 }
             } catch {
                 // Preserve the SDK error if the response body cannot be parsed.
             }
+        }
+
+        if (validationIssues !== null) {
+            throw new AbilityPublicationValidationError(message, validationIssues);
         }
 
         throw new Error(message);

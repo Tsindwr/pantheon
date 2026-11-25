@@ -23,6 +23,22 @@ import type {
 export type BuilderView = "tree" | "card";
 export type SidebarMode = "palette" | "inspector";
 
+export type AbilityBuilderModerationControls = {
+    ready: boolean;
+    revision: number;
+    dirty: boolean;
+    busy: boolean;
+    canSave: boolean;
+    canApprove: boolean;
+    confirming: boolean;
+    status: string | null;
+    error: string | null;
+    onSave: () => void;
+    onRequestApproval: () => void;
+    onCancelApproval: () => void;
+    onConfirmApproval: () => void;
+};
+
 export type AbilityBuilderValidationSeverity = "blocking" | "warning" | "note";
 
 export type AbilityBuilderValidationIssue = {
@@ -45,6 +61,8 @@ export type AbilityBuilderValidationSummary = {
 };
 
 export type AbilityBuilderContextValue = {
+    editorMode: "creator" | "moderation";
+    moderationControls: AbilityBuilderModerationControls | null;
     builderView: BuilderView;
     setBuilderView: React.Dispatch<React.SetStateAction<BuilderView>>;
     sidebarMode: SidebarMode;
@@ -98,6 +116,24 @@ export type AbilityBuilderContextValue = {
     onImportJson: (file: File) => Promise<void>;
     onDragOver: (event: React.DragEvent) => void;
     onDrop: (event: React.DragEvent) => void;
+    moderationPricing?: ModerationPricingControls;
+    publicationDialog?: PublicationDialogControls;
+};
+
+export type ModerationPricingControls = {
+    reconcilableNodeIds: string[];
+    reviewRequiredCount: number;
+    reconcileNode: (nodeId: string) => void;
+    reconcileAll: () => void;
+};
+
+export type PublicationDialogControls = {
+    open: boolean;
+    busy: boolean;
+    revision: number;
+    canConfirm: boolean;
+    onCancel: () => void;
+    onConfirm: () => void;
 };
 
 const AbilityBuilderContext = createContext<AbilityBuilderContextValue | null>(null);

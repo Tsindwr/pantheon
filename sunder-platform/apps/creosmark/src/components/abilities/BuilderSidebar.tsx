@@ -9,6 +9,7 @@ import { useAbilityBuilderContext } from "./AbilityBuilderContext";
 
 export default function BuilderSidebar() {
     const {
+        editorMode,
         builderView,
         sidebarMode,
         setSidebarMode,
@@ -33,6 +34,7 @@ export default function BuilderSidebar() {
         setCardState,
         cardIssues,
         nodes,
+        moderationPricing,
     } = useAbilityBuilderContext();
     const activationProfile = deriveActivationProfile(nodes);
 
@@ -98,24 +100,26 @@ export default function BuilderSidebar() {
                                     <p className={styles.sidebarCopy}>Drag blocks into the graph.</p>
                                 </div>
 
-                                <div className={styles.sidebarSection}>
-                                    <div className={styles.presetRow}>
-                                        <button
-                                            type="button"
-                                            className={styles.smallButton}
-                                            onClick={() => loadPreset("action")}
-                                        >
-                                            Blank Action
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className={styles.smallButton}
-                                            onClick={() => loadPreset("surge")}
-                                        >
-                                            Blank Surge
-                                        </button>
+                                {editorMode === "creator" ? (
+                                    <div className={styles.sidebarSection}>
+                                        <div className={styles.presetRow}>
+                                            <button
+                                                type="button"
+                                                className={styles.smallButton}
+                                                onClick={() => loadPreset("action")}
+                                            >
+                                                Blank Action
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={styles.smallButton}
+                                                onClick={() => loadPreset("surge")}
+                                            >
+                                                Blank Surge
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
+                                ) : null}
 
                                 <div className={styles.paletteAccordion}>
                                     {paletteSections.map((section) => {
@@ -230,6 +234,30 @@ export default function BuilderSidebar() {
                                                 }
                                                 onSelectionChange={updateModifierSelection}
                                             />
+                                        ) : null}
+
+                                        {selectedNode?.type === "marketModifier" &&
+                                            moderationPricing?.reconcilableNodeIds.includes(selectedNode.id) ? (
+                                            <div className={styles.sidebarSection}>
+                                                <div className={styles.eyebrow}>
+                                                    Publication Validation
+                                                </div>
+
+                                                <p className={styles.sidebarCopy}>
+                                                    This node has a stored price that differs from its current
+                                                    Experience Market option.
+                                                </p>
+
+                                                <button
+                                                    type={"button"}
+                                                    className={styles.smallButton}
+                                                    onClick={() =>
+                                                        moderationPricing.reconcileNode(selectedNode.id)
+                                                    }
+                                                >
+                                                    Use Catalog Price
+                                                </button>
+                                            </div>
                                         ) : null}
 
                                         {selectedNode.type === "freeformText" ? (
