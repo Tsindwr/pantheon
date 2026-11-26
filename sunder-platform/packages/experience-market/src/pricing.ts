@@ -193,6 +193,8 @@ export function calculateTotalFromCost(
 
 export function computeAbilitySummary(nodes: AbilityBuilderNode[]): AbilitySummary {
     const root = nodes.find((node): node is AbilityRootNodeType => node.type === 'abilityRoot');
+    const inheritedBaseCost: CostState = root?.data.pricingBasis?.kind === "commonAbility"
+        ? { ...root.data.pricingBasis.baseCost } : { ...ZERO_COST };
     const profile = deriveActivationProfile(nodes);
 
     const modifierNodes = nodes.filter(
@@ -233,10 +235,13 @@ export function computeAbilitySummary(nodes: AbilityBuilderNode[]): AbilitySumma
     // What the player actually pays: Focus + Body for Actions (Flipside is complimentary).
     // For non-Actions, all lanes contribute to the paid cost.
     const paid = isActionCard
-        ? sumCosts([focus, body])
-        : sumCosts([focus, body, flipside]);
+        ? sumCosts([inheritedBaseCost, focus, body])
+        : sumCosts([inheritedBaseCost, focus, body, flipside]);
 
-    const total = sumCosts(resolvedModifierData.map((node) => node.cost));
+    const total = sumCosts([
+        inheritedBaseCost,
+        ...resolvedModifierData.map((node) => node.cost)
+    ]);
 
     const paidTotal = calculateTotalFromCost(paid);
     const totalCost = calculateTotalFromCost(total);

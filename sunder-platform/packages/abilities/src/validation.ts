@@ -691,6 +691,16 @@ export async function assessStandardAbility(
     const issues = [...base.issues];
 
     for (const [index, node] of parsed.data.graph.nodes.entries()) {
+        if (node.type === "abilityRoot" && node.data.pricingBasis !== undefined) {
+            issue(
+                issues,
+                "policy.pricing.basis.authorization",
+                `graph.nodes[${index}].data.pricingBasis`,
+                "Inherited Common Ability pricing requires " +
+                "verified source provenance and explicit administrator authorization.",
+            );
+        }
+
         if (node.type !== "marketModifier") {
             continue;
         }

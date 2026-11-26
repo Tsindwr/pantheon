@@ -37,6 +37,19 @@ export const AbilityCostSchema = z.object({
     enhancements: pricedInteger,
 });
 
+const nonNegativePriceInteger = z.number().int().min(0).max(10000);
+
+export const CommonAbilityPricingBasisSchema = z.object({
+    kind: z.literal("commonAbility"),
+    sourceId: z.string().trim().min(1).max(256),
+    sourceTitle: z.string().trim().min(1).max(2048),
+    baseCost: z.object({
+        strings: nonNegativePriceInteger,
+        beats: z.number().int().min(0).max(9),
+        enhancements: z.number().int().min(0).max(100),
+    }),
+});
+
 const position = z.object({
     x: z.number().finite(),
     y: z.number().finite(),
@@ -51,6 +64,8 @@ const rootNode = z.object({
         title: shortText,
         abilityKind,
         summary: longText,
+
+        pricingBasis: CommonAbilityPricingBasisSchema.optional(),
     }),
 });
 

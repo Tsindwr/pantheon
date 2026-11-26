@@ -57,6 +57,25 @@ export function deriveModerationValidationIssues(
             };
         });
 
+    const rootWithInheritedPricing = nodes.find(
+        (node) => node.type === "abilityRoot"
+            && node.data.pricingBasis !== undefined,
+    );
+
+    if (rootWithInheritedPricing) {
+        localIssues.push({
+            id: "moderation.common-pricing." + rootWithInheritedPricing.id,
+            severity: "blocking",
+            source: "publish",
+            message: "This Ability inherits a Common Ability price. " +
+                "Source verification and administrator pricing authorization are required before publication.",
+            actionLabel: "Inspect inherited price",
+            targetView: "tree",
+            targetSidebarMode: "inspector",
+            targetNodeId: rootWithInheritedPricing.id,
+        });
+    }
+
     if (!serverFindings) return localIssues;
 
     const serverIssues = mapPublicationIssuesToNodes(

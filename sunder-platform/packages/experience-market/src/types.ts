@@ -16,10 +16,31 @@ export type CostState = {
     enhancements: number;
 };
 
+/**
+ * A Common Ability whose established price is used as the starting point for an administrator's adaptation.
+ *
+ * baseCost contains Strings and Beats before Enhancement pricing. Enhancement charges are calculated cumulatively
+ * with all subsequent modifiers.
+ */
+export type CommonAbilityPricingBasis = {
+    kind: "commonAbility";
+    sourceId: string;
+    sourceTitle: string;
+    baseCost: CostState;
+};
+
 export type AbilityRootData = {
     title: string;
     abilityKind: AbilityKind;
     summary: string;
+
+    /**
+     * Optional inherited price.
+     *
+     * Only administrators may configure this in Creosmark.
+     * Publication requires separate server authorization.
+     */
+    pricingBasis?: CommonAbilityPricingBasis;
 };
 
 export type ModifierSelectionValues = Record<string, string>;

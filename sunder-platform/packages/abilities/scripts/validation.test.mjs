@@ -758,3 +758,129 @@ test(
         );
     },
 );
+
+test(
+    "Inherited Common pricing is mechanically valid but not publishable",
+    async () => {
+        const document = fixture();
+
+        document.graph.nodes[0].data.pricingBasis = {
+            kind: "commonAbility",
+            sourceId: "common.example",
+            sourceTitle: "Example Common Ability",
+
+            baseCost: {
+                strings: 3,
+                beats: 0,
+                enhancements: 1,
+            },
+        };
+
+        const summary = computeAbilitySummary(
+            document.graph.nodes,
+        );
+
+        document.computed = computed(summary);
+
+        const mechanical =
+            await validateAbilityDocument(document);
+
+        assert.equal(
+            mechanical.valid,
+            true,
+            JSON.stringify(mechanical.issues),
+        );
+
+        assert.ok(mechanical.contentDigest);
+
+        const publication =
+            await assessStandardAbility(document);
+
+        assert.equal(publication.eligible, false);
+
+        assert.ok(
+            publication.issues.some(
+                (issue) =>
+                    issue.code ===
+                    "policy.pricing.basis.authorization",
+            ),
+        );
+    },
+);
+
+test(
+    "Invalid inherited price components fail schema validation",
+    async () => {
+        const document = fixture();
+
+        document.graph.nodes[0].data.pricingBasis = {
+            kind: "commonAbility",
+            sourceId: "common.example",
+            sourceTitle: "Example Common Ability",
+
+            baseCost: {
+                strings: -5,
+                beats: 0,
+                enhancements: 1,
+            },
+        };
+
+        const assessment =
+            await validateAbilityDocument(document);
+
+        assert.equal(assessment.valid, false);
+
+        assert.ok(
+            assessment.issues.some(
+                (issue) =>
+                    issue.code === "schema.invalid",
+            ),
+        );
+    },
+);
+
+test(
+    "Changing inherited price changes the canonical digest",
+    async () => {
+        const document = fixture();
+
+        document.graph.nodes[0].data.pricingBasis = {
+            kind: "commonAbility",
+            sourceId: "common.example",
+            sourceTitle: "Example Common Ability",
+
+            baseCost: {
+                strings: 3,
+                beats: 0,
+                enhancements: 1,
+            },
+        };
+
+        document.computed = computed(
+            computeAbilitySummary(document.graph.nodes),
+        );
+
+        const original =
+            await validateAbilityDocument(document);
+
+        const changed = clone(document);
+
+        changed.graph.nodes[0]
+            .data.pricingBasis.baseCost.strings = 4;
+
+        changed.computed = computed(
+            computeAbilitySummary(changed.graph.nodes),
+        );
+
+        const updated =
+            await validateAbilityDocument(changed);
+
+        assert.equal(original.valid, true);
+        assert.equal(updated.valid, true);
+
+        assert.notEqual(
+            original.contentDigest,
+            updated.contentDigest,
+        );
+    },
+);

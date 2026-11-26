@@ -218,6 +218,7 @@ export default function BuilderSidebar() {
                                             <AbilityRootInspector
                                                 node={selectedNode}
                                                 onChange={updateSelectedAbilityRoot}
+                                                canEditCommonPricing={editorMode === "moderation"}
                                             />
                                         ) : null}
 

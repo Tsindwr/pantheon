@@ -6,6 +6,7 @@ import {
     calculateTotalFromCost,
     getBaseEnhancementLimits,
     assessEnhancementCapacity,
+    computeAbilitySummary,
 } from "../dist/index.js";
 
 test("Enhancement prices accumulate through Fibonacci progression", () => {
@@ -222,3 +223,114 @@ test("Tier I cannot use Tier II Enhancement limit upgrades", () => {
         result.issues.includes("upgrade-requires-tier-ii"),
     );
 });
+
+test(
+    "A Common Ability baseline contributes to purchase cost",
+    () => {
+        const root = {
+            id: "root",
+            type: "abilityRoot",
+            position: { x: 0, y: 0 },
+
+            data: {
+                title: "Adapted Common Ability",
+                abilityKind: "trait",
+                summary: "",
+
+                pricingBasis: {
+                    kind: "commonAbility",
+                    sourceId: "common.example",
+                    sourceTitle: "Example Common Ability",
+
+                    baseCost: {
+                        strings: 3,
+                        beats: 0,
+                        enhancements: 1,
+                    },
+                },
+            },
+        };
+
+        const summary =
+            computeAbilitySummary([root]);
+
+        assert.deepEqual(summary.paid, {
+            strings: 3,
+            beats: 0,
+            enhancements: 1,
+        });
+
+        assert.equal(
+            calculateTotalFromCost(summary.paid),
+            5,
+        );
+    },
+);
+
+test(
+    "Additional Enhancements use cumulative pricing",
+    () => {
+        const root = {
+            id: "root",
+            type: "abilityRoot",
+            position: { x: 0, y: 0 },
+
+            data: {
+                title: "Adapted Common Ability",
+                abilityKind: "trait",
+                summary: "",
+
+                pricingBasis: {
+                    kind: "commonAbility",
+                    sourceId: "common.example",
+                    sourceTitle: "Example Common Ability",
+
+                    baseCost: {
+                        strings: 3,
+                        beats: 0,
+                        enhancements: 1,
+                    },
+                },
+            },
+        };
+
+        const additionalTarget = {
+            id: "target",
+            type: "marketModifier",
+            position: { x: 0, y: 0 },
+
+            data: {
+                label: "Targeting",
+                description: "Additional target.",
+                family: "effect",
+                lane: "body",
+
+                optionPoolId: "targetingMode",
+                selectedOptionId: "additionalTarget",
+
+                cost: {
+                    strings: 1,
+                    beats: 0,
+                    enhancements: 1,
+                },
+            },
+        };
+
+        const summary = computeAbilitySummary([
+            root,
+            additionalTarget,
+        ]);
+
+        assert.deepEqual(summary.paid, {
+            strings: 4,
+            beats: 0,
+            enhancements: 2,
+        });
+
+        // 4 base Strings + 5 Strings for 2 Enhancements.
+        assert.equal(
+            calculateTotalFromCost(summary.paid),
+            9,
+        );
+    },
+);
