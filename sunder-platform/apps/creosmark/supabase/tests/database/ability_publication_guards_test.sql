@@ -602,15 +602,14 @@ SELECT throws_ok(
        );
 
 SELECT results_eq(
-               $$
-                   SELECT ability_id
-        FROM public.ability_publication_events
-    $$,
-               ARRAY[
-                   'b0102000-0000-4000-8000-000000000102'::uuid
-                   ],
-               '43: Admin can inspect publication audit'
-       );
+   $$
+       SELECT ability_id
+       FROM public.ability_publication_events
+       WHERE ability_id = 'b0102000-0000-4000-8000-000000000102'::uuid
+   $$,
+   ARRAY['b0102000-0000-4000-8000-000000000102'::uuid],
+   '43: Admin can inspect publication audit'
+);
 
 RESET ROLE;
 

@@ -254,7 +254,7 @@ export default function AbilityRootInspector({
                     <div className={styles.okay}>
                         <strong>Inherited purchase price:</strong>
                         {" "}
-                        {Number.isFinite(inheritedTotal)
+                        {inheritedTotal !== null && Number.isFinite(inheritedTotal)
                             ? formatTotalAbilityCost(basis.baseCost) : "Invalid price"
                         }
                     </div>

@@ -14,6 +14,8 @@ import {
     isSplitCardFormat,
     AbilityCardSchema,
     AbilityDocumentSchema,
+    listPricingExceptionSubjects,
+    preparePricingExceptionAttestation,
 } from "../dist/index.js";
 
 function clone(value) {
@@ -882,5 +884,260 @@ test(
             original.contentDigest,
             updated.contentDigest,
         );
+    },
+);
+
+test(
+    "Ordinary catalog Abilities have no pricing exception subjects",
+    () => {
+        const document = fixture();
+
+        assert.deepEqual(
+            listPricingExceptionSubjects(document),
+            [],
+        );
+    },
+);
+
+test(
+    "Inherited Common pricing produces a precise exception subject",
+    () => {
+        const document = fixture();
+
+        document.graph.nodes[0].data.pricingBasis = {
+            kind: "commonAbility",
+            sourceId: "common.example",
+            sourceTitle: "Example Common Ability",
+            baseCost: {
+                strings: 3,
+                beats: 0,
+                enhancements: 1,
+            },
+        };
+
+        const subjects =
+            listPricingExceptionSubjects(document);
+
+        assert.deepEqual(subjects, [
+            {
+                kind: "common_basis",
+                nodeId: "root",
+                costSnapshot: {
+                    strings: 3,
+                    beats: 0,
+                    enhancements: 1,
+                },
+                sourceId: "common.example",
+                sourceTitle: "Example Common Ability",
+            },
+        ]);
+    },
+);
+
+test(
+    "A valid Common price request binds to the canonical digest",
+    async () => {
+        const document = fixture();
+
+        document.graph.nodes[0].data.pricingBasis = {
+            kind: "commonAbility",
+            sourceId: "common.example",
+            sourceTitle: "Example Common Ability",
+            baseCost: {
+                strings: 3,
+                beats: 0,
+                enhancements: 1,
+            },
+        };
+
+        document.computed = computed(
+            computeAbilitySummary(document.graph.nodes),
+        );
+
+        const result =
+            await preparePricingExceptionAttestation(
+                document,
+                {
+                    nodeId: "root",
+                    kind: "common_basis",
+                    justification:
+                        "The adapted Ability retains the original Common Ability pricing basis.",
+                    evidence:
+                        "Sunder Common Abilities reference, Example Common Ability entry.",
+                },
+            );
+
+        assert.equal(result.ok, true);
+
+        if (!result.ok) {
+            assert.fail(result.message);
+        }
+
+        assert.match(
+            result.attestation.contentDigest,
+            /^[0-9a-f]{64}$/,
+        );
+
+        assert.equal(
+            result.attestation.subject.costSnapshot.strings,
+            3,
+        );
+    },
+);
+
+test(
+    "A Common pricing request without source evidence is rejected",
+    async () => {
+        const document = fixture();
+
+        document.graph.nodes[0].data.pricingBasis = {
+            kind: "commonAbility",
+            sourceId: "common.example",
+            sourceTitle: "Example Common Ability",
+            baseCost: {
+                strings: 3,
+                beats: 0,
+                enhancements: 1,
+            },
+        };
+
+        document.computed = computed(
+            computeAbilitySummary(document.graph.nodes),
+        );
+
+        const result =
+            await preparePricingExceptionAttestation(
+                document,
+                {
+                    nodeId: "root",
+                    kind: "common_basis",
+                    justification:
+                        "The original Common Ability price has been reviewed.",
+                },
+            );
+
+        assert.equal(result.ok, false);
+
+        if (result.ok) {
+            assert.fail("Missing evidence was accepted.");
+        }
+
+        assert.equal(
+            result.code,
+            "SOURCE_EVIDENCE_REQUIRED",
+        );
+    },
+);
+
+test(
+    "A pricing exception cannot target an ordinary node",
+    async () => {
+        const document = fixture();
+
+        const result =
+            await preparePricingExceptionAttestation(
+                document,
+                {
+                    nodeId: "damage",
+                    kind: "modifier_override",
+                    justification:
+                        "A special modifier pricing exception is requested for review.",
+                },
+            );
+
+        assert.equal(result.ok, false);
+
+        if (result.ok) {
+            assert.fail("Ordinary catalog price was overridable.");
+        }
+
+        assert.equal(
+            result.code,
+            "SUBJECT_NOT_FOUND",
+        );
+    },
+);
+
+test(
+    "A modifier override is recognized without changing its price",
+    async () => {
+        const document = fixture();
+
+        const damage = document.graph.nodes.find(
+            (node) => node.id === "damage",
+        );
+
+        assert.ok(damage);
+
+        const override = {
+            strings: 7,
+            beats: 0,
+            enhancements: 0,
+        };
+
+        damage.data.cost = clone(override);
+        damage.data.costOverride = clone(override);
+
+        document.computed = computed(
+            computeAbilitySummary(document.graph.nodes),
+        );
+
+        const original = clone(document);
+
+        const result =
+            await preparePricingExceptionAttestation(
+                document,
+                {
+                    nodeId: "damage",
+                    kind: "modifier_override",
+                    justification:
+                        "This modifier requires an exceptional price approved by the administrator.",
+                },
+            );
+
+        assert.equal(result.ok, true);
+
+        if (!result.ok) {
+            assert.fail(result.message);
+        }
+
+        assert.deepEqual(
+            result.attestation.subject.costSnapshot,
+            override,
+        );
+
+        assert.deepEqual(
+            document,
+            original,
+            "Preparing an attestation must not modify the Ability.",
+        );
+    },
+);
+
+test(
+    "Invalid Ability documents cannot produce attestations",
+    async () => {
+        const document = fixture();
+
+        document.graph.nodes[0].data.title = "";
+
+        const result =
+            await preparePricingExceptionAttestation(
+                document,
+                {
+                    nodeId: "damage",
+                    kind: "modifier_override",
+                    justification:
+                        "This request must not authorize a structurally invalid document.",
+                },
+            );
+
+        assert.equal(result.ok, false);
+
+        if (result.ok) {
+            assert.fail("Invalid document was accepted.");
+        }
+
+        assert.equal(result.code, "DOCUMENT_INVALID");
     },
 );
