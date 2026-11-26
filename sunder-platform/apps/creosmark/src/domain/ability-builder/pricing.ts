@@ -4,6 +4,7 @@ export {
     computeAbilitySummary,
     formatCost,
     formatMarketCost,
+    formatTotalAbilityCost,
     formatSignedNumber,
     sumCosts,
     toneForFamily,

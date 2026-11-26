@@ -35,6 +35,7 @@ const {
     inspectModerationPrices,
     reconcileModerationPrices,
     mapPublicationIssuesToNodes,
+    synchronizeModifierCatalogCost,
 } = await import(moduleUrl);
 
 const ZERO = {
@@ -298,6 +299,136 @@ test(
         assert.equal(
             mapped[0].targetNodeId,
             undefined,
+        );
+    },
+);
+
+test(
+    "Authored catalog modifiers synchronize stored prices",
+    () => {
+        const original = modifier("target").data;
+
+        const result =
+            synchronizeModifierCatalogCost(original);
+
+        assert.deepEqual(result.cost, {
+            strings: 1,
+            beats: 0,
+            enhancements: 1,
+        });
+
+        assert.deepEqual(original.cost, ZERO);
+    },
+);
+
+test(
+    "Changing a catalog option updates its stored price",
+    () => {
+        const original = modifier("target").data;
+
+        const result =
+            synchronizeModifierCatalogCost({
+                ...original,
+                selectedOptionId: "nearAoe",
+            });
+
+        assert.deepEqual(result.cost, {
+            strings: 2,
+            beats: 0,
+            enhancements: 1,
+        });
+
+        assert.equal(
+            result.selectedOptionId,
+            "nearAoe",
+        );
+    },
+);
+
+test(
+    "Manual overrides remain explicit during synchronization",
+    () => {
+        const override = {
+            strings: 7,
+            beats: 0,
+            enhancements: 1,
+        };
+
+        const result =
+            synchronizeModifierCatalogCost({
+                ...modifier("target").data,
+                costOverride: { ...override },
+            });
+
+        assert.deepEqual(
+            result.costOverride,
+            override,
+        );
+
+        assert.deepEqual(
+            result.cost,
+            override,
+        );
+
+        const finding =
+            inspectModerationPrices([
+                root(),
+                {
+                    ...modifier("target"),
+                    data: result,
+                },
+            ]);
+
+        assert.equal(
+            finding[0].kind,
+            "override-review",
+        );
+    },
+);
+
+test(
+    "Unknown catalog selections are not silently replaced",
+    () => {
+        const original = {
+            ...modifier("target").data,
+            selectedOptionId: "unknown-option",
+        };
+
+        const result =
+            synchronizeModifierCatalogCost(original);
+
+        assert.deepEqual(
+            result,
+            original,
+        );
+    },
+);
+
+test(
+    "Card modifier findings map to their existing graph nodes",
+    () => {
+        const nodes = [
+            root(),
+            modifier("target-one"),
+        ];
+
+        const mapped =
+            mapPublicationIssuesToNodes(
+                [
+                    {
+                        code: "card.modifier.unused",
+                        path: "card:target-one",
+                        message: "Modifier is not placed.",
+                        severity: "blocking",
+                    },
+                ],
+                nodes,
+                nodes,
+            );
+
+        assert.equal(
+            mapped[0].targetNodeId,
+            "target-one",
         );
     },
 );

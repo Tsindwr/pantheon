@@ -6,6 +6,7 @@ import type {
     AbilityBuilderNode,
     CostState,
     ModifierNodeType,
+    ModifierData,
 } from "@sunderttrpg/experience-market";
 import type {
     AbilityValidationIssue
@@ -49,6 +50,33 @@ function costsEqual(first: CostState, second: CostState): boolean {
         first.beats === second.beats &&
         first.enhancements === second.enhancements
     );
+}
+
+/**
+ * Synchronize an authored modifier with its selected catalog option, without changing its selection or override policy.
+ *
+ * Unknown and incomplete selections are preserved so that validation can report them rather than silently selecting a
+ * different option.
+ *
+ * A manual costOverride remains intact. Synchronizing the stored cost does not authorize that override for publication.
+ */
+export function synchronizeModifierCatalogCost(data: ModifierData): ModifierData {
+    if (!data.optionPoolId || !data.selectedOptionId) return data;
+
+    const pool = getModifierOptionPool(data.optionPoolId);
+
+    if (!pool || !pool.options.some((option) => option.id === data.selectedOptionId)) {
+        return data;
+    }
+
+    const canonicalCost = resolveModifierData(data).cost;
+
+    if (costsEqual(data.cost, canonicalCost)) return data;
+
+    return {
+        ...data,
+        cost: { ...canonicalCost },
+    };
 }
 
 function isMarketModifierNode(
@@ -187,6 +215,15 @@ function getIssueNodeId(
         if (!Number.isSafeInteger(index)) return undefined;
 
         return persistedNodes[index]?.id;
+    }
+
+    if (issue.path.startsWith("card:")) {
+        const modifierId = issue.path.slice("card:".length);
+
+        const modifier = persistedNodes.find((node) =>
+            node.id === modifierId && node.type === "marketModifier");
+
+        return modifier?.id;
     }
 
     const rootIssueCodes = new Set([

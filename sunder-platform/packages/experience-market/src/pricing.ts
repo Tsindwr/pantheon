@@ -42,6 +42,49 @@ function formatUnit(value: number, singular: string, plural: string): string {
     return `${value} ${value === 1 ? singular : plural}`;
 }
 
+/**
+ * Display the full Experience Market purchase price.
+ *
+ * Enhancement costs are included in the String total.
+ * The Enhancement count separately represents capacity.
+ */
+export function formatTotalAbilityCost(
+    cost: Parameters<typeof calculateTotalFromCost>[0],
+): string {
+    const total = calculateTotalFromCost(cost);
+
+    if (!Number.isFinite(total)) return "Invalid cost";
+
+    const totalBeats = Math.round(total * 10);
+    const sign = totalBeats < 0 ? "-" : "";
+    const absoluteBeats = Math.abs(totalBeats);
+
+    const strings = Math.floor(absoluteBeats / 10);
+    const beats = absoluteBeats % 10;
+
+    const currencyParts: string[] = [];
+
+    if (strings !== 0 || beats === 0) {
+        currencyParts.push(
+            `${strings} ${strings === 1 ? "String" : "Strings"}`
+        );
+    }
+
+    if (beats !== 0) {
+        currencyParts.push(
+            `${beats} ${beats === 1 ? "Beat" : "Beats"}`,
+        );
+    }
+
+    const currency = `${sign}${currencyParts.join(" · ")}`;
+
+    const enhancements = cost.enhancements;
+
+    const capacity =`${enhancements} ${Math.abs(enhancements) === 1 ? "Enhancement" : "Enhancements"}`;
+
+    return `${currency} (${capacity})`;
+}
+
 export function formatMarketCost(cost: CostState): string {
     const totalTenths = (cost.strings * 10) + cost.beats;
     const signPrefix = totalTenths < 0 ? "-" : "";

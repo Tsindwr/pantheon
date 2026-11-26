@@ -26,6 +26,7 @@ import {
     resolveModifierData,
 } from "../../../domain";
 import { createNodeFromTemplate } from "../../../application";
+import { synchronizeModifierCatalogCost } from "@sunderttrpg/abilities";
 
 export const ACTIVATION_DIRECT_HANDLE_ID = "activation-direct";
 export const ACTIVATION_INDIRECT_HANDLE_ID = "activation-indirect";
@@ -406,7 +407,7 @@ export function useAbilityBuilderGraph(options: AbilityBuilderGraphOptions = {})
         setNodes((current) =>
             current.map((node): AbilityBuilderNode => {
                 if (node.id !== selectedNodeId || node.type !== "marketModifier") return node;
-                return { ...node, data: updater(node.data) };
+                return { ...node, data: synchronizeModifierCatalogCost(updater(node.data)) };
             }),
         );
     }
@@ -454,15 +455,17 @@ export function useAbilityBuilderGraph(options: AbilityBuilderGraphOptions = {})
             const withSelection = current.map((node): AbilityBuilderNode => {
                 if (node.id !== modifierNodeId || node.type !== "marketModifier") return node;
 
+                const updatedData: ModifierData = {
+                    ...node.data,
+                    selectionValues: {
+                        ...(node.data.selectionValues ?? {}),
+                        [selectionId]: value,
+                    }
+                };
+
                 return {
                     ...node,
-                    data: {
-                        ...node.data,
-                        selectionValues: {
-                            ...(node.data.selectionValues ?? {}),
-                            [selectionId]: value,
-                        },
-                    },
+                    data: synchronizeModifierCatalogCost(updatedData)
                 };
             });
 
@@ -491,12 +494,15 @@ export function useAbilityBuilderGraph(options: AbilityBuilderGraphOptions = {})
         setNodes((current) => {
             const withOption = current.map((node): AbilityBuilderNode => {
                 if (node.id !== modifierNodeId || node.type !== "marketModifier") return node;
+
+                const updatedData: ModifierData = {
+                    ...node.data,
+                    selectedOptionId: optionId,
+                };
+
                 return {
                     ...node,
-                    data: {
-                        ...node.data,
-                        selectedOptionId: optionId,
-                    },
+                    data: synchronizeModifierCatalogCost(updatedData),
                 };
             });
 
@@ -539,12 +545,17 @@ export function useAbilityBuilderGraph(options: AbilityBuilderGraphOptions = {})
         setNodes((current) =>
             current.map((node): AbilityBuilderNode => {
                 if (node.id !== modifierNodeId || node.type !== "marketModifier") return node;
+
+                const updatedDate: ModifierData = {
+                    ...node.data,
+                    selectionValues: updater(
+                        node.data.selectionValues ?? {},
+                    ),
+                };
+
                 return {
                     ...node,
-                    data: {
-                        ...node.data,
-                        selectionValues: updater(node.data.selectionValues ?? {}),
-                    },
+                    data: synchronizeModifierCatalogCost(updatedDate),
                 };
             }),
         );
@@ -561,16 +572,28 @@ export function useAbilityBuilderGraph(options: AbilityBuilderGraphOptions = {})
             [newNode],
             isActionCard,
         )[0] ?? newNode;
+        const pricedNode: AbilityBuilderNode = normalizedNode.type === "marketModifier"
+            ? {
+                ...normalizedNode,
+                data: synchronizeModifierCatalogCost(normalizedNode.data),
+            } : normalizedNode;
         recordChange();
-        setNodes((current) => [...current, normalizedNode]);
-        setSelectedNodeId(normalizedNode.id);
+        setNodes((current) => [...current, pricedNode]);
+        setSelectedNodeId(pricedNode.id);
     }
 
     function loadPreset(kind: "action" | "surge") {
         const preset = kind === "surge" ? buildBlankSurgePreset() : buildBlankActionPreset();
         const next = normalizeGraphLaneRules(preset.nodes, preset.edges as Edge[]);
         recordChange();
-        setNodes(next.nodes);
+        setNodes(next.nodes.map((node): AbilityBuilderNode => {
+            if (node.type !== "marketModifier") return node;
+
+            return {
+                ...node,
+                data: synchronizeModifierCatalogCost(node.data),
+            };
+        }));
         setEdges(next.edges);
         setSelectedNodeId(next.nodes[0]?.id ?? null);
     }

@@ -231,39 +231,6 @@ export default function BuilderWorkspace() {
                     </div>
                 ) : null}
 
-                {moderationControls?.confirming ? (
-                    <div
-                        role="group"
-                        aria-label="Confirm Ability publication"
-                        className={styles.publishStatus}
-                    >
-                        <strong>
-                            Publish saved revision {moderationControls.revision}?
-                        </strong>
-                        <p>
-                            This operation creates a permanent publication audit
-                            record. Unsaved changes are never included.
-                        </p>
-                        <button
-                            type="button"
-                            className={styles.secondaryButton}
-                            onClick={moderationControls.onCancelApproval}
-                            disabled={moderationControls.busy}
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="button"
-                            className={styles.publishButton}
-                            onClick={moderationControls.onConfirmApproval}
-                            disabled={!moderationControls.canApprove}
-                            data-testid="ability-approval-action"
-                        >
-                            Confirm Publication
-                        </button>
-                    </div>
-                ) : null}
-
                 {moderationControls?.error ? (
                     <div
                         className={`${styles.publishStatus} ${styles.publishStatusError}`}

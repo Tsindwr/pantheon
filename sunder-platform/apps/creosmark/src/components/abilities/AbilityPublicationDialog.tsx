@@ -142,6 +142,7 @@ export default function AbilityPublicationDialog({
                         className={styles.primary}
                         onClick={onConfirm}
                         disabled={busy || !canConfirm}
+                        data-testid={"ability-approval-action"}
                     >
                         {busy ? "Publishing..." : "Confirm Publication"}
                     </button>

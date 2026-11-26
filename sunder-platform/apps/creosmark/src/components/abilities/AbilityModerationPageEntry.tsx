@@ -1,893 +1,366 @@
-import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import type { Edge } from "@xyflow/react";
+import React, { useEffect, useRef, useState } from "react";
+
 import AppShell from "../app/AppShell.tsx";
 import AuthGate from "../auth/AuthGate.tsx";
 import SignInScreen from "../auth/SignInScreen.tsx";
+
+import AbilityBuilderShell from "./AbilityBuilderShell.tsx";
+
 import { routes } from "../../lib/routing.ts";
+
 import {
-    approveAbilityDraft,
     getCurrentUserType,
     listModerationAbilities,
-    saveModerationAbilityDraft,
     type AbilityModerationSummary,
 } from "../../infrastructure";
-import {
-    computeAbilitySummary,
-    createAbilityPublishDocument,
-    createDefaultAbilityCardState,
-    deriveActivationProfile,
-    formatMarketCost,
-    getModifierOptionPool,
-    normalizeAbilityCardState,
-    resolveModifierData,
-    validateAbilityCard,
-    type AbilityBuilderNode,
-    type AbilityCardState,
-    type AbilityPublishDocument,
-    type AbilityRootData,
-    type FreeformData,
-    type ModifierData,
-    type ModifierNodeType,
-} from "../../domain";
-import AbilityCardInspectorSidebar from "../../presentation/abilities/AbilityCardInspectorSidebar";
-import AbilityCardModifierSidebar from "../../presentation/abilities/AbilityCardModifierSidebar";
-import AbilityCardCanvas from "../../presentation/abilities/cards/AbilityCardCanvas";
-import AbilityRootInspector from "../../presentation/abilities/inspectors/AbilityRootInspector";
-import FreeformInspector from "../../presentation/abilities/inspectors/FreeformInspector";
-import ModifierInspector from "../../presentation/abilities/inspectors/ModifierInspector";
+
 import styles from "./AbilityModerationPageEntry.module.css";
 
-type EditorTab = "inputs" | "card" | "inventory" | "json";
+type EditorState = {
+    dirty: boolean;
+    busy: boolean;
+};
 
-const EDITOR_TABS: Array<{ id: EditorTab; label: string }> = [
-    { id: "inputs", label: "Inputs" },
-    { id: "card", label: "Card Settings" },
-    { id: "inventory", label: "Inventory" },
-    { id: "json", label: "JSON" },
-];
+type PendingNavigation =
+    | { kind: "select"; abilityId: string }
+    | { kind: "refresh" };
 
-function cloneValue<T>(value: T): T {
-    if (typeof structuredClone === "function") {
-        return structuredClone(value);
-    }
-
-    return JSON.parse(JSON.stringify(value)) as T;
-}
-
-function parseAbilityDocument(jsonText: string): AbilityPublishDocument {
-    const parsed = JSON.parse(jsonText) as Partial<AbilityPublishDocument>;
-
-    if (
-        !parsed ||
-        typeof parsed !== "object" ||
-        !parsed.graph ||
-        !Array.isArray(parsed.graph.nodes) ||
-        !Array.isArray(parsed.graph.edges)
-    ) {
-        throw new Error("Ability document must include graph.nodes and graph.edges arrays.");
-    }
-
-    return parsed as AbilityPublishDocument;
-}
-
-function toBuilderEdges(
-    edges: AbilityPublishDocument["graph"]["edges"],
-): Edge[] {
-    return edges.map((edge) => ({
-        id: edge.id,
-        source: edge.source,
-        target: edge.target,
-        sourceHandle: edge.sourceHandle ?? undefined,
-        targetHandle: edge.targetHandle ?? undefined,
-    }));
-}
-
-function rebuildReviewDocument(
-    baseDocument: AbilityPublishDocument,
-    nodes: AbilityBuilderNode[],
-    edges: Edge[],
-    cardState: AbilityCardState,
-): AbilityPublishDocument {
-    const normalizedCardState = normalizeAbilityCardState(nodes, cardState);
-    const summary = computeAbilitySummary(nodes);
-    const rebuilt = createAbilityPublishDocument({
-        nodes,
-        edges,
-        summary,
-        cardState: normalizedCardState,
-    });
-
-    return {
-        ...rebuilt,
-        abilityId: baseDocument.abilityId,
-    };
-}
-
-function normalizeReviewDocument(
-    document: AbilityPublishDocument,
-    abilityId: string,
-): AbilityPublishDocument {
-    const cloned = cloneValue(document);
-    const nodes = cloned.graph.nodes;
-    const edges = toBuilderEdges(cloned.graph.edges);
-    const cardState = cloned.card ?? createDefaultAbilityCardState(nodes);
-
-    return rebuildReviewDocument(
-        {
-            ...cloned,
-            abilityId,
-        },
-        nodes,
-        edges,
-        cardState,
-    );
-}
-
-function getNodeTitle(node: AbilityBuilderNode): string {
-    if (node.type === "abilityRoot") {
-        return node.data.title.trim() || "Untitled Ability";
-    }
-
-    if (node.type === "marketModifier") {
-        return resolveModifierData(node.data).label;
-    }
-
-    return node.data.title.trim() || "Freeform Text";
-}
-
-function getNodeMeta(node: AbilityBuilderNode): string {
-    if (node.type === "abilityRoot") {
-        return "Root";
-    }
-
-    if (node.type === "marketModifier") {
-        const resolved = resolveModifierData(node.data);
-        return `${resolved.family} · ${resolved.lane} · ${formatMarketCost(resolved.cost)}`;
-    }
-
-    return `${node.data.lane} · Freeform`;
-}
-
-function getRootNodeId(nodes: AbilityBuilderNode[]): string | null {
-    return nodes.find((node) => node.type === "abilityRoot")?.id ?? nodes[0]?.id ?? null;
-}
+const EMPTY_EDITOR_STATE: EditorState = {
+    dirty: false,
+    busy: false,
+};
 
 function InnerAbilityModerationPage() {
     const [loadingAccess, setLoadingAccess] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
 
-    const [rows, setRows] = useState<AbilityModerationSummary[]>([]);
     const [loadingRows, setLoadingRows] = useState(false);
-    const [errorText, setErrorText] = useState<string | null>(null);
+    const [rows, setRows] =
+        useState<AbilityModerationSummary[]>([]);
 
-    const [selectedAbilityId, setSelectedAbilityId] = useState<string | null>(null);
-    const [draftDocument, setDraftDocument] = useState<AbilityPublishDocument | null>(null);
-    const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-    const [activeEditorTab, setActiveEditorTab] = useState<EditorTab>("inputs");
-    const [documentText, setDocumentText] = useState("");
-    const [jsonDirty, setJsonDirty] = useState(false);
-    const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
-    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-    const [approvalConfirmation, setApprovalConfirmation] = useState(false);
+    const [selectedAbilityId, setSelectedAbilityId] =
+        useState<string | null>(null);
 
-    const approvalRequestRef = useRef<{
-        abilityId: string;
-        revision: number;
-        requestId: string;
-    } | null>(null);
+    const [editorState, setEditorState] =
+        useState<EditorState>(EMPTY_EDITOR_STATE);
 
-    const selectedRow = useMemo(
-        () => rows.find((row) => row.id === selectedAbilityId) ?? null,
-        [rows, selectedAbilityId],
-    );
+    const [reloadNonce, setReloadNonce] = useState(0);
 
-    const nodes = draftDocument?.graph.nodes ?? [];
-    const selectedNode = useMemo(
-        () => nodes.find((node) => node.id === selectedNodeId) ?? null,
-        [nodes, selectedNodeId],
-    );
-    const summary = useMemo(
-        () => (draftDocument ? computeAbilitySummary(draftDocument.graph.nodes) : null),
-        [draftDocument],
-    );
-    const cardIssues = useMemo(
-        () => (draftDocument ? validateAbilityCard(draftDocument.graph.nodes, draftDocument.card) : []),
-        [draftDocument],
-    );
-    const blockingCardIssues = useMemo(
-        () => cardIssues.filter((issue) => issue.severity === "blocking"),
-        [cardIssues],
-    );
-    const activationProfile = useMemo(
-        () => deriveActivationProfile(nodes),
-        [nodes],
-    );
-    const selectedModifierResolved = useMemo(
-        () =>
-            selectedNode?.type === "marketModifier"
-                ? resolveModifierData(selectedNode.data)
-                : null,
-        [selectedNode],
-    );
-    const selectedModifierOptionPool = useMemo(
-        () =>
-            selectedNode?.type === "marketModifier" && selectedNode.data.optionPoolId
-                ? getModifierOptionPool(selectedNode.data.optionPoolId)
-                : undefined,
-        [selectedNode],
-    );
-    const jsonParseError = useMemo(() => {
-        if (!jsonDirty) return null;
-        if (!documentText.trim()) return "Ability document cannot be empty.";
+    const [errorText, setErrorText] =
+        useState<string | null>(null);
 
-        try {
-            parseAbilityDocument(documentText);
-            return null;
-        } catch (error) {
-            return error instanceof Error ? error.message : "Invalid ability JSON.";
+    const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation | null>(null);
+
+    const discardDialogRef = useRef<HTMLDialogElement | null>(null);
+
+    useEffect(() => {
+        const dialog = discardDialogRef.current;
+        if (!dialog) return;
+
+        if (pendingNavigation && !dialog.open) {
+            dialog.showModal();
+        } else if (!pendingNavigation && dialog.open) {
+            dialog.close();
         }
-    }, [documentText, jsonDirty]);
-    const approvalBlocked = Boolean(
-        !selectedRow ||
-        !draftDocument ||
-        jsonDirty ||
-        hasUnsavedChanges ||
-        saveState === "saving" ||
-        (summary && summary.warnings.length > 0) ||
-        blockingCardIssues.length > 0,
-    );
+    }, [pendingNavigation]);
 
-    const refreshDocumentText = useCallback((document: AbilityPublishDocument | null) => {
-        setDocumentText(document ? JSON.stringify(document, null, 2) : "");
-    }, []);
+    const selectedRow =
+        rows.find((row) => row.id === selectedAbilityId) ??
+        null;
 
-    async function loadRows(abilityIdToKeep?: string | null) {
+    async function loadQueue() {
         setLoadingRows(true);
         setErrorText(null);
 
         try {
-            const nextRows = await listModerationAbilities("draft");
+            const nextRows =
+                await listModerationAbilities("draft");
+
             setRows(nextRows);
 
-            const preferredId = abilityIdToKeep ?? selectedAbilityId;
-            if (preferredId && nextRows.some((row) => row.id === preferredId)) {
-                setSelectedAbilityId(preferredId);
-            } else {
-                setSelectedAbilityId(nextRows[0]?.id ?? null);
-            }
+            setSelectedAbilityId((current) =>
+                nextRows.some((row) => row.id === current)
+                    ? current
+                    : nextRows[0]?.id ?? null,
+            );
         } catch (error) {
-            setErrorText(error instanceof Error ? error.message : "Failed to load draft abilities.");
+            setErrorText(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to load the moderation queue.",
+            );
         } finally {
             setLoadingRows(false);
         }
     }
 
     useEffect(() => {
-        let cancelled = false;
+        let active = true;
 
-        async function loadAccess() {
+        async function initialize() {
             try {
-                setLoadingAccess(true);
-                const userType = await getCurrentUserType();
-                if (cancelled) return;
+                const userType =
+                    await getCurrentUserType();
 
-                setIsAdmin(userType === "admin");
-                if (userType === "admin") {
-                    await loadRows(null);
+                if (!active) return;
+
+                const admin = userType === "admin";
+
+                setIsAdmin(admin);
+
+                if (admin) {
+                    await loadQueue();
                 }
             } catch (error) {
-                if (cancelled) return;
-                setErrorText(error instanceof Error ? error.message : "Failed to verify admin access.");
+                if (!active) return;
+
+                setErrorText(
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to verify administrator access.",
+                );
             } finally {
-                if (!cancelled) {
+                if (active) {
                     setLoadingAccess(false);
                 }
             }
         }
 
-        void loadAccess();
+        void initialize();
 
         return () => {
-            cancelled = true;
+            active = false;
         };
     }, []);
 
-    useEffect(() => {
-        if (!selectedRow) {
-            setHasUnsavedChanges(false);
-            setApprovalConfirmation(false);
-            approvalRequestRef.current = null;
-            setDraftDocument(null);
-            setSelectedNodeId(null);
-            setDocumentText("");
-            setJsonDirty(false);
-            setSaveState("idle");
+    function selectDraft(id: string) {
+        if (id === selectedAbilityId || editorState.busy) return;
+
+
+        if (editorState.dirty) {
+            setPendingNavigation({
+                kind: "select",
+                abilityId: id,
+            });
             return;
         }
 
-        try {
-            const nextDocument = normalizeReviewDocument(
-                selectedRow.abilityDocument,
-                selectedRow.id,
-            );
-            setErrorText(null);
-            setDraftDocument(nextDocument);
-            setSelectedNodeId(getRootNodeId(nextDocument.graph.nodes));
-            refreshDocumentText(nextDocument);
-            setJsonDirty(false);
-            setSaveState("idle");
-            setActiveEditorTab("inputs");
-        } catch (error) {
-            setDraftDocument(null);
-            setSelectedNodeId(null);
-            setDocumentText(JSON.stringify(selectedRow.abilityDocument, null, 2));
-            setJsonDirty(false);
-            setErrorText(
-                error instanceof Error
-                    ? error.message
-                    : "Failed to prepare ability document for review.",
-            );
-        }
-    }, [selectedRow?.id, refreshDocumentText]);
-
-    useEffect(() => {
-        if (!draftDocument || jsonDirty) return;
-        refreshDocumentText(draftDocument);
-    }, [draftDocument, jsonDirty, refreshDocumentText]);
-
-    const updateDraftParts = useCallback((
-        updater: (current: AbilityPublishDocument) => {
-            nodes?: AbilityBuilderNode[];
-            cardState?: AbilityCardState;
-        },
-    ) => {
-        setSaveState("idle");
-        setHasUnsavedChanges(true);
-        setApprovalConfirmation(false);
-        approvalRequestRef.current = null;
-        setJsonDirty(false);
-        setDraftDocument((current) => {
-            if (!current) return current;
-
-            const updates = updater(current);
-            return rebuildReviewDocument(
-                current,
-                updates.nodes ?? current.graph.nodes,
-                toBuilderEdges(current.graph.edges),
-                updates.cardState ?? current.card,
-            );
-        });
-    }, []);
-
-    const updateSelectedAbilityRoot = useCallback((updater: (data: AbilityRootData) => AbilityRootData) => {
-        if (!selectedNodeId) return;
-
-        updateDraftParts((current) => ({
-            nodes: current.graph.nodes.map((node): AbilityBuilderNode => {
-                if (node.id !== selectedNodeId || node.type !== "abilityRoot") return node;
-
-                return {
-                    ...node,
-                    data: updater(node.data),
-                };
-            }),
-        }));
-    }, [selectedNodeId, updateDraftParts]);
-
-    const updateSelectedModifier = useCallback((updater: (data: ModifierData) => ModifierData) => {
-        if (!selectedNodeId) return;
-
-        updateDraftParts((current) => ({
-            nodes: current.graph.nodes.map((node): AbilityBuilderNode => {
-                if (node.id !== selectedNodeId || node.type !== "marketModifier") return node;
-
-                return {
-                    ...node,
-                    data: updater(node.data),
-                };
-            }),
-        }));
-    }, [selectedNodeId, updateDraftParts]);
-
-    const updateSelectedFreeform = useCallback((updater: (data: FreeformData) => FreeformData) => {
-        if (!selectedNodeId) return;
-
-        updateDraftParts((current) => ({
-            nodes: current.graph.nodes.map((node): AbilityBuilderNode => {
-                if (node.id !== selectedNodeId || node.type !== "freeformText") return node;
-
-                return {
-                    ...node,
-                    data: updater(node.data),
-                };
-            }),
-        }));
-    }, [selectedNodeId, updateDraftParts]);
-
-    const updateModifierSelection = useCallback((selectionId: string, value: string) => {
-        updateSelectedModifier((data) => ({
-            ...data,
-            selectionValues: {
-                ...(data.selectionValues ?? {}),
-                [selectionId]: value,
-            },
-        }));
-    }, [updateSelectedModifier]);
-
-    const updateModifierOption = useCallback((optionId: string) => {
-        updateSelectedModifier((data) => ({
-            ...data,
-            selectedOptionId: optionId,
-        }));
-    }, [updateSelectedModifier]);
-
-    const updateCardState = useCallback((nextCardState: AbilityCardState) => {
-        updateDraftParts(() => ({
-            cardState: nextCardState,
-        }));
-    }, [updateDraftParts]);
-
-    const applyAdvancedJson = useCallback(() => {
-        if (!selectedRow || jsonParseError) return;
-
-        try {
-            const nextDocument = normalizeReviewDocument(
-                parseAbilityDocument(documentText),
-                selectedRow.id,
-            );
-            setDraftDocument(nextDocument);
-            setHasUnsavedChanges(true);
-            setApprovalConfirmation(false);
-            approvalRequestRef.current = null;
-            setSelectedNodeId((current) =>
-                current && nextDocument.graph.nodes.some((node) => node.id === current)
-                    ? current
-                    : getRootNodeId(nextDocument.graph.nodes),
-            );
-            setJsonDirty(false);
-            setSaveState("idle");
-        } catch (error) {
-            setErrorText(error instanceof Error ? error.message : "Failed to apply JSON.");
-        }
-    }, [documentText, jsonParseError, selectedRow]);
-
-    const resetAdvancedJson = useCallback(() => {
-        refreshDocumentText(draftDocument);
-        setJsonDirty(false);
-    }, [draftDocument, refreshDocumentText]);
-
-    async function handleSaveDraft() {
-        if (!selectedRow || !draftDocument || jsonDirty ||
-            !hasUnsavedChanges || saveState === "saving") return;
-
-        const latestDocument = rebuildReviewDocument(
-            draftDocument,
-            draftDocument.graph.nodes,
-            toBuilderEdges(draftDocument.graph.edges),
-            draftDocument.card,
-        );
-
-        try {
-            setSaveState("saving");
-            setErrorText(null);
-
-            const newRevision = await saveModerationAbilityDraft({
-                abilityId: selectedRow.id,
-                expectedRevision: selectedRow.revision,
-                title: latestDocument.title,
-                abilityKind: latestDocument.abilityKind,
-                abilityDocument: latestDocument,
-            });
-
-            setDraftDocument(latestDocument);
-            refreshDocumentText(latestDocument);
-
-            setRows((currentRows) =>
-                currentRows.map((row) =>
-                    row.id === selectedRow.id
-                        ? {
-                            ...row,
-                            revision: newRevision,
-                            title: latestDocument.title,
-                            abilityKind: latestDocument.abilityKind,
-                            abilityDocument: latestDocument,
-                            updatedAt: new Date().toISOString(),
-                        }
-                        : row,
-                ),
-            );
-
-            setHasUnsavedChanges(false);
-            setApprovalConfirmation(false);
-            approvalRequestRef.current = null;
-            setSaveState("saved");
-        } catch (error) {
-            setSaveState("error");
-            setErrorText(error instanceof Error ? error.message : "Failed to save draft.");
-        }
+        setEditorState(EMPTY_EDITOR_STATE);
+        setSelectedAbilityId(id);
     }
 
-    async function handleApprove() {
-        if (!selectedRow || !draftDocument || approvalBlocked || !approvalConfirmation) return;
+    async function performQueueRefresh() {
+        setEditorState(EMPTY_EDITOR_STATE);
 
-        // Retain the request ID across retries of the same revision, but never reuse it for another version.
-        const previous = approvalRequestRef.current;
+        await loadQueue();
 
-        const requestId = previous?.abilityId === selectedRow.id &&
-            previous.revision === selectedRow.revision
-                ? previous.requestId : crypto.randomUUID();
+        setReloadNonce((current) => current + 1);
+    }
 
-        approvalRequestRef.current = {
-            abilityId: selectedRow.id,
-            revision: selectedRow.revision,
-            requestId,
-        };
+    async function refreshQueue() {
+        if (editorState.busy) return;
 
-        try {
-            setSaveState("saving");
-            setErrorText(null);
-
-            await approveAbilityDraft({
-                abilityId: selectedRow.id,
-                expectedRevision: selectedRow.revision,
-                requestId,
-            });
-
-            setApprovalConfirmation(false);
-            approvalRequestRef.current = null;
-            setSaveState("saved");
-
-            // Published records leave the draft queue.
-            await loadRows(null);
-        } catch (error) {
-            setSaveState("error");
-            setErrorText(error instanceof Error ? error.message : "Failed to approve draft.");
+        if (editorState.dirty) {
+            setPendingNavigation({ kind: "refresh" });
+            return;
         }
+
+        void performQueueRefresh();
+    }
+
+    function cancelPendingNavigation() {
+        setPendingNavigation(null);
+    }
+
+    function confirmDiscardChanges() {
+        const action = pendingNavigation;
+        if (!action || editorState.busy) return;
+
+        setPendingNavigation(null);
+        setEditorState(EMPTY_EDITOR_STATE);
+
+        if (action.kind === "select") {
+            setSelectedAbilityId(action.abilityId);
+            return;
+        }
+
+        void performQueueRefresh();
+    }
+
+    function handleSaved(record: AbilityModerationSummary) {
+        setRows((current) =>
+            current.map((row) =>
+                row.id === record.id ? record : row,
+            ),
+        );
+
+        setEditorState(EMPTY_EDITOR_STATE);
+    }
+
+    function handlePublished(abilityId: string) {
+        const remaining =
+            rows.filter((row) => row.id !== abilityId);
+
+        setRows(remaining);
+
+        setSelectedAbilityId(
+            remaining[0]?.id ?? null,
+        );
+
+        setEditorState(EMPTY_EDITOR_STATE);
     }
 
     if (loadingAccess) {
-        return <main className={styles.state}>Loading moderation access...</main>;
+        return (
+            <main className={styles.state}>
+                Checking administrator access...
+            </main>
+        );
     }
 
     if (!isAdmin) {
         return (
             <main className={styles.state}>
-                This page is restricted to admin users.
+                {errorText ??
+                    "This page is restricted to administrators."}
             </main>
         );
     }
 
     return (
         <main className={styles.page}>
-            <section className={styles.listPanel}>
-                <header className={styles.panelHeader}>
-                    <div className={styles.eyebrow}>Ability Moderation</div>
-                    <h2>Draft Queue</h2>
-                </header>
-
-                {loadingRows ? <div className={styles.state}>Loading drafts...</div> : null}
-                {errorText ? <div className={styles.error}>Error: {errorText}</div> : null}
-
-                {!loadingRows && rows.length === 0 ? (
-                    <div className={styles.state}>No draft abilities pending review.</div>
-                ) : (
-                    <div className={styles.list}>
-                        {rows.map((row) => (
-                            <button
-                                key={row.id}
-                                type="button"
-                                className={`${styles.listRow} ${selectedAbilityId === row.id ? styles.listRowActive : ""}`}
-                                onClick={() => setSelectedAbilityId(row.id)}
-                            >
-                                <strong>{row.title}</strong>
-                                <span>{row.abilityKind}</span>
-                                <small>{`Owner ${row.ownerId.slice(0, 8)} · Updated ${new Date(row.updatedAt).toLocaleString()}`}</small>
-                            </button>
-                        ))}
+            <section
+                className={styles.queue}
+                aria-label="Ability moderation queue"
+            >
+                <div className={styles.queueHeading}>
+                    <div className={styles.eyebrow}>
+                        Ability Moderation
                     </div>
-                )}
+                    <h2>Review submissions</h2>
+                </div>
+
+                <label className={styles.queueSelector}>
+                    <span>Submitted draft</span>
+
+                    <select
+                        value={selectedAbilityId ?? ""}
+                        disabled={
+                            loadingRows ||
+                            editorState.busy ||
+                            rows.length === 0
+                        }
+                        onChange={(event) =>
+                            selectDraft(event.target.value)
+                        }
+                    >
+                        {rows.length === 0 ? (
+                            <option value="">
+                                No drafts awaiting review
+                            </option>
+                        ) : (
+                            rows.map((row) => (
+                                <option
+                                    key={row.id}
+                                    value={row.id}
+                                >
+                                    {row.title} — revision {row.revision}
+                                </option>
+                            ))
+                        )}
+                    </select>
+                </label>
+
+                <div className={styles.queueActions}>
+                    <span className={styles.count}>
+                        {rows.length} draft
+                        {rows.length === 1 ? "" : "s"}
+                    </span>
+
+                    <button
+                        type="button"
+                        disabled={
+                            loadingRows || editorState.busy
+                        }
+                        onClick={() => void refreshQueue()}
+                    >
+                        {loadingRows ? "Refreshing..." : "Refresh"}
+                    </button>
+                </div>
             </section>
 
-            <section className={styles.reviewPanel}>
-                <header className={styles.reviewHeader}>
-                    <div>
-                        <div className={styles.eyebrow}>Admin Review</div>
-                        <h2>{draftDocument?.title ?? selectedRow?.title ?? "Select a draft"}</h2>
-                        {draftDocument ? (
-                            <p>
-                                {`${draftDocument.abilityKind} · ${draftDocument.graph.nodes.length} inputs · ${draftDocument.card.faces.length} card face${draftDocument.card.faces.length === 1 ? "" : "s"}`}
-                            </p>
-                        ) : null}
-                    </div>
+            {errorText ? (
+                <div
+                    className={styles.error}
+                    role="alert"
+                >
+                    {errorText}
+                </div>
+            ) : null}
 
-                    {selectedRow && draftDocument ? (
-                        <div className={styles.actions}>
-                            <button
-                                type="button"
-                                className={styles.secondary}
-                                disabled={jsonDirty || !hasUnsavedChanges || saveState === "saving"}
-                                onClick={() => void handleSaveDraft()}
-                                title={jsonDirty ? "Apply or reset JSON edits before saving." : "Save moderation edits."}
-                            >
-                                Save Draft
-                            </button>
-                            <button
-                                data-testid={"ability-approval-action"}
-                                type="button"
-                                className={styles.primary}
-                                disabled={approvalBlocked}
-                                onClick={() => setApprovalConfirmation(true)}
-                                title={
-                                    approvalBlocked ? "Save pending edits and resolve validation issues before approval."
-                                        : "Review the final publication confirmation."
-                                }
-                            >
-                                Approval & Publish
-                            </button>
-                            {approvalConfirmation ? (
-                                <div role={"group"}
-                                     aria-label={"Confirm Ability publication"}
-                                     className={styles.actions}
-                                >
-                                    <span>
-                                        Publish this saved Ability revision?
-                                        Publication cannot be undone through the draft editor.
-                                    </span>
-
-                                    <button
-                                        type={"button"}
-                                        className={styles.secondary}
-                                        onClick={() => setApprovalConfirmation(false)}
-                                    >
-                                        Cancel
-                                    </button>
-
-                                    <button
-                                        type={"button"}
-                                        className={styles.primary}
-                                        disabled={approvalBlocked}
-                                        onClick={() => void handleApprove()}
-                                    >
-                                        Confirm Publication
-                                    </button>
-                                </div>
-                            ) : null}
-                            <span className={styles.saveState}>
-                                {saveState === "saving"
-                                    ? "Saving..."
-                                    : saveState === "saved"
-                                        ? "Saved"
-                                        : saveState === "error"
-                                            ? "Save error"
-                                            : ""}
-                            </span>
-                        </div>
-                    ) : null}
-                </header>
-
-                {!selectedRow ? (
-                    <div className={styles.state}>Choose a draft from the queue to review.</div>
-                ) : !draftDocument || !summary ? (
-                    <div className={styles.state}>This draft could not be prepared for moderation.</div>
-                ) : (
-                    <>
-                        <div className={styles.metricGrid}>
-                            <div className={styles.metric}>
-                                <span>Paid</span>
-                                <strong>{formatMarketCost(summary.paid)}</strong>
-                            </div>
-                            <div className={styles.metric}>
-                                <span>Total</span>
-                                <strong>{formatMarketCost(summary.total)}</strong>
-                            </div>
-                            <div className={styles.metric}>
-                                <span>Focus</span>
-                                <strong>{formatMarketCost(summary.focus)}</strong>
-                            </div>
-                            <div className={styles.metric}>
-                                <span>Flipside</span>
-                                <strong>{formatMarketCost(summary.flipside)}</strong>
-                            </div>
-                        </div>
-
-                        <div className={styles.tabRow}>
-                            {EDITOR_TABS.map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    type="button"
-                                    className={`${styles.tabButton} ${activeEditorTab === tab.id ? styles.tabButtonActive : ""}`}
-                                    onClick={() => setActiveEditorTab(tab.id)}
-                                >
-                                    {tab.label}
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className={styles.reviewBody}>
-                            {activeEditorTab === "inputs" ? (
-                                <div className={styles.inputEditor}>
-                                    <div className={styles.nodeList}>
-                                        {nodes.map((node) => (
-                                            <button
-                                                key={node.id}
-                                                type="button"
-                                                className={`${styles.nodeRow} ${selectedNodeId === node.id ? styles.nodeRowActive : ""}`}
-                                                onClick={() => setSelectedNodeId(node.id)}
-                                            >
-                                                <strong>{getNodeTitle(node)}</strong>
-                                                <span>{getNodeMeta(node)}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    <div className={styles.inspectorPanel}>
-                                        {!selectedNode ? (
-                                            <div className={styles.state}>Select an input to edit.</div>
-                                        ) : (
-                                            <>
-                                                <header className={styles.inspectorHeader}>
-                                                    <span>{getNodeMeta(selectedNode)}</span>
-                                                    <h3>{getNodeTitle(selectedNode)}</h3>
-                                                </header>
-
-                                                {selectedNode.type === "abilityRoot" ? (
-                                                    <AbilityRootInspector
-                                                        node={selectedNode}
-                                                        onChange={updateSelectedAbilityRoot}
-                                                    />
-                                                ) : null}
-
-                                                {selectedNode.type === "marketModifier" ? (
-                                                    <ModifierInspector
-                                                        node={selectedNode as ModifierNodeType}
-                                                        selectedModifierResolved={selectedModifierResolved}
-                                                        selectedModifierOptionPool={selectedModifierOptionPool}
-                                                        isSplitActionCard={activationProfile.isSplitActionCard}
-                                                        focusSide={activationProfile.focusSide}
-                                                        onChange={updateSelectedModifier}
-                                                        onOptionChange={updateModifierOption}
-                                                        onSelectionChange={updateModifierSelection}
-                                                    />
-                                                ) : null}
-
-                                                {selectedNode.type === "freeformText" ? (
-                                                    <FreeformInspector
-                                                        node={selectedNode}
-                                                        isSplitActionCard={activationProfile.isSplitActionCard}
-                                                        focusSide={activationProfile.focusSide}
-                                                        onChange={updateSelectedFreeform}
-                                                    />
-                                                ) : null}
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            ) : null}
-
-                            {activeEditorTab === "card" ? (
-                                <AbilityCardInspectorSidebar
-                                    nodes={nodes}
-                                    cardState={draftDocument.card}
-                                    onCardStateChange={updateCardState}
-                                />
-                            ) : null}
-
-                            {activeEditorTab === "inventory" ? (
-                                <AbilityCardModifierSidebar
-                                    nodes={nodes}
-                                    cardState={draftDocument.card}
-                                    onCardStateChange={updateCardState}
-                                />
-                            ) : null}
-
-                            {activeEditorTab === "json" ? (
-                                <div className={styles.jsonPanel}>
-                                    <div className={styles.jsonToolbar}>
-                                        <div>
-                                            <div className={styles.eyebrow}>Advanced</div>
-                                            <h3>Ability JSON</h3>
-                                        </div>
-                                        <div className={styles.jsonActions}>
-                                            <button
-                                                type="button"
-                                                className={styles.secondary}
-                                                disabled={!jsonDirty}
-                                                onClick={resetAdvancedJson}
-                                            >
-                                                Reset JSON
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className={styles.secondary}
-                                                disabled={!jsonDirty || Boolean(jsonParseError)}
-                                                onClick={applyAdvancedJson}
-                                            >
-                                                Apply JSON
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <textarea
-                                        className={styles.jsonTextarea}
-                                        value={documentText}
-                                        spellCheck={false}
-                                        onChange={(event) => {
-                                            setDocumentText(event.target.value);
-                                            setJsonDirty(true);
-                                            setSaveState("idle");
-                                        }}
-                                    />
-
-                                    {jsonDirty ? (
-                                        <div className={jsonParseError ? styles.error : styles.pending}>
-                                            {jsonParseError
-                                                ? `JSON error: ${jsonParseError}`
-                                                : "JSON edits are pending. Apply them before saving or publishing."}
-                                        </div>
-                                    ) : null}
-                                </div>
-                            ) : null}
-                        </div>
-
-                        <div className={styles.checksPanel}>
-                            <div className={styles.checkColumn}>
-                                <div className={styles.eyebrow}>Rule Checks</div>
-                                {summary.warnings.length > 0 ? (
-                                    summary.warnings.map((warning) => (
-                                        <div key={warning} className={styles.warning}>
-                                            {warning}
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className={styles.okay}>No rule warnings.</div>
-                                )}
-                                {summary.notes.map((note) => (
-                                    <div key={note} className={styles.note}>
-                                        {note}
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className={styles.checkColumn}>
-                                <div className={styles.eyebrow}>Card Checks</div>
-                                {cardIssues.length > 0 ? (
-                                    cardIssues.map((issue) => (
-                                        <div
-                                            key={`${issue.id}:${issue.modifierNodeId ?? ""}`}
-                                            className={issue.severity === "blocking" ? styles.warning : styles.note}
-                                        >
-                                            {issue.message}
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className={styles.okay}>All card modifiers are accounted for.</div>
-                                )}
-                            </div>
-                        </div>
-                    </>
-                )}
-            </section>
-
-            <section className={styles.previewPanel}>
-                <header className={styles.panelHeader}>
-                    <div className={styles.eyebrow}>Card Display</div>
-                    <h2>Finished Product</h2>
-                </header>
-
-                {draftDocument && summary ? (
-                    <AbilityCardCanvas
-                        key={selectedRow?.id}
-                        nodes={nodes}
-                        cardState={draftDocument.card}
-                        title={draftDocument.card.titleOverride || summary.root?.data.title || draftDocument.title}
-                        subtitle={draftDocument.card.subtitleOverride || summary.root?.data.summary || ""}
-                        onCardStateChange={updateCardState}
-                        initialPreviewMode="preview"
+            {selectedRow ? (
+                <div className={styles.editor}>
+                    <AbilityBuilderShell
+                        key={`${selectedRow.id}:${reloadNonce}`}
+                        moderation={{
+                            record: selectedRow,
+                            onSaved: handleSaved,
+                            onPublished: handlePublished,
+                            onStateChange: setEditorState,
+                        }}
                     />
-                ) : (
-                    <div className={styles.state}>Select a draft to preview its card.</div>
-                )}
-            </section>
+                </div>
+            ) : (
+                <section className={styles.state}>
+                    {loadingRows
+                        ? "Loading submitted Abilities..."
+                        : "There are no draft Abilities to review."}
+                </section>
+            )}
+
+            <dialog
+                ref={discardDialogRef}
+                className={styles.discardDialog}
+                aria-labelledby={"discard-edits-title"}
+                aria-describedby={"discard-edits-description"}
+                onCancel={(event) => {
+                    event.preventDefault();
+                    cancelPendingNavigation();
+                }}
+            >
+                <div className={styles.discardDialogContent}>
+                    <div className={styles.eyebrow}>
+                        Unsaved Changes
+                    </div>
+
+                    <h2 id={"discard-edits-title"}>
+                        Discard moderation edits?
+                    </h2>
+
+                    <p id={"discard-edits-description"}>
+                        Your changes to this Ability have not been saved. Leaving this draft will discard them.
+                    </p>
+
+                    <div className={styles.discardDialogActions}>
+                        <button
+                            type={"button"}
+                            className={styles.keepEditingButton}
+                            onClick={cancelPendingNavigation}
+                            autoFocus
+                        >
+                            Continue Editing
+                        </button>
+
+                        <button
+                            type={"button"}
+                            className={styles.discardButton}
+                            onClick={confirmDiscardChanges}
+                        >
+                            Discard Changes
+                        </button>
+                    </div>
+                </div>
+            </dialog>
         </main>
     );
 }

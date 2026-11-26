@@ -1,15 +1,17 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import ts from "typescript";
 
 const file = (relative) => readFile(new URL(`../../${relative}`, import.meta.url), "utf8");
 
-const [handler, config, sql, library, moderation] = await Promise.all([
+const [handler, config, sql, library, moderation, builder] = await Promise.all([
     file("supabase/functions/approve-ability/index.ts"),
     file("supabase/config.toml"),
     file("supabase/migrations/20261123024700_atomic_ability_approval.sql"),
     file("src/infrastructure/library/abilities.ts"),
     file("src/components/abilities/AbilityModerationPageEntry.tsx"),
+    file("src/components/abilities/AbilityBuilderShell.tsx")
 ]);
 
 function between(source, start, end) {
@@ -19,6 +21,41 @@ function between(source, start, end) {
     assert.ok(first >= 0 && last > first, `Missing source markers ${start} / ${end}`);
 
     return source.slice(first, last);
+}
+
+function functionBody(source, functionName) {
+    const tree = ts.createSourceFile(
+        "AbilityBuilderShell.tsx",
+        source,
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.TSX,
+    );
+
+    let target = null;
+
+    function visit(node) {
+        if (
+            ts.isFunctionDeclaration(node) &&
+            node.name?.text === functionName
+        ) {
+            target = node;
+        }
+
+        ts.forEachChild(node, visit);
+    }
+
+    visit(tree);
+
+    assert.ok(
+        target?.body,
+        `Missing function implementation: ${functionName}`,
+    );
+
+    return source.slice(
+        target.body.getStart(tree) + 1,
+        target.body.end - 1,
+    );
 }
 
 test("Approval retains JWT verification", () => {
@@ -67,12 +104,68 @@ test("Browser approval invokes only the Edge gateway", () => {
 });
 
 test("Moderation never saves during approval", () => {
-    const approve = between(moderation,
-        "async function handleApprove() {",
-        "if (loadingAccess)");
+    const approve = functionBody(
+        builder,
+        "handleApproveReview",
+    );
 
-    assert.doesNotMatch(approve, /saveModerationAbilityDraft\(/);
-    assert.match(approve, /expectedRevision:\s*selectedRow\.revision/);
+    assert.match(
+        approve,
+        /!reviewCanApprove/,
+        "Approval must check the current authorization state.",
+    );
+
+    assert.match(
+        approve,
+        /!reviewConfirmation/,
+        "Approval must require explicit confirmation.",
+    );
+
+    assert.match(
+        approve,
+        /await\s+approveAbilityDraft\s*\(/,
+        "Approval must use the restricted Edge gateway.",
+    );
+
+    assert.match(
+        approve,
+        /expectedRevision:\s*reviewRevision/,
+        "Approval must target the saved database revision.",
+    );
+
+    assert.match(
+        approve,
+        /requestId/,
+        "Approval must preserve its idempotency request ID.",
+    );
+
+    assert.doesNotMatch(
+        approve,
+        /saveModerationAbilityDraft\s*\(/,
+        "Approval must never silently save pending edits.",
+    );
+});
+
+test("Moderation reuses the existing Ability Builder", () => {
+    assert.match(
+        moderation,
+        /<AbilityBuilderShell/,
+    );
+
+    assert.doesNotMatch(
+        moderation,
+        /<AbilityCardCanvas/,
+    );
+
+    assert.doesNotMatch(
+        moderation,
+        /<AbilityRootInspector/,
+    );
+
+    assert.doesNotMatch(
+        moderation,
+        /<ModifierInspector/,
+    );
 });
 
 test("Privileged RPC execution is restricted", () => {

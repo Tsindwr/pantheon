@@ -862,6 +862,7 @@ function AbilityBuilderInner({
         setReviewBusy(false);
         setReviewError(null);
         setReviewStatus(null);
+        setServerReviewIssues(null);
         setReviewHasUserEdit(false);
         reviewRequestRef.current = null;
 
@@ -1228,6 +1229,7 @@ function AbilityBuilderInner({
             setReviewRevision(newRevision);
             setReviewSavedSignature(signatureAtSave);
             setReviewConfirmation(false);
+            setServerReviewIssues(null);
             reviewRequestRef.current = null;
 
             setReviewStatus(`Draft saved as revision ${newRevision}.`);
@@ -1242,6 +1244,53 @@ function AbilityBuilderInner({
             });
         } catch (error) {
             setReviewError(error instanceof Error ? error.message : "Failed to save the draft.");
+        } finally {
+            setReviewBusy(false);
+        }
+    }
+
+    async function handleRequestReviewApproval() {
+        if (!moderation || !reviewReady || !reviewCanApprove) return;
+
+        const savedDocument = moderation.record.abilityDocument;
+
+        try {
+            setReviewBusy(true);
+            setReviewError(null);
+            setReviewStatus(null);
+            setReviewConfirmation(false);
+
+            // Load the canonical validation only when an administrator requests publication.
+            const { assessStandardAbility } = await import("@sunderttrpg/abilities");
+
+            const assessment = await assessStandardAbility(savedDocument);
+
+            if (!assessment.eligible || !assessment.contentDigest) {
+                const actionableIssues = assessment.issues.filter((issue) =>
+                    issue.severity === "blocking" || issue.severity === "warning"
+                );
+
+                setServerReviewIssues({
+                    abilityId: moderation.record.id,
+                    savedNodes: savedDocument.graph.nodes,
+                    issues: assessment.issues,
+                });
+
+                setReviewError(actionableIssues.length > 0 ? (
+                    `Publication eligibility review found ${actionableIssues.length} issue(s). ` +
+                    `Inspect the graph badges and validation checks.`
+                ) : (
+                    "This saved Ability is not eligible for publication."
+                ));
+
+                card.setBuilderView("tree");
+                return;
+            }
+
+            setServerReviewIssues(null);
+            setReviewConfirmation(true);
+        } catch (error) {
+            setReviewError(error instanceof Error ? error.message : "Publication eligibility review failed.");
         } finally {
             setReviewBusy(false);
         }
@@ -1272,6 +1321,7 @@ function AbilityBuilderInner({
             });
 
             setReviewConfirmation(false);
+            setServerReviewIssues(null);
             moderation.onPublished(moderation.record.id);
         } catch (error) {
             if (error instanceof AbilityPublicationValidationError) {
@@ -1290,7 +1340,6 @@ function AbilityBuilderInner({
             setReviewError(error instanceof Error ? error.message : "Approval could not be completed.");
         } finally {
             setReviewBusy(false);
-            setServerReviewIssues(null);
         }
     }
 
@@ -1310,7 +1359,7 @@ function AbilityBuilderInner({
             },
 
             onRequestApproval: () => {
-                if (reviewCanApprove) setReviewConfirmation(true);
+                void handleRequestReviewApproval();
             },
 
             onCancelApproval: () => {
