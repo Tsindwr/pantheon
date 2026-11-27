@@ -35,6 +35,8 @@ import ModifierNode from "../../presentation/abilities/nodes/ModifierNode";
 import AbilityReferencePickerFacade from "../../presentation/abilities/prerequisite/AbilityReferencePickerFacade";
 import {
     AbilityBuilderProvider,
+    PricingAttestationInput,
+    PricingAttestationControls,
     type AbilityBuilderValidationIssue,
     type AbilityBuilderValidationSeverity,
     type AbilityBuilderValidationSummary,
@@ -47,13 +49,19 @@ import BuilderWorkspace from "./BuilderWorkspace";
 import {
     approveAbilityDraft,
     saveModerationAbilityDraft,
+    attestAbilityPricing,
+    listAbilityPricingAttestations,
     type AbilityModerationSummary,
+    type AbilityPricingAttestationRecord,
 } from "../../infrastructure";
 import {
     inspectModerationPrices,
     reconcileModerationPrices,
+    listPricingExceptionSubjects,
 } from "@sunderttrpg/abilities";
-import type { AbilityValidationIssue } from "@sunderttrpg/abilities";
+import type {
+    AbilityValidationIssue
+} from "@sunderttrpg/abilities";
 import { AbilityPublicationValidationError } from "../../infrastructure";
 import {
     appendModerationValidationIssues,
@@ -588,6 +596,18 @@ function AbilityBuilderInner({
         issues: AbilityValidationIssue[];
     } | null>(null);
 
+    const [pricingAttestationRecords, setPricingAttestationRecords] = useState<AbilityPricingAttestationRecord[]>([]);
+    const [pricingAttestationError, setPricingAttestationError] = useState<string | null>(null);
+    const [pricingAttestationStatus, setPricingAttestationStatus] = useState<string | null>(null);
+
+    const pricingRequestRef = useRef<{
+        abilityId: string;
+        revision: number;
+        nodeId: string;
+        kind: PricingAttestationInput["kind"];
+        requestId: string;
+    } | null>(null);
+
     const reviewRequestRef = useRef<{ revision: number; requestId: string; } | null>(null);
 
     const [sidebarMode, setSidebarMode] = useState<"palette" | "inspector">("palette");
@@ -746,14 +766,6 @@ function AbilityBuilderInner({
     const reviewRequiredCount = moderationPriceFindings.filter((finding) => finding.kind !== "catalog-mismatch")
         .length;
 
-    const moderationValidationIssues = useMemo(() =>
-        moderation ? deriveModerationValidationIssues(
-            nodes,
-            serverReviewIssues?.abilityId === moderation.record.id ? serverReviewIssues : null,
-        ) : [],
-        [moderation, nodes, serverReviewIssues]
-    );
-
     const moderationPricing = useMemo(
         () =>
             moderation ? {
@@ -809,6 +821,52 @@ function AbilityBuilderInner({
         }
     }, [reviewDirty]);
 
+    const attestedPricingNodeIds = useMemo(() =>
+            new Set(reviewDirty ? [] :
+                pricingAttestationRecords.filter((record) => record.revision === reviewRevision)
+                    .map((record) => record.nodeId)),
+        [pricingAttestationRecords, reviewRevision, reviewDirty]);
+
+    const moderationValidationIssues = useMemo(() =>
+            moderation ? deriveModerationValidationIssues(
+                nodes,
+                serverReviewIssues?.abilityId === moderation.record.id ? serverReviewIssues : null,
+                attestedPricingNodeIds,
+            ) : [],
+        [moderation, nodes, serverReviewIssues]
+    );
+
+    useEffect(() => {
+        if (!moderation || !reviewReady) {
+            setPricingAttestationRecords([]);
+            return;
+        }
+
+        let cancelled = false;
+
+        setPricingAttestationRecords([]);
+        setPricingAttestationError(null);
+        setPricingAttestationStatus(null);
+
+        void listAbilityPricingAttestations(
+            moderation.record.id,
+            reviewRevision,
+        ).then((records) => {
+            if (!cancelled) {
+                setPricingAttestationRecords(records);
+            }
+        }).catch((error: unknown) => {
+            if (!cancelled) {
+                setPricingAttestationError(error instanceof Error ? error.message
+                    : "Unabled to load pricing attestations.");
+            }
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [moderation?.record.id, reviewRevision, reviewReady]);
+
     useEffect(() => {
         if (!moderation) return;
 
@@ -863,7 +921,10 @@ function AbilityBuilderInner({
         setReviewError(null);
         setReviewStatus(null);
         setServerReviewIssues(null);
+        setPricingAttestationError(null);
+        setPricingAttestationStatus(null)
         setReviewHasUserEdit(false);
+        pricingRequestRef.current = null;
         reviewRequestRef.current = null;
 
         requestAnimationFrame(() => {
@@ -1230,6 +1291,10 @@ function AbilityBuilderInner({
             setReviewSavedSignature(signatureAtSave);
             setReviewConfirmation(false);
             setServerReviewIssues(null);
+            setPricingAttestationRecords([]);
+            setPricingAttestationError(null);
+            setPricingAttestationStatus(null);
+            pricingRequestRef.current = null;
             reviewRequestRef.current = null;
 
             setReviewStatus(`Draft saved as revision ${newRevision}.`);
@@ -1338,6 +1403,75 @@ function AbilityBuilderInner({
             }
             // Retain the same request ID for a safe retry.
             setReviewError(error instanceof Error ? error.message : "Approval could not be completed.");
+        } finally {
+            setReviewBusy(false);
+        }
+    }
+
+    async function handleRecordPricingAttestation(
+        input: PricingAttestationInput,
+    ): Promise<void> {
+        if (!moderation || !reviewReady || reviewDirty || reviewBusy) {
+            setPricingAttestationError("Save the Ability before attesting its price.");
+            return;
+        }
+
+        const abilityId = moderation.record.id;
+
+        try {
+            setReviewBusy(true);
+            setPricingAttestationError(null);
+            setPricingAttestationStatus(null);
+
+            // Browser confirmation of the selected subject is for UX only. The Edge service checks again.
+            const subjects = listPricingExceptionSubjects(moderation.record.abilityDocument);
+
+            const subject = subjects.find((entry) => entry.nodeId === input.nodeId &&
+                entry.kind === input.kind);
+
+            if (!subject) {
+                throw new Error("The saved Ability no longer contains that pricing exception.");
+            }
+
+            const previous = pricingRequestRef.current;
+
+            const requestId = previous?.abilityId === abilityId &&
+                previous.revision === reviewRevision && previous.nodeId === input.nodeId &&
+                previous.kind === input.kind ? previous.requestId : crypto.randomUUID();
+
+            pricingRequestRef.current = {
+                abilityId,
+                revision: reviewRevision,
+                nodeId: input.nodeId,
+                kind: input.kind,
+                requestId,
+            };
+
+            const receipt = await attestAbilityPricing({
+                abilityId,
+                expectedRevision: reviewRevision,
+                requestId,
+                nodeId: input.nodeId,
+                kind: input.kind,
+                justification: input.justification,
+                evidence: input.evidence,
+            });
+
+            // A confirmed receipt is required before showing the administrator that recording succeeded.
+            if (receipt.revision !== reviewRevision || receipt.nodeId !== input.nodeId) {
+                throw new Error("Attestation receipt does not match the selected saved revision.");
+            }
+
+            const currentRecords = await listAbilityPricingAttestations(abilityId, reviewRevision);
+
+            setPricingAttestationRecords(currentRecords);
+
+            setPricingAttestationStatus(`Attestation recorded for saved revision ${reviewRevision}. ` +
+                `Publication authorization remains pending.`);
+
+            pricingRequestRef.current = null;
+        } catch (error) {
+            setPricingAttestationError(error instanceof Error ? error.message : "Unable to record pricing attestation.");
         } finally {
             setReviewBusy(false);
         }
@@ -1523,6 +1657,17 @@ function AbilityBuilderInner({
         },
     } : undefined;
 
+    const pricingAttestation: PricingAttestationControls | undefined =
+        moderation ? {
+            revision: reviewRevision,
+            ready: reviewReady && !reviewDirty && !reviewBusy,
+            busy: reviewBusy,
+            records: pricingAttestationRecords,
+            error: pricingAttestationError,
+            status: pricingAttestationStatus,
+            onAttest: handleRecordPricingAttestation,
+        } : undefined;
+
     const contextValue = useMemo<AbilityBuilderContextValue>(
         () => ({
             editorMode: moderation ? "moderation" : "creator",
@@ -1579,6 +1724,7 @@ function AbilityBuilderInner({
             onDrop: workspace.onDrop,
             moderationPricing,
             publicationDialog,
+            pricingAttestation,
         }),
         [
             moderation,
@@ -1635,6 +1781,7 @@ function AbilityBuilderInner({
             workspace.onDrop,
             moderationPricing,
             publicationDialog,
+            pricingAttestation,
         ],
     );
 

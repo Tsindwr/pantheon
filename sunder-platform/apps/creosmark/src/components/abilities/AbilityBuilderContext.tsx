@@ -19,6 +19,9 @@ import type {
     PaletteSection,
     PaletteTemplate,
 } from "../../domain";
+import type {
+    AbilityPricingAttestationRecord
+} from "../../infrastructure";
 
 export type BuilderView = "tree" | "card";
 export type SidebarMode = "palette" | "inspector";
@@ -117,6 +120,7 @@ export type AbilityBuilderContextValue = {
     onDragOver: (event: React.DragEvent) => void;
     onDrop: (event: React.DragEvent) => void;
     moderationPricing?: ModerationPricingControls;
+    pricingAttestation?: PricingAttestationControls;
     publicationDialog?: PublicationDialogControls;
 };
 
@@ -125,6 +129,24 @@ export type ModerationPricingControls = {
     reviewRequiredCount: number;
     reconcileNode: (nodeId: string) => void;
     reconcileAll: () => void;
+};
+
+export type PricingAttestationInput = {
+    nodeId: string;
+    kind: "common_basis" | "modifier_override";
+    justification: string;
+    evidence: string | null;
+};
+
+export type PricingAttestationControls = {
+    revision: number;
+    ready: boolean;
+    busy: boolean;
+    records: AbilityPricingAttestationRecord[];
+    error: string | null;
+    status: string | null;
+
+    onAttest: (input: PricingAttestationInput) => Promise<void>;
 };
 
 export type PublicationDialogControls = {

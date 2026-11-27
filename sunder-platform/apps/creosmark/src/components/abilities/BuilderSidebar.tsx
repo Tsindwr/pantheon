@@ -6,6 +6,7 @@ import FreeformInspector from "../../presentation/abilities/inspectors/FreeformI
 import ModifierInspector from "../../presentation/abilities/inspectors/ModifierInspector";
 import { deriveActivationProfile } from "../../domain";
 import { useAbilityBuilderContext } from "./AbilityBuilderContext";
+import PricingAttestationPanel from "./PricingAttestationPanel";
 
 export default function BuilderSidebar() {
     const {
@@ -235,6 +236,18 @@ export default function BuilderSidebar() {
                                                 }
                                                 onSelectionChange={updateModifierSelection}
                                             />
+                                        ) : null}
+
+                                        {editorMode === "moderation" &&
+                                            selectedNode?.type === "abilityRoot" &&
+                                            selectedNode.data.pricingBasis !== undefined ? (
+                                            <PricingAttestationPanel node={selectedNode} key={selectedNode.id} />
+                                        ) : null}
+
+                                        {editorMode === "moderation" &&
+                                            selectedNode?.type === "marketModifier" &&
+                                            selectedNode.data.costOverride !== undefined ? (
+                                                <PricingAttestationPanel node={selectedNode} key={selectedNode.id} />
                                         ) : null}
 
                                         {selectedNode?.type === "marketModifier" &&

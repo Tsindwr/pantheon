@@ -10,7 +10,10 @@ import {
 } from "../../lib/supabase/db.ts";
 import { ARCHETYPES, type ArchetypeId } from "../../lib/sheet-data.ts";
 import type { CharacterSheetSummary } from "../../types/library.ts";
-import type { AbilityValidationIssue } from "@sunderttrpg/abilities";
+import type {
+    AbilityValidationIssue,
+    PricingExceptionKind
+} from "@sunderttrpg/abilities";
 
 export type AbilityRow = {
     id: string;
@@ -985,6 +988,108 @@ export async function saveModerationAbilityDraft(params: {
     }
 
     return Number(data.revision);
+}
+
+export type AbilityPricingAttestationRecord = {
+    id: string;
+    nodeId: string;
+    kind: PricingExceptionKind;
+    revision: number;
+    contentDigest: string;
+    attestedAt: string | null;
+};
+
+export type AbilityPricingAttestationRequest = {
+    abilityId: string;
+    expectedRevision: number;
+    requestId: string;
+    nodeId: string;
+    kind: PricingExceptionKind;
+    justification: string;
+    evidence: string | null;
+};
+
+export async function listAbilityPricingAttestations(
+    abilityId: string,
+    revision: number,
+): Promise<AbilityPricingAttestationRecord[]> {
+    const { data, error } = await supabase
+        .from("ability_pricing_exception_attestations")
+        .select(
+            "id, node_id, exception_kind, draft_revision, content_digest, attested_at",
+        )
+        .eq("ability_id", abilityId)
+        .eq("draft_revision", revision)
+        .order("attested_at", {
+            ascending: false,
+        });
+
+    if (error) throw error;
+
+    return (data ?? []).map((record) => ({
+        id: record.id,
+        nodeId: record.node_id,
+        kind: record.exception_kind as PricingExceptionKind,
+        revision: Number(record.draft_revision),
+        contentDigest: record.content_digest,
+        attestedAt: record.attested_at,
+    }));
+}
+
+/**
+ * Only request fields are sent.
+ *
+ * The server determines actor identity, effective cost, source provenance and canonical document digest.
+ */
+export async function attestAbilityPricing(
+    input: AbilityPricingAttestationRequest,
+): Promise<AbilityPricingAttestationRecord> {
+    const { data, error } = await supabase.functions.invoke(
+        "attest-ability-pricing",
+        {
+            body: input,
+        },
+    );
+
+    if (error) {
+        let message = error.message;
+
+        if ("context" in error && error.context instanceof Response) {
+            try {
+                const payload: unknown = await error.context.json();
+
+                if (payload !== null && typeof payload === "object" && !Array.isArray(payload)) {
+                    const response = payload as Record<string, unknown>;
+
+                    if (typeof response.error === "string") {
+                        message = response.error;
+                    }
+                }
+            } catch {
+                // Retain error
+            }
+        }
+
+        throw new Error(message);
+    }
+
+    if (
+        !data || data.ok !== true || typeof data.id !== "string" ||
+        data.abilityId !== input.abilityId || data.revision !== input.expectedRevision ||
+        data.nodeId !== input.nodeId || data.kind !== input.kind ||
+        typeof data.contentDigest !== "string" || data.publicationAuthorized !== false
+    ) {
+        throw new Error("Attestation service returned an invalid receipt.");
+    }
+
+    return {
+        id: data.id,
+        nodeId: data.nodeId,
+        kind: data.kind,
+        revision: data.revision,
+        contentDigest: data.contentDigest,
+        attestedAt: null,
+    };
 }
 
 export type AbilityApprovalReceipt = {

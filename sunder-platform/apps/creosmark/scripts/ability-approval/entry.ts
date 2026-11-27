@@ -1,8 +1,12 @@
 /**
- * The approval runtime imports only portable rules and the persisted record assessment adapter.
+ * Portable rules exposed to trusted Ability services.
  *
- * No browser SDK, component or React Flow dependency.
+ * No React, Astro, React Flow, or browser Supabase SDK.
  */
 export {
     assessPersistedAbilityForPublication,
 } from "../../src/application/abilities/assess-publication.ts";
+
+export {
+    preparePricingExceptionAttestation,
+} from "@sunderttrpg/abilities";

@@ -36,3 +36,7 @@ build/
 # B01-04 compiled publication validator.
 # Regenerate before local serving or deployment.
 /supabase/functions/approve-ability/rules.mjs
+
+# B01-07B compiled attestation rules.
+# Regenerate before serving or deploying.
+/supabase/functions/approve-ability/rules.mjs

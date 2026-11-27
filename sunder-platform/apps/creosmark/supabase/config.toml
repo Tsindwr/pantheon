@@ -423,3 +423,6 @@ enabled = true
 
 [functions.approve-ability]
 verify_jwt = true
+
+[functions.attest-ability-pricing]
+verify_jwt = true

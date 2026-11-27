@@ -1,6 +1,6 @@
 import {
     createClient,
-} from "npm:@supabase/supabase-js@2.99.1";
+} from "@supabase/supabase-js";
 
 import {
     assessPersistedAbilityForPublication

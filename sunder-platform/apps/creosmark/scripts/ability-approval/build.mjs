@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir } from "node:fs/promises";
+import { copyFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
@@ -57,5 +57,21 @@ for (const input of inputs) {
         `Unexpected runtime dependency: ${input}`);
 }
 
+const attestationDirectory = path.join(appRoot, "supabase/functions/attest-ability-pricing");
+
+await mkdir(attestationDirectory, {
+    recursive: true,
+});
+
+await copyFile(path.join(outputDirectory, "rules.mjs"), path.join(attestationDirectory, "rules.mjs"));
+
+assert.ok(
+    inputs.some((value) =>
+        value.includes("packages/abilities/dist/pricing-exceptions.js")
+    ),
+    "Pricing attestation rules must be bundled.",
+);
+
+console.log("[B01-07B] Shared rules copied to pricing attestation service.");
 console.log(`[B01-04] Built approval rules from ${inputs.length} modules.`);
 console.log("[B01-04] No unresolved or browser framework imports.");

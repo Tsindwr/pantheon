@@ -17,6 +17,7 @@ export type ServerPublicationFindings = {
 export function deriveModerationValidationIssues(
     nodes: AbilityBuilderNode[],
     serverFindings?: ServerPublicationFindings | null,
+    attestedNodeIds: ReadonlySet<string> = new Set(),
 ): AbilityBuilderValidationIssue[] {
     const priceFindings = inspectModerationPrices(nodes);
 
@@ -31,8 +32,13 @@ export function deriveModerationValidationIssues(
                     actionLabel = "Use catalog price";
                     break;
                 case "override-review":
-                    message = "This modifier has a manual price override. Standard Library publication requires " +
-                        "explicit administrator authorization.";
+                    message = attestedNodeIds.has(finding.nodeId) ? (
+                        "Administrator pricing attestation recorded for this revision. " +
+                        "Publication authorization is still pending."
+                    ) : (
+                        "This modifier has a manual price override. Standard Library publication requires " +
+                        "explicit administrator authorization."
+                    );
                     actionLabel = "Review price exception";
                     break;
                 case "catalog-option-invalid":
@@ -67,8 +73,13 @@ export function deriveModerationValidationIssues(
             id: "moderation.common-pricing." + rootWithInheritedPricing.id,
             severity: "blocking",
             source: "publish",
-            message: "This Ability inherits a Common Ability price. " +
-                "Source verification and administrator pricing authorization are required before publication.",
+            message: attestedNodeIds.has(rootWithInheritedPricing.id) ? (
+                "Common Ability pricing attestation recorded. " +
+                "Publication still requires authoritative exception authorization."
+            ) : (
+                "This Ability inherits a Common Ability price. " +
+                "Source verification and administrator pricing authorization are required before publication."
+            ),
             actionLabel: "Inspect inherited price",
             targetView: "tree",
             targetSidebarMode: "inspector",
